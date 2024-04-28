@@ -30,17 +30,20 @@ def check_and_insert_data(csv_name, table_name):
     result = client.query(query)
     count_result = result.result_rows[0][0] if result.result_rows else 0
 
-    if count_result < 2:
-        logging.error(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
-        with open(csv_name, 'r') as file:
-            reader = csv.reader(file)
-            data = [row for row in reader]
-            if data:
-                result = client.insert(table=table_name, data=data, column_names=column_names)
-                f = {False:logging.error, True:logging.info}[result.written_rows == len(data)]
-                f(f"{result.written_rows} of {len(data)} rows from {csv_name} inserted.")
-    else:
+    if count_result >= 2:
         logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
+        return
+
+    logging.error(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
+    with open(csv_name, 'r') as file:
+        reader = csv.reader(file)
+        data = [row for row in reader]
+        if not data:
+            return
+        
+        result = client.insert(table=table_name, data=data, column_names=column_names)
+        f = {False:logging.error, True:logging.info}[result.written_rows == len(data)]
+        f(f"{result.written_rows} of {len(data)} rows from {csv_name} inserted.")
 
 def download_and_unpack(url, file_name, csv_name, table_name):
     csv_path = f"./data/{csv_name}"
@@ -51,19 +54,21 @@ def download_and_unpack(url, file_name, csv_name, table_name):
 
     logging.info(f"Downloading {file_name}...")
     response = requests.get(url)
-    if response.status_code == 200:
-        target_path = f"./data/{file_name}"
-        with open(target_path, "wb") as f:
-            f.write(response.content)
-
-        logging.debug(f"Unpacking {file_name}...")
-        with zipfile.ZipFile(target_path, 'r') as zip_ref:
-            zip_ref.extractall("./data/")
-
-        os.remove(target_path)
-        check_and_insert_data(csv_path, table_name)
-    else:
+    if response.status_code != 200:
         logging.error(f"Failed to download {file_name} or file does not exist for this date.")
+        return
+
+    target_path = f"./data/{file_name}"
+    with open(target_path, "wb") as f:
+        f.write(response.content)
+
+    logging.debug(f"Unpacking {file_name}...")
+    with zipfile.ZipFile(target_path, 'r') as zip_ref:
+        zip_ref.extractall("./data/")
+
+    os.remove(target_path)
+    check_and_insert_data(csv_path, table_name)
+        
 
 def download_files(symbol, start_date, end_date, num_workers, table_name):
     base_url = "https://data.binance.vision/data/spot/daily/trades/{symbol}USDT/{symbol}USDT-trades-{date}.zip"
