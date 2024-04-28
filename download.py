@@ -25,19 +25,13 @@ def check_and_insert_data(csv_name, table_name):
     client = get_client(settings={'insert_deduplicate': '1'})
 
     column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag', 'timestamp']
-
-    # Load data using pandas specifying no header in the file and names from the schema
     df = pd.read_csv(csv_name, header=None, names=column_names)
 
-    # Extract the first and last timestamp to check against the database
-    first_timestamp = df['time'].min()
-    last_timestamp = df['time'].max()
-
-    # Query to check the existence of timestamps in the table
+    # Query to check the existence of all timestamps in the table
+    first_timestamp, last_timestamp = df['time'].min(), df['time'].max()
     query = f"SELECT count(*) FROM {table_name} WHERE time BETWEEN '{first_timestamp}' AND '{last_timestamp}'"
     result = client.query(query)
     count_result = result.result_rows[0][0] if result.result_rows else 0
-
     if count_result >= 2:
         logging.info(f"Timestamps between {first_timestamp} and {last_timestamp} are present for {csv_name}. No update is needed.")
         return
@@ -45,7 +39,6 @@ def check_and_insert_data(csv_name, table_name):
     logging.info(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
 
     # Prepare data for insertion
-    df['unknown_flag'] = True  # Setting default value for the 'unknown_flag' column
     df['timestamp'] = pd.to_datetime(df['time'], unit='ms')
 
     # Inserting data from dataframe
@@ -57,7 +50,7 @@ def check_and_insert_data(csv_name, table_name):
 def download_and_unpack(url, file_name, csv_name, table_name):
     csv_path = f"./data/{csv_name}"
     if os.path.exists(csv_path):
-        logging.debug(f"{csv_name} already exists. Checking and updating ClickHouse if necessary.")
+        logging.debug(f"{csv_name} already exists. Checking and updating {table_name} if necessary.")
         check_and_insert_data(csv_path, table_name)
         return
 
@@ -117,7 +110,7 @@ def create_table_trades(table_name):
         time UInt64,
         is_buyer_maker Boolean,
         unknown_flag Boolean DEFAULT True,
-        timestamp DateTime
+        timestamp DateTime64(3) -- Millisecond precision
     )
     ENGINE = MergeTree
     PARTITION BY toDate(toDateTime(time / 1000))
