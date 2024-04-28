@@ -153,4 +153,4 @@ if __name__ == "__main__":
 
     table_name = f"trades_{args.symbol}"
     create_table_trades(table_name)
-    download_files(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
+    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
