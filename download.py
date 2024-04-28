@@ -37,7 +37,7 @@ def check_and_insert_data(csv_name, table_name):
             data = [row for row in reader]
             if data:
                 result = client.insert(table=table_name, data=data, column_names=column_names)
-                logging.info(f"{result.written_rows()} rows of {csv_name} inserted.")
+                logging.info(f"{result.written_rows()} of {len(data)} rows from {csv_name} inserted.")
     else:
         logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
-    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='ERROR', help='Set the logging level')
+    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
 
     args = parser.parse_args()
 
@@ -137,4 +137,4 @@ if __name__ == "__main__":
 
     table_name = f"{args.symbol}_trades"
     create_table(table_name)
-    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
+    download_files(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
