@@ -1,3 +1,11 @@
+# Run ClickHouse
+
+```
+docker run -d --name ml-clickhouse-server --ulimit nofile=262144:262144 clickhouse/clickhouse-server
+docker exec -it ml-clickhouse-server clickhouse-client
+```
+
+
 Limit the number of partitions in the ClickHouse 
 
 ```SQL
@@ -16,3 +24,5 @@ PARTITION BY toDate(EventTime)  -- Daily partitioning
 ORDER BY (toDate(EventTime), EventTime)
 SETTINGS index_granularity = 8192;
 ```
+
+
