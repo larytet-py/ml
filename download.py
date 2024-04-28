@@ -1,4 +1,5 @@
 import argparse
+import pandas as pd
 import requests
 import zipfile
 import os
@@ -12,17 +13,18 @@ import logging
 # Setup the logging configuration
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def get_first_and_last_timestamp_with_pandas(csv_name):
+    df = pd.read_csv(csv_name, usecols=[4])  # 'time' is in the 5th column (index 4)
+    if df.empty:
+        return None, None
+    first_timestamp = df.iloc[0, 0]
+    last_timestamp = df.iloc[-1, 0]
+    return first_timestamp, last_timestamp
+
 def check_and_insert_data(csv_name, table_name):
     client = get_client()
     column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag'] 
-
-    with open(csv_name, 'r') as file:
-        reader = csv.reader(file)
-        rows = list(reader)
-        if not rows:
-            logging.error("No data in CSV.")
-            return
-        first_timestamp, last_timestamp = rows[0][4], rows[-1][4]
+    first_timestamp, last_timestamp = get_first_and_last_timestamp_with_pandas(csv_name)
 
     query = f"SELECT count(*) FROM {table_name} WHERE time IN ({first_timestamp}, {last_timestamp})"
     result = client.query(query)
@@ -37,12 +39,12 @@ def check_and_insert_data(csv_name, table_name):
                 client.insert(table=table_name, data=data, column_names=column_names)
         logging.info(f"Data from {csv_name} inserted.")
     else:
-        logging.info(f"Both timestamps are present for {csv_name}. No insertion needed.")
+        logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
 
 def download_and_unpack(url, file_name, csv_name, table_name):
     csv_path = f"./data/{csv_name}"
     if os.path.exists(csv_path):
-        logging.info(f"{csv_name} already exists. Checking and updating ClickHouse if necessary.")
+        logging.debug(f"{csv_name} already exists. Checking and updating ClickHouse if necessary.")
         check_and_insert_data(csv_path, table_name)
         return
 
@@ -53,7 +55,7 @@ def download_and_unpack(url, file_name, csv_name, table_name):
         with open(target_path, "wb") as f:
             f.write(response.content)
 
-        logging.info(f"Unpacking {file_name}...")
+        logging.debug(f"Unpacking {file_name}...")
         with zipfile.ZipFile(target_path, 'r') as zip_ref:
             zip_ref.extractall("./data/")
 
