@@ -96,10 +96,10 @@ def download_files_process(symbol, start_date, end_date, num_workers, table_name
 
 
 
-def create_table_trades(table):
+def create_table_trades(table_name):
     check_table_exists_query = f"EXISTS TABLE {table_name}"
     create_table_query = f"""
-    CREATE TABLE {table}
+    CREATE TABLE {table_name}
     (
         id UInt64,
         price Decimal(18, 8),
@@ -125,34 +125,6 @@ def create_table_trades(table):
     client.query(create_table_query)
     logging.info(f"Table '{table_name}' created successfully.")
 
-def create_table_ohlc(table):
-    check_table_exists_query = f"EXISTS TABLE {table_name}"
-    create_table_query = f"""
-    CREATE TABLE second_bars
-    (
-        time_start DateTime,
-        time_end DateTime,
-        open Decimal(18, 8),
-        high Decimal(18, 8),
-        low Decimal(18, 8),
-        close Decimal(18, 8),
-        volume Decimal(12, 8)
-    )
-    ENGINE = MergeTree
-    ORDER BY (time_start)
-    SETTINGS index_granularity = 8192;    
-    """
-
-    client = get_client()
-    result = client.query(check_table_exists_query)
-    count_result = result.result_rows[0][0] if result.result_rows else 0
-    if count_result > 0:
-        logging.debug(f"Table '{table_name}' already exists.")
-        return
-    
-    client.query(create_table_query)
-
-    logging.info(f"Table '{table_name}' created successfully.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")
@@ -169,6 +141,6 @@ if __name__ == "__main__":
     if not os.path.exists("./data/"):
         os.makedirs("./data/")
 
-    table_name = f"{args.symbol}_trades"
+    table_name = f"trades_{args.symbol}"
     create_table_trades(table_name)
     download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
