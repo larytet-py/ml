@@ -34,7 +34,7 @@ def check_and_insert_data(csv_name, table_name):
         logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
         return
 
-    logging.error(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
+    logging.info(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
     with open(csv_name, 'r') as file:
         reader = csv.reader(file)
         data = [row for row in reader]
@@ -143,4 +143,4 @@ if __name__ == "__main__":
 
     table_name = f"{args.symbol}_trades"
     create_table(table_name)
-    download_files(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
+    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
