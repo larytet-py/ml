@@ -37,7 +37,8 @@ def check_and_insert_data(csv_name, table_name):
             data = [row for row in reader]
             if data:
                 result = client.insert(table=table_name, data=data, column_names=column_names)
-                logging.info(f"{result.written_rows()} of {len(data)} rows from {csv_name} inserted.")
+                f = {False:logging.error, True:logging.info}[result.written_rows == len(data)]
+                f(f"{result.written_rows} of {len(data)} rows from {csv_name} inserted.")
     else:
         logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
 
