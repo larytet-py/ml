@@ -121,9 +121,9 @@ def create_table(table):
     if count_result > 0:
         logging.debug(f"Table '{table_name}' already exists.")
         return
-    else:
-        client.query(create_table_query)
-        logging.info(f"Table '{table_name}' created successfully.")
+    
+    client.query(create_table_query)
+    logging.info(f"Table '{table_name}' created successfully.")
 
 
 if __name__ == "__main__":
