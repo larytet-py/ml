@@ -1,7 +1,13 @@
 # Run ClickHouse
 
 ```
-docker run -d --name ml-clickhouse-server --ulimit nofile=262144:262144 clickhouse/clickhouse-server
+docker run -d \
+  --name ml-clickhouse-server \
+  --ulimit nofile=262144:262144 \
+  -p 8123:8123 \
+  -p 9000:9000 \
+  clickhouse/clickhouse-server
+
 docker exec -it ml-clickhouse-server clickhouse-client
 ```
 
