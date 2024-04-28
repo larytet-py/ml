@@ -28,7 +28,7 @@ def check_and_insert_data(csv_path, table_name):
     count_result = result.result_rows[0][0] if result.result_rows else 0
 
     if count_result < 2:
-        logging.error(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name}. Inserting data.")
+        logging.error(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_path}. Inserting data.")
         with open(csv_path, 'r') as file:
             reader = csv.reader(file)
             data = [row for row in reader]

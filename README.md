@@ -6,6 +6,7 @@ docker run -d \
   --ulimit nofile=262144:262144 \
   -p 8123:8123 \
   -p 9000:9000 \
+  -v $PWD/clickhouse:/var/lib/clickhouse \
   clickhouse/clickhouse-server
 
 docker exec -it ml-clickhouse-server clickhouse-client
@@ -32,3 +33,9 @@ SETTINGS index_granularity = 8192;
 ```
 
 
+# Logs
+
+```
+docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server/clickhouse-server.err.log"
+docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server/clickhouse-server.log"
+```
