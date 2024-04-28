@@ -37,10 +37,18 @@ def check_and_insert_data(csv_name, table_name):
     logging.info(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
     with open(csv_name, 'r') as file:
         reader = csv.reader(file)
-        data = [row for row in reader]
+        next(reader)  # Skip header if present
+        data = []
+        for row in reader:
+            # Convert time from milliseconds to datetime and replace original time value
+            seconds, milliseconds = divmod(int(row[4]), 1000)
+            dt = datetime.utcfromtimestamp(seconds) + timedelta(milliseconds=milliseconds)
+            row[4] = dt  # Replace original time value
+            data.append(row)
+
         if not data:
             return
-        
+
         result = client.insert(table=table_name, data=data, column_names=column_names)
         f = {False:logging.error, True:logging.info}[result.written_rows == len(data)]
         f(f"{result.written_rows} of {len(data)} rows from {csv_name} inserted.")
@@ -105,7 +113,7 @@ def create_table_trades(table_name):
         price Decimal(18, 8),
         qty Decimal(12, 8),
         base_qty Decimal(12, 8),
-        time UInt64,
+        time DateTime,
         is_buyer_maker Boolean,
         unknown_flag Boolean DEFAULT True
     )
