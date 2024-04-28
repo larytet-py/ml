@@ -20,23 +20,10 @@ def check_and_insert_data(csv_path, table_name):
     query = f"SELECT count(*) FROM {table_name} WHERE time IN ({first_timestamp}, {last_timestamp})"
     result = client.query(query)
     if result[0][0] < 2:  # If one or both timestamps are missing
-        print("Missing timestamps detected. Inserting data.")
+        # Perform an async insert if timestamps are missing
         with open(csv_path, 'r') as file:
             client.insert_csv(table_name, file, settings={'async_insert': True})
-        
-        # Assuming a reasonable delay to wait for async insertion to complete
-        print("Waiting for async insertion to complete...")
-        time.sleep(10)  # Adjust time based on your observations of typical insert times
-        
-        # Verify insertion
-        verification_query = f"SELECT count(*) FROM {table_name} WHERE time IN ({first_timestamp}, {last_timestamp})"
-        verification_result = client.query(verification_query)
-        if verification_result[0][0] >= 2:
-            print("Data verification successful: Data inserted correctly.")
-        else:
-            print("Data verification failed: Data might not have been inserted correctly.")
-    else:
-        print("Timestamps already present. No insertion needed.")
+        print(f"Data from {csv_path} inserted asynchronously.")
 
 
 def download_and_unpack(url, file_name, csv_name, table_name):
