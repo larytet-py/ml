@@ -4,11 +4,31 @@ import os
 from datetime import datetime, timedelta
 import sys
 from concurrent.futures import ThreadPoolExecutor
+import csv
+from clickhouse_connect import get_client
 
-def download_and_unpack(url, file_name, csv_name):
-    # Check if the CSV file already exists to avoid re-downloading and unpacking
-    if os.path.exists(f"./data/{csv_name}"):
-        print(f"{csv_name} already exists. Skipping download and unpack.")
+def check_and_insert_data(csv_path, table_name):
+    client = get_client()
+    # Read first and last timestamp from the CSV
+    with open(csv_path, 'r') as file:
+        reader = csv.reader(file)
+        rows = list(reader)
+        first_timestamp, last_timestamp = rows[0][0], rows[-1][0]
+
+    # Check if these timestamps exist in ClickHouse
+    query = f"SELECT count(*) FROM {table_name} WHERE time IN ({first_timestamp}, {last_timestamp})"
+    result = client.query(query)
+    if result[0][0] < 2:  # If one or both timestamps are missing
+        # Perform an async insert if timestamps are missing
+        with open(csv_path, 'r') as file:
+            client.insert_csv(table_name, file, settings={'async_insert': True})
+        print(f"Data from {csv_path} inserted asynchronously.")
+
+def download_and_unpack(url, file_name, csv_name, table_name):
+    csv_path = f"./data/{csv_name}"
+    if os.path.exists(csv_path):
+        print(f"{csv_name} already exists. Checking and updating ClickHouse if necessary.")
+        check_and_insert_data(csv_path, table_name)
         return
 
     print(f"Downloading {file_name}...")
@@ -23,10 +43,11 @@ def download_and_unpack(url, file_name, csv_name):
             zip_ref.extractall("./data/")
 
         os.remove(target_path)
+        check_and_insert_data(csv_path, table_name)
     else:
         print(f"Failed to download {file_name} or file does not exist for this date.")
 
-def download_files(symbol, start_date, end_date, num_workers):
+def download_files(symbol, start_date, end_date, num_workers, table_name):
     base_url = "https://data.binance.vision/data/spot/daily/trades/{symbol}USDT/{symbol}USDT-trades-{date}.zip"
     dates = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
     
@@ -36,14 +57,15 @@ def download_files(symbol, start_date, end_date, num_workers):
             date_str = current_date.strftime("%Y-%m-%d")
             url = base_url.format(symbol=symbol, date=date_str)
             file_name = f"{symbol}USDT-trades-{date_str}.zip"
-            csv_name = f"{symbol}USDT-trades-{date_str}.csv"  # Assuming the CSV inside the zip has this name
-            futures.append(executor.submit(download_and_unpack, url, file_name, csv_name))
+            csv_name = f"{symbol}USDT-trades-{date_str}.csv"
+            futures.append(executor.submit(download_and_unpack, url, file_name, csv_name, table_name))
 
 if __name__ == "__main__":
-    symbol = "BTC" 
-    start_date = datetime.strptime("2024-01-01", "%Y-%m-%d")
-    end_date = datetime.now()  
-    num_workers = 5  
+    symbol = "BTC"
+    start_date = datetime.strptime("2021-01-01", "%Y-%m-%d")
+    end_date = datetime.now()
+    num_workers = 5
+    table_name = 'trades'
 
     args = sys.argv[1:]
     if len(args) >= 1:
@@ -57,4 +79,3 @@ if __name__ == "__main__":
     if not os.path.exists("./data/"):
         os.makedirs("./data/")
 
-    download_files(symbol, start_date, end_date, num_workers)
