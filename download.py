@@ -22,7 +22,7 @@ def get_first_and_last_timestamp_with_pandas(csv_name):
     return first_timestamp, last_timestamp
 
 def check_and_insert_data(csv_name, table_name):
-    client = get_client()
+    client = get_client(settings={'insert_deduplicate': '1'})
     column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag'] 
     first_timestamp, last_timestamp = get_first_and_last_timestamp_with_pandas(csv_name)
 
@@ -36,8 +36,8 @@ def check_and_insert_data(csv_name, table_name):
             reader = csv.reader(file)
             data = [row for row in reader]
             if data:
-                client.insert(table=table_name, data=data, column_names=column_names)
-        logging.info(f"Data from {csv_name} inserted.")
+                result = client.insert(table=table_name, data=data, column_names=column_names)
+                logging.info(f"{result.written_rows()} rows of {csv_name} inserted.")
     else:
         logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
 
@@ -88,13 +88,44 @@ def download_files_process(symbol, start_date, end_date, num_workers, table_name
             csv_name = f"{symbol}USDT-trades-{date_str}.csv"
             futures.append(executor.submit(download_and_unpack, url, file_name, csv_name, table_name))
 
+
+
+def create_table(table):
+    check_table_exists_query = f"EXISTS TABLE {table_name}"
+    create_table_query = f"""
+    CREATE TABLE {table}
+    (
+        id UInt64,
+        price Decimal(18, 8),
+        qty Decimal(12, 8),
+        base_qty Decimal(12, 8),
+        time UInt64,
+        is_buyer_maker Boolean,
+        unknown_flag Boolean DEFAULT True
+    )
+    ENGINE = MergeTree
+    PARTITION BY toDate(toDateTime(time / 1000))
+    ORDER BY (id)
+    SETTINGS index_granularity = 8192;
+    """
+
+    client = get_client()
+    result = client.query(check_table_exists_query)
+    count_result = result.result_rows[0][0] if result.result_rows else 0
+    if count_result > 0:
+        logging.debug(f"Table '{table_name}' already exists.")
+        return
+    else:
+        client.query(create_table_query)
+        logging.info(f"Table '{table_name}' created successfully.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
     parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
-    parser.add_argument('--table_name', type=str, default='trades', help='Name of the database table to insert data into')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='ERROR', help='Set the logging level')
 
     args = parser.parse_args()
@@ -104,4 +135,6 @@ if __name__ == "__main__":
     if not os.path.exists("./data/"):
         os.makedirs("./data/")
 
-    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=args.table_name)
+    table_name = f"{args.symbol}_trades"
+    create_table(table_name)
+    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
