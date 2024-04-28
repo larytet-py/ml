@@ -23,35 +23,36 @@ def get_first_and_last_timestamp_with_pandas(csv_name):
 
 def check_and_insert_data(csv_name, table_name):
     client = get_client(settings={'insert_deduplicate': '1'})
-    column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag'] 
-    first_timestamp, last_timestamp = get_first_and_last_timestamp_with_pandas(csv_name)
 
-    query = f"SELECT count(*) FROM {table_name} WHERE time IN ({first_timestamp}, {last_timestamp})"
+    column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag', 'timestamp']
+
+    # Load data using pandas specifying no header in the file and names from the schema
+    df = pd.read_csv(csv_name, header=None, names=column_names)
+
+    # Extract the first and last timestamp to check against the database
+    first_timestamp = df['time'].min()
+    last_timestamp = df['time'].max()
+
+    # Query to check the existence of timestamps in the table
+    query = f"SELECT count(*) FROM {table_name} WHERE time BETWEEN '{first_timestamp}' AND '{last_timestamp}'"
     result = client.query(query)
     count_result = result.result_rows[0][0] if result.result_rows else 0
 
     if count_result >= 2:
-        logging.info(f"Timestamps {first_timestamp}, {last_timestamp} are present for {csv_name}. No update is needed.")
+        logging.info(f"Timestamps between {first_timestamp} and {last_timestamp} are present for {csv_name}. No update is needed.")
         return
 
     logging.info(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
-    with open(csv_name, 'r') as file:
-        reader = csv.reader(file)
-        next(reader)  # Skip header if present
-        data = []
-        for row in reader:
-            # Convert time from milliseconds to datetime and replace original time value
-            seconds, milliseconds = divmod(int(row[4]), 1000)
-            dt = datetime.utcfromtimestamp(seconds) + timedelta(milliseconds=milliseconds)
-            row[4] = dt  # Replace original time value
-            data.append(row)
 
-        if not data:
-            return
+    # Prepare data for insertion
+    df['unknown_flag'] = True  # Setting default value for the 'unknown_flag' column
+    df['timestamp'] = pd.to_datetime(df['time'], unit='ms')
 
-        result = client.insert(table=table_name, data=data, column_names=column_names)
-        f = {False:logging.error, True:logging.info}[result.written_rows == len(data)]
-        f(f"{result.written_rows} of {len(data)} rows from {csv_name} inserted.")
+    # Inserting data from dataframe
+    result = client.insert_df(table=table_name, df=df)
+    f = {False: logging.error, True: logging.info}[result.written_rows == len(df)]
+    f(f"{result.written_rows} of {len(df)} rows from {csv_name} inserted.")
+
 
 def download_and_unpack(url, file_name, csv_name, table_name):
     csv_path = f"./data/{csv_name}"
@@ -113,9 +114,10 @@ def create_table_trades(table_name):
         price Decimal(18, 8),
         qty Decimal(12, 8),
         base_qty Decimal(12, 8),
-        time DateTime,
+        time UInt64,
         is_buyer_maker Boolean,
-        unknown_flag Boolean DEFAULT True
+        unknown_flag Boolean DEFAULT True,
+        timestamp DateTime
     )
     ENGINE = MergeTree
     PARTITION BY toDate(toDateTime(time / 1000))
@@ -151,4 +153,4 @@ if __name__ == "__main__":
 
     table_name = f"trades_{args.symbol}"
     create_table_trades(table_name)
-    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
+    download_files(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
