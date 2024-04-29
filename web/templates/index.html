@@ -19,19 +19,21 @@
     </div>
     <div id="container" style="height: 600px; min-width: 310px"></div>
     <script>
+        // This is a shorthand for jQuery's document ready function. 
+        // It waits for the DOM to be fully loaded and then executes the code inside the function.
         $(function() {
             $('#startTimePicker').daterangepicker({
-                singleDatePicker: true,
+                singleDatePicker: true, // Allows selecting only one date
                 timePicker: true,
                 timePicker24Hour: true,
-                timePickerIncrement: 15,
-                startDate: moment().subtract(1, 'days'), // Default start time: 1 day ago
+                timePickerIncrement: 15, // Specifies the time picker increment in minutes
+                startDate: moment().subtract(4, 'days'), // Default start time: 1 day ago
                 locale: {
-                    format: 'YYYY-MM-DD HH:mm:ss'
+                    format: 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'
                 }
             });
 
-            $('#durationHours').val(24); // Default duration to 24 hours
+            $('#durationHours').val(2); // Default duration to 2 hours
 
             loadData(); // Load data on page load with default values
         });
