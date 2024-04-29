@@ -109,7 +109,7 @@
                     const seriesData = data.map(item => {
                         if (type === 'line') {
                             return [new Date(item.time).getTime(), item.price];
-                        } else if (type === 'ohlc') {
+                        } else if (type === 'candlestick') {
                             return [new Date(item.time).getTime(), item.open, item.high, item.low, item.close];
                         }
                     // The .sort((a, b) => a[0] - b[0]) function is used to sort an array of arrays (or objects) based on their first elements.
@@ -145,7 +145,7 @@
                             }
                         },
                         series: [{
-                            type: type === 'ohlc' ? 'candlestick' : 'line',
+                            type: type,
                             name: title,
                             data: seriesData,
                             tooltip: {
@@ -153,7 +153,7 @@
                             },
                             color: 'red',  // Default color for down days
                             upColor: 'green', // Color for up days
-                            lineColor: 'gray', // Line color for down days
+                            lineColor: 'lightblue', // Line color for down days
                             upLineColor: 'gray' // Line color for up days                            
                         }]
                     });

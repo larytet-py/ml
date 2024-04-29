@@ -15,7 +15,7 @@
         "endpoints": [
             {
                 "url": "/ohlc_data",
-                "type": "ohlc"
+                "type": "candlestick"
             }
         ]
     }
