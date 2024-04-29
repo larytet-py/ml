@@ -34,11 +34,10 @@ def create_table_ohlc(table_name):
 
 def fetch_and_aggregate_data():
     client = get_client()
-    trades_query = "SELECT time, price, base_qty FROM trades_BTC"
+    trades_query = "SELECT timestamp, price, base_qty FROM trades_BTC"
     df = client.query_dataframe(trades_query)
     
-    df['time'] = pd.to_datetime(df['time'], unit='ms')  # Assuming 'time' is in milliseconds
-    df.set_index('time', inplace=True)
+    df.set_index('timestamp', inplace=True)
 
     # Resample to 1-second intervals
     ohlc = df['price'].resample('1S').ohlc()

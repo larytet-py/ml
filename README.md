@@ -41,3 +41,21 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 ```
 
 
+# SQL tips
+
+Verify that the ascending order of the column `time` 
+
+```SQL
+SELECT 
+    id,
+    time,
+    runningDifference(time) AS time_diff
+FROM (
+    SELECT 
+        id,
+        time
+    FROM trades_ETH
+    ORDER BY id, time
+)
+WHERE time_diff < 0;
+```
