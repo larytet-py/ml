@@ -10,6 +10,24 @@
 <body>
     <div id="container" style="height: 600px; min-width: 310px"></div>
     <script>
+        // Utility function to debounce calls to fetchData
+        function debounce(func, wait, immediate) {
+            let timeout;
+            return function() {
+                const context = this, args = arguments;
+                const later = function() {
+                    timeout = null;
+                    if (!immediate) func.apply(context, args);
+                };
+                const callNow = immediate && !timeout;
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+                if (callNow) func.apply(context, args);
+            };
+        }
+    
+        let lastLoadedRange = { start: null, end: null };
+    
         function fetchData(symbol, startDate, endDate, addData = false) {
             const url = `/price_data?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
             fetch(url)
@@ -18,12 +36,10 @@
                     const seriesData = data.map(item => {
                         return [new Date(item.time).getTime(), item.price];
                     }).sort((a, b) => a[0] - b[0]);
-
+    
+                    const chart = Highcharts.charts[0];  // Assumes this is the first/only chart
                     if (addData) {
-                        const chart = Highcharts.charts[0];  // Assumes this is the first/only chart
-                        seriesData.forEach(point => {
-                            chart.series[0].addPoint(point, false, false);
-                        });
+                        chart.series[0].setData(seriesData, true, true, false);
                         chart.redraw();
                     } else {
                         Highcharts.stockChart('container', {
@@ -43,11 +59,14 @@
                             xAxis: {
                                 type: 'datetime',
                                 events: {
-                                    afterSetExtremes: function (e) {
+                                    afterSetExtremes: debounce(function (e) {
                                         const minDate = new Date(e.min);
                                         const maxDate = new Date(e.max);
-                                        fetchData(symbol, minDate.toISOString(), maxDate.toISOString(), true);
-                                    }
+                                        if (minDate.getTime() !== lastLoadedRange.start || maxDate.getTime() !== lastLoadedRange.end) {
+                                            fetchData(symbol, minDate.toISOString(), maxDate.toISOString(), true);
+                                            lastLoadedRange = { start: minDate.getTime(), end: maxDate.getTime() };
+                                        }
+                                    }, 2)  // Adjust debounce time as needed
                                 }
                             },
                             yAxis: {
@@ -68,9 +87,9 @@
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
-
+    
         // Initial load
-        fetchData('BTC', '2024-01-01T00:00:00', '2024-01-01T04:00:00');
+        fetchData('BTC', '2024-01-01T00:00:00', '2024-01-01T01:00:00');
     </script>
-</body>
+        </body>
 </html>
