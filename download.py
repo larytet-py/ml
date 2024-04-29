@@ -129,14 +129,89 @@ def create_table_trades(table_name):
     logging.info(f"Table '{table_name}' created successfully.")
 
 
+def create_table_ohlc(table_name):
+    check_table_exists_query = f"EXISTS TABLE {table_name}"
+    create_table_query = f"""
+    CREATE TABLE {table_name}
+    (
+        time_start DateTime,
+        time_end DateTime,
+        open Decimal(18, 8),
+        high Decimal(18, 8),
+        low Decimal(18, 8),
+        close Decimal(18, 8),
+        volume Decimal(12, 8)
+    )
+    ENGINE = MergeTree
+    ORDER BY (time_start)
+    SETTINGS index_granularity = 8192;    
+    """
+
+    client = get_client()
+    result = client.query(check_table_exists_query)
+    count_result = result.result_rows[0][0] if result.result_rows else 0
+    if count_result > 0:
+        logging.debug(f"Table '{table_name}' already exists.")
+        return
+    
+    client.query(create_table_query)
+    logging.info(f"Table '{table_name}' created successfully.")
+
+def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
+    trades_query = f"""
+    SELECT timestamp, price, base_qty 
+    FROM {table_name}
+    ORDER BY timestamp
+    LIMIT {batch_size} OFFSET {offset}
+    """
+    df = client.query_df(trades_query)
+    
+    if df.empty:
+        return df  # Return empty DataFrame if no data is fetched
+
+    df.set_index('timestamp', inplace=True)
+
+    # Resample to 1-second intervals
+    ohlc = df['price'].resample('1S').ohlc()
+    volume = df['base_qty'].resample('1S').sum()
+
+    # Prepare DataFrame for insertion
+    ohlc['volume'] = volume
+    ohlc.reset_index(inplace=True)
+    ohlc.columns = ['time_start', 'open', 'high', 'low', 'close', 'volume']
+    ohlc['time_end'] = ohlc['time_start'] + timedelta(seconds=1)
+
+    # Handling missing data by filling with last known values
+    ohlc.fillna(method='ffill', inplace=True)
+    
+    return ohlc
+
+def insert_data(client, df, table_name):
+    client.insert_dataframe(table_name, df)
+    logging.info(f"Data inserted successfully into {table_name}")
+
+def fetch_trades_and_insert(from_table, to_table):
+    create_table_ohlc(to_table)
+    offset = 0
+    batch_size = 10_000
+    
+    client = get_client()
+    while True:
+        df = fetch_and_aggregate_data(client, from_table, offset, batch_size)
+        if df.empty:
+            break  
+        insert_data(client, df, to_table)
+        offset += batch_size  
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
     parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
+    parser.add_argument('--disable-download', action='store_true', help='Disable the download functionality.')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
-
+    
     args = parser.parse_args()
 
     logging.getLogger().setLevel(args.log_level.upper())
@@ -146,4 +221,7 @@ if __name__ == "__main__":
 
     table_name = f"trades_{args.symbol}"
     create_table_trades(table_name)
-    download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)
+    if not args.disable_download:
+        download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)  
+    ohlc_table_name = f"ohlc_S1_{args.symbol}"
+    fetch_trades_and_insert(table_name, ohlc_table_name)
