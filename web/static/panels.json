@@ -8,5 +8,15 @@
                 "type": "line"
             }
         ]
+    },
+    {
+        "symbol": "ETH",
+        "title": "Ethereum Price",
+        "endpoints": [
+            {
+                "url": "/price_data",
+                "type": "line"
+            }
+        ]
     }
 ]
