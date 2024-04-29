@@ -151,10 +151,10 @@
                             tooltip: {
                                 valueDecimals: 2
                             },
-                            color: 'red',  // Default color for down days
-                            upColor: 'green', // Color for up days
-                            lineColor: 'lightblue', // Line color for down days
-                            upLineColor: 'gray' // Line color for up days                            
+                            color: type === 'line' ? undefined : 'red', // Blue for line, red for candlestick
+                            upColor: type === 'candlestick' ? 'green' : undefined, // Green for up days in candlestick
+                            lineColor: type === 'candlestick' ? 'black' : undefined, // Black line color for candlestick wicks
+                            upLineColor: type === 'candlestick' ? 'black' : undefined // Black line color for candlestick up wicks
                         }]
                     });
                 })
