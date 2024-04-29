@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Financial Chart</title>
     <script src="https://code.highcharts.com/stock/highstock.js"></script>
     <script src="https://code.highcharts.com/stock/modules/data.js"></script>
     <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
@@ -9,39 +10,52 @@
 <body>
     <div id="container" style="height: 600px; min-width: 310px"></div>
     <script>
-        fetch('/data').then(function (response) {
-            return response.json();
-        }).then(function (data) {
-            Highcharts.stockChart('container', {
-                rangeSelector: {
-                    selected: 1
-                },
-                title: {
-                    text: 'Stock Price'
-                },
-                series: [{
-                    type: 'candlestick',
-                    name: 'AAPL Stock Price',
-                    data: data.ohlc,
-                    dataGrouping: {
-                        units: [
-                            ['week', [1]],
-                            ['month', [1, 2, 3, 4, 6]]
-                        ]
-                    }
-                }, {
-                    type: 'column',
-                    name: 'Volume',
-                    data: data.volume,
-                    yAxis: 1,
-                }, {
-                    type: 'line',
-                    name: 'Trades',
-                    data: data.trades,
-                    yAxis: 2,
-                }]
-            });
-        });
+        function fetchData(symbol, startDate, endDate) {
+            const url = `/price_data?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const seriesData = data.map(item => {
+                        return [new Date(item.time).getTime(), item.price];
+                    });
+
+                    Highcharts.stockChart('container', {
+                        rangeSelector: {
+                            selected: 1
+                        },
+                        title: {
+                            text: `${symbol} Stock Price`
+                        },
+                        xAxis: {
+                            type: 'datetime',
+                            dateTimeLabelFormats: { // don't display the dummy year
+                                month: '%e. %b',
+                                year: '%b'
+                            },
+                            title: {
+                                text: 'Date'
+                            }
+                        },
+                        yAxis: {
+                            title: {
+                                text: 'Price'
+                            }
+                        },
+                        series: [{
+                            type: 'line',
+                            name: symbol,
+                            data: seriesData,
+                            tooltip: {
+                                valueDecimals: 2
+                            }
+                        }]
+                    });
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        // Example usage
+        fetchData('BTC', '2024-01-01T00:00:00', '2024-01-01T04:00:00');
     </script>
 </body>
 </html>
