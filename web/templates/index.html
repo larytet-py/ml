@@ -17,7 +17,7 @@
         <input type="number" id="durationHours" placeholder="Duration (hours)" min="1" max="72" />
         <button onclick="loadData()">Load Data</button>
     </div>
-    <div id="container" style="height: 600px; min-width: 310px"></div>
+    <!-- Container divs will be dynamically created here -->
     <script>
         $(function() {
             $('#startTimePicker').daterangepicker({
@@ -41,7 +41,14 @@
                 .then(response => response.json())
                 .then(panels => {
                     panels.forEach(panel => {
-                        loadData(panel);
+                        var containerId = 'container_' + panel.symbol.replace(/[^a-zA-Z0-9]/g, '_'); // Create a safe ID
+                        var containerDiv = $('<div>').attr('id', containerId).css({
+                            height: '600px', 
+                            minWidth: '310px', 
+                            marginBottom: '20px'
+                        });
+                        $('body').append(containerDiv); // Append the new container to the body
+                        loadData(panel, containerId);
                     });
                 })
                 .catch(error => {
@@ -49,17 +56,17 @@
                 });
         }
         
-        function loadData(panel) {
+        function loadData(panel, containerId) {
             var startTime = $('#startTimePicker').val();
             var duration = parseInt($('#durationHours').val());
             var endTime = moment(startTime).add(duration, 'hours').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
         
             panel.endpoints.forEach(endpoint => {
-                fetchData(panel.symbol, startTime, endTime, endpoint.type, endpoint.url);
+                fetchData(panel.symbol, startTime, endTime, endpoint.type, endpoint.url, containerId);
             });
         }
         
-        function fetchData(symbol, startDate, endDate, type, url, addData = false) {
+        function fetchData(symbol, startDate, endDate, type, url, containerId, addData = false) {
             console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}`);
             fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`)
                 .then(response => response.json())
@@ -77,7 +84,7 @@
                         return;
                     }
         
-                    Highcharts.stockChart('container', {
+                    Highcharts.stockChart(containerId, {
                         rangeSelector: {
                             selected: 1
                         },
@@ -106,6 +113,6 @@
                     console.error('Error fetching data:', error);
                 });
         }
-        </script>
-        </body>
+    </script>
+</body>
 </html>

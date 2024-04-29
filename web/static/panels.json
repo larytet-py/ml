@@ -14,8 +14,8 @@
         "title": "Ethereum Price",
         "endpoints": [
             {
-                "url": "/price_data",
-                "type": "line"
+                "url": "/ohlc_data",
+                "type": "ohlc"
             }
         ]
     }
