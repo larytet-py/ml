@@ -159,10 +159,13 @@ def create_table_ohlc(table_name):
 
 def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
     trades_query = f"""
-    SELECT timestamp, price, base_qty 
+    SELECT
+        timestamp,
+        CAST(price AS Float64) AS price,
+        CAST(base_qty AS Float64) AS base_qty
     FROM {table_name}
     ORDER BY timestamp
-    LIMIT {batch_size} OFFSET {offset}
+    LIMIT {batch_size} OFFSET {offset}    
     """
     df = client.query_df(trades_query)
     
@@ -187,13 +190,13 @@ def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
     return ohlc
 
 def insert_data(client, df, table_name):
-    client.insert_dataframe(table_name, df)
+    client.insert_df(table_name, df)
     logging.info(f"Data inserted successfully into {table_name}")
 
 def fetch_trades_and_insert(from_table, to_table):
     create_table_ohlc(to_table)
     offset = 0
-    batch_size = 10_000
+    batch_size = 10_000_000
     
     client = get_client()
     while True:
