@@ -10,6 +10,8 @@
 <body>
     <div id="container" style="height: 600px; min-width: 310px"></div>
     <script>
+        document.getElementById('container').addEventListener('mousemove', () => isUserAction = true);
+        document.getElementById('container').addEventListener('touchmove', () => isUserAction = true);
         function debounce(func, wait, immediate) {
             let timeout;
             return function() {
@@ -47,6 +49,7 @@
                             chart: {
                                 events: {
                                     load: function () {
+                                        isUserAction = false;
                                         this.xAxis[0].setExtremes(new Date(startDate).getTime(), new Date(endDate).getTime(), true, false);
                                     }
                                 }
@@ -61,16 +64,22 @@
                                 type: 'datetime',
                                 events: {
                                     afterSetExtremes: debounce(function (e) {
-                                        const minDate = new Date(e.min);
-                                        const maxDate = new Date(e.max);
-                                        if (minDate.getTime() !== lastLoadedRange.start || maxDate.getTime() !== lastLoadedRange.end) {
-                                            console.log('New range detected, fetching data...');
-                                            fetchData(symbol, minDate.toISOString(), maxDate.toISOString(), true);
-                                            lastLoadedRange = { start: minDate.getTime(), end: maxDate.getTime() };
-                                        } else {
-                                            console.log('No new range detected, not fetching data');
+                                        if (!isUserAction) {
+                                            return
                                         }
-                                    }, 250)  // Delay to reduce frequency of API calls
+                                        const minDate = new Date(e.min).toISOString();
+                                        const maxDate = new Date(e.max).toISOString();
+                                        if (!lastLoadedRange.start || minDate < lastLoadedRange.start || maxDate > lastLoadedRange.end) {
+                                            console.log('Fetching new range data...');
+                                            fetchData(symbol, minDate, maxDate, true);
+                                            lastLoadedRange = { start: minDate, end: maxDate };
+                                            console.log(`Requested range: Start = ${minDate}, End = ${maxDate}`);
+                                            console.log(`Last loaded range: Start = ${lastLoadedRange.start}, End = ${lastLoadedRange.end}`);    
+                                        } else {
+                                            console.log('Range already loaded; no fetch necessary.');
+                                        }
+                                        isUserAction = false                                        
+                                    }, 100)  // Delay to reduce frequency of API calls
                                 }
                             },
                             yAxis: {
@@ -95,7 +104,7 @@
         }
     
         // Initial load
-        fetchData('BTC', '2024-01-01T00:00:00.000Z', '2024-01-01T01:00:00.000Z');
+        fetchData('BTC', '2024-02-01T00:00:00.000Z', '2024-02-01T01:00:00.000Z');
     </script>
             </body>
 </html>
