@@ -14,12 +14,12 @@ def get_price_data():
         toFloat64(price) AS price,  # Convert price to float for JSON compatibility
         formatDateTime(timestamp, '%Y-%m-%d %H:%M:%S') AS time  # Format timestamp to a more readable form
     FROM 
-        your_table_name
+        trades_BTC
     ORDER BY 
         timestamp
     """
     # Fetch the data as a DataFrame
-    result = client.query_dataframe(query)
+    result = client.query_df(query)
     
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
