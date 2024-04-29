@@ -62,11 +62,11 @@
             var endTime = moment(startTime).add(duration, 'hours').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
         
             panel.endpoints.forEach(endpoint => {
-                fetchData(panel.symbol, startTime, endTime, endpoint.type, endpoint.url, containerId);
+                fetchData(panel.symbol, startTime, endTime, endpoint.type, endpoint.url, containerId, panel.title);
             });
         }
         
-        function fetchData(symbol, startDate, endDate, type, url, containerId, addData = false) {
+        function fetchData(symbol, startDate, endDate, type, url, containerId, title, addData = false) {
             console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}`);
             fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`)
                 .then(response => response.json())
@@ -89,7 +89,7 @@
                             selected: 1
                         },
                         title: {
-                            text: `${symbol} Price Chart`
+                            text: title
                         },
                         xAxis: {
                             type: 'datetime'
