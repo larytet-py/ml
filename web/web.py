@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import clickhouse_connect
 from datetime import datetime
 import dateutil 
@@ -54,6 +54,10 @@ def get_price_data():
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
     return jsonify(data)
+
+@app.route('/panels.json')
+def panels_json():
+    return send_from_directory('static', 'panels.json')
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
