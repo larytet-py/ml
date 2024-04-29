@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/data.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/stock/modules/accessibility.js"></script>
+</head>
+<body>
+    <div id="container" style="height: 600px; min-width: 310px"></div>
+    <script>
+        fetch('/data').then(function (response) {
+            return response.json();
+        }).then(function (data) {
+            Highcharts.stockChart('container', {
+                rangeSelector: {
+                    selected: 1
+                },
+                title: {
+                    text: 'Stock Price'
+                },
+                series: [{
+                    type: 'candlestick',
+                    name: 'AAPL Stock Price',
+                    data: data.ohlc,
+                    dataGrouping: {
+                        units: [
+                            ['week', [1]],
+                            ['month', [1, 2, 3, 4, 6]]
+                        ]
+                    }
+                }, {
+                    type: 'column',
+                    name: 'Volume',
+                    data: data.volume,
+                    yAxis: 1,
+                }, {
+                    type: 'line',
+                    name: 'Trades',
+                    data: data.trades,
+                    yAxis: 2,
+                }]
+            });
+        });
+    </script>
+</body>
+</html>
