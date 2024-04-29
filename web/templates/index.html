@@ -2,33 +2,50 @@
 <html>
 <head>
     <title>Financial Chart</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     <script src="https://code.highcharts.com/stock/highstock.js"></script>
     <script src="https://code.highcharts.com/stock/modules/data.js"></script>
     <script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
     <script src="https://code.highcharts.com/stock/modules/accessibility.js"></script>
 </head>
 <body>
+    <div style="margin-bottom: 10px;">
+        <input type="text" id="startTimePicker" placeholder="Select Start Time" />
+        <input type="number" id="durationHours" placeholder="Duration (hours)" min="1" max="72" />
+        <button onclick="loadData()">Load Data</button>
+    </div>
     <div id="container" style="height: 600px; min-width: 310px"></div>
     <script>
-        document.getElementById('container').addEventListener('mousemove', () => isUserAction = true);
-        document.getElementById('container').addEventListener('touchmove', () => isUserAction = true);
-        function debounce(func, wait, immediate) {
-            let timeout;
-            return function() {
-                const context = this, args = arguments;
-                clearTimeout(timeout);
-                timeout = setTimeout(function() {
-                    timeout = null;
-                    if (!immediate) func.apply(context, args);
-                }, wait);
-                if (immediate && !timeout) func.apply(context, args);
-            };
+        $(function() {
+            $('#startTimePicker').daterangepicker({
+                singleDatePicker: true,
+                timePicker: true,
+                timePicker24Hour: true,
+                timePickerIncrement: 15,
+                startDate: moment().subtract(1, 'days'), // Default start time: 1 day ago
+                locale: {
+                    format: 'YYYY-MM-DD HH:mm:ss'
+                }
+            });
+
+            $('#durationHours').val(24); // Default duration to 24 hours
+
+            loadData(); // Load data on page load with default values
+        });
+
+        function loadData() {
+            var startTime = $('#startTimePicker').val();
+            var duration = parseInt($('#durationHours').val());
+            var endTime = moment(startTime).add(duration, 'hours').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+            fetchData('BTC', startTime, endTime);
         }
-    
-        let lastLoadedRange = { start: null, end: null };
-    
+
         function fetchData(symbol, startDate, endDate, addData = false) {
-            console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}, AddData: ${addData}`);
+            console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}`);
             const url = `/price_data?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
             fetch(url)
                 .then(response => response.json())
@@ -36,75 +53,41 @@
                     const seriesData = data.map(item => {
                         return [new Date(item.time).getTime(), item.price];
                     }).sort((a, b) => a[0] - b[0]);
-    
-                    const chart = Highcharts.charts[0];
 
-                    if (addData && seriesData.length > 0) {
-                        chart.series[0].setData(seriesData, true, true, false);
-                        chart.redraw();
-                     } else if (seriesData.length == 0) {
+                    if (seriesData.length == 0) {
                         console.log('Got no data. Ignore');
-                     } else if (!addData) {
-                        Highcharts.stockChart('container', {
-                            chart: {
-                                events: {
-                                    load: function () {
-                                        isUserAction = false;
-                                        this.xAxis[0].setExtremes(new Date(startDate).getTime(), new Date(endDate).getTime(), true, false);
-                                    }
-                                }
-                            },
-                            rangeSelector: {
-                                selected: 1
-                            },
-                            title: {
-                                text: `${symbol} Stock Price`
-                            },
-                            xAxis: {
-                                type: 'datetime',
-                                events: {
-                                    afterSetExtremes: debounce(function (e) {
-                                        if (!isUserAction) {
-                                            return
-                                        }
-                                        const minDate = new Date(e.min).toISOString();
-                                        const maxDate = new Date(e.max).toISOString();
-                                        if (!lastLoadedRange.start || minDate < lastLoadedRange.start || maxDate > lastLoadedRange.end) {
-                                            console.log('Fetching new range data...');
-                                            fetchData(symbol, minDate, maxDate, true);
-                                            lastLoadedRange = { start: minDate, end: maxDate };
-                                            console.log(`Requested range: Start = ${minDate}, End = ${maxDate}`);
-                                            console.log(`Last loaded range: Start = ${lastLoadedRange.start}, End = ${lastLoadedRange.end}`);    
-                                        } else {
-                                            console.log('Range already loaded; no fetch necessary.');
-                                        }
-                                        isUserAction = false                                        
-                                    }, 100)  // Delay to reduce frequency of API calls
-                                }
-                            },
-                            yAxis: {
-                                title: {
-                                    text: 'Price'
-                                }
-                            },
-                            series: [{
-                                type: 'line',
-                                name: symbol,
-                                data: seriesData,
-                                tooltip: {
-                                    valueDecimals: 2
-                                }
-                            }]
-                        });
+                        return;
                     }
+
+                    Highcharts.stockChart('container', {
+                        rangeSelector: {
+                            selected: 1
+                        },
+                        title: {
+                            text: `${symbol} Stock Price`
+                        },
+                        xAxis: {
+                            type: 'datetime'
+                        },
+                        yAxis: {
+                            title: {
+                                text: 'Price'
+                            }
+                        },
+                        series: [{
+                            type: 'line',
+                            name: symbol,
+                            data: seriesData,
+                            tooltip: {
+                                valueDecimals: 2
+                            }
+                        }]
+                    });
                 })
                 .catch(error => {
                     console.error('Error fetching data:', error);
                 });
         }
-    
-        // Initial load
-        fetchData('BTC', '2024-02-01T00:00:00.000Z', '2024-02-01T01:00:00.000Z');
     </script>
-            </body>
+</body>
 </html>
