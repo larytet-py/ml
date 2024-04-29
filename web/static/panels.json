@@ -1,7 +1,7 @@
 [
     {
-        "symbol": "BTC",
-        "title": "Bitcoin Price",
+        "symbol": "ETH",
+        "title": "Ethereum Price",
         "endpoints": [
             {
                 "url": "/price_data",
