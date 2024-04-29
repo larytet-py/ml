@@ -41,7 +41,7 @@
                 .then(response => response.json())
                 .then(panels => {
                     panels.forEach(panel => {
-                        var containerId = 'container_' + panel.symbol.replace(/[^a-zA-Z0-9]/g, '_'); // Create a safe ID
+                        var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_'); 
                         var containerDiv = $('<div>').attr('id', containerId).css({
                             height: '600px', 
                             minWidth: '310px', 

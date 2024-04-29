@@ -11,7 +11,7 @@
     },
     {
         "symbol": "BTC",
-        "title": "BTC OHLC",
+        "title": "Bitcoin OHLC",
         "endpoints": [
             {
                 "url": "/ohlc_data",
