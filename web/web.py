@@ -21,7 +21,7 @@ def get_price_data():
         return jsonify({'error': 'Invalid symbol'}), 400
 
     start_date = request.args.get('start', default='2024-01-01T00:00:00', type=str)
-    end_date = request.args.get('end', default='2024-01-01T04:00:00', type=str)
+    end_date = request.args.get('end', default='2024-01-04T00:00:00', type=str)
     table_name = SYMBOLS[symbol]
 
     # Parameterized query for dates
