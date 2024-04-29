@@ -1,30 +1,44 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import clickhouse_connect
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 
 # Connect to ClickHouse
 client = clickhouse_connect.get_client(host='localhost')
 
+# Define allowed symbols to prevent SQL injection via table names
+SYMBOLS = {'BTC': 'trades_BTC', 'ETH': 'trades_ETH'}
+
+@app.route('/')
+def index():
+    # Render your HTML file
+    return render_template('index.html')
+
 @app.route('/price_data')
 def get_price_data():
-    symbol = request.args.get('symbol', default='BTC', type=str)  # default to BTC if not specified
+    symbol = request.args.get('symbol', default='BTC', type=str)
+    if symbol not in SYMBOLS:
+        return jsonify({'error': 'Invalid symbol'}), 400
+
     start_date = request.args.get('start', default='2024-01-01T00:00:00', type=str)
     end_date = request.args.get('end', default='2024-01-01T04:00:00', type=str)
-    query = f"""
+    table_name = SYMBOLS[symbol]
+
+    # Parameterized query for dates
+    query = """
     SELECT 
         toFloat64(price) AS price,
-        formatDateTime(timestamp, '%Y-%m-%d %H:%M:%S') AS time
+        formatDateTime(timestamp, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
     FROM 
-        trades_{symbol}
+        {}
     WHERE 
-        timestamp BETWEEN '{{start_date}}' AND '{{end_date}}'
+        timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
         timestamp
-    """
+    """.format(table_name)
 
     # Fetch the data as a DataFrame
-    result = client.query_df(query, params={'start_date': start_date, 'end_date': end_date})
+    result = client.query_df(query, parameters={'start_date': start_date, 'end_date': end_date})
     
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
