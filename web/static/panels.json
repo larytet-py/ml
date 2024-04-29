@@ -10,8 +10,8 @@
         ]
     },
     {
-        "symbol": "ETH",
-        "title": "Ethereum Price",
+        "symbol": "BTC",
+        "title": "Bitcoin Price",
         "endpoints": [
             {
                 "url": "/ohlc_data",

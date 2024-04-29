@@ -57,7 +57,7 @@ def get_price_data():
     return jsonify(data)
 
 @app.route('/ohlc_data')
-def get_price_data():
+def get_ohlc_data():
     client = clickhouse_connect.get_client(host='localhost')
 
     symbol = request.args.get('symbol', default='BTC', type=str)
@@ -84,13 +84,13 @@ def get_price_data():
         toFloat64(high) AS high,
         toFloat64(low) AS low,
         toFloat64(close) AS close,
-        formatDateTime(timestamp, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
+        formatDateTime(time_start, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
     FROM 
         {}
     WHERE 
-        timestamp BETWEEN %(start_date)s AND %(end_date)s
+        time_start BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
-        timestamp ASC
+        time_start ASC
     """.format(table_name)
 
     # Fetch the data as a DataFrame
