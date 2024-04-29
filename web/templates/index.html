@@ -17,11 +17,14 @@
                 .then(data => {
                     const seriesData = data.map(item => {
                         return [new Date(item.time).getTime(), item.price];
-                    });
+                    }).sort((a, b) => a[0] - b[0]);
 
                     if (addData) {
                         const chart = Highcharts.charts[0];  // Assumes this is the first/only chart
-                        chart.series[0].setData(seriesData, true, true, false);
+                        seriesData.forEach(point => {
+                            chart.series[0].addPoint(point, false, false);
+                        });
+                        chart.redraw();
                     } else {
                         Highcharts.stockChart('container', {
                             chart: {

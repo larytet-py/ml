@@ -20,8 +20,10 @@ def get_price_data():
     if symbol not in SYMBOLS:
         return jsonify({'error': 'Invalid symbol'}), 400
 
-    start_date = request.args.get('start', default='2024-01-01T00:00:00', type=str)
-    end_date = request.args.get('end', default='2024-01-04T00:00:00', type=str)
+    # Remove the 'Z' for compatibility with ClickHouse
+    start_date = request.args.get('start', default='2024-01-01T00:00:00', type=str).rstrip('Z')
+    end_date = request.args.get('end', default='2024-01-04T00:00:00', type=str).rstrip('Z')
+
     table_name = SYMBOLS[symbol]
 
     # Parameterized query for dates
@@ -34,7 +36,7 @@ def get_price_data():
     WHERE 
         timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
-        timestamp
+        timestamp ASC
     """.format(table_name)
 
     # Fetch the data as a DataFrame
