@@ -1,0 +1,12 @@
+[
+    {
+        "symbol": "BTC",
+        "title": "Bitcoin Price",
+        "endpoints": [
+            {
+                "url": "/price_data",
+                "type": "line"
+            }
+        ]
+    }
+]
