@@ -56,6 +56,52 @@ def get_price_data():
     data = result.to_dict(orient='records')
     return jsonify(data)
 
+
+@app.route('/s1_data')
+def get_S1c_data():
+    client = clickhouse_connect.get_client(host='localhost')
+
+    symbol = request.args.get('symbol', default='BTC', type=str)
+    if symbol not in OHLC_TABLES:
+        return jsonify({'error': 'Invalid symbol'}), 400
+    
+    start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
+    end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
+
+    # Parse datetime strings using dateutil.parser to handle both naive and aware formats
+    start_date = dateutil.parser.parse(start_iso)
+    end_date = dateutil.parser.parse(end_iso)
+
+    # Convert datetime objects to strings that ClickHouse can handle (assuming UTC)
+    start_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
+    end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
+
+    table_name = OHLC_TABLES[symbol]
+
+    # Parameterized query for dates
+    query = """
+    SELECT 
+        toFloat64(open) AS open,
+        toFloat64(high) AS high,
+        toFloat64(low) AS low,
+        toFloat64(close) AS close,
+        formatDateTime(time_start, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
+    FROM 
+        {}
+    WHERE 
+        time_start BETWEEN %(start_date)s AND %(end_date)s
+    ORDER BY 
+        time_start ASC
+    """.format(table_name)
+
+    # Fetch the data as a DataFrame
+    result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
+    
+    # Convert DataFrame to a list of dictionaries (for JSON serialization)
+    data = result.to_dict(orient='records')
+    return jsonify(data)
+
+
 @app.route('/ohlc_data')
 def get_ohlc_data():
     client = clickhouse_connect.get_client(host='localhost')
