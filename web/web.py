@@ -40,7 +40,7 @@ def get_price_data():
     query = """
     SELECT 
         toFloat64(price) AS price,
-        formatDateTime(timestamp, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
+        toUnixTimestamp64Milli(timestamp) AS time
     FROM 
         {}
     WHERE 
@@ -51,6 +51,7 @@ def get_price_data():
 
     # Fetch the data as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
+    print(result)
     
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
@@ -82,7 +83,7 @@ def get_ohlc_data():
     query = f"""
     SELECT 
         toFloat64(price) AS price,
-        formatDateTime(timestamp, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
+        toUnixTimestamp64Milli(timestamp) AS time
     FROM 
         {table_name}
     WHERE 

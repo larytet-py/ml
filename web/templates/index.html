@@ -108,9 +108,11 @@
                     // The `map` method returns a new array consisting of these transformed items, which is then assigned to `seriesData`.
                     const seriesData = data.map(item => {
                         if (type === 'line') {
-                            return [new Date(item.time).getTime(), item.price];
+                            return [item.time, item.price];
+                        } else if (type === 'scatter') {
+                            return [item.time, item.price];
                         } else if (type === 'candlestick') {
-                            return [new Date(item.time).getTime(), item.open, item.high, item.low, item.close];
+                            return [item.time, item.open, item.high, item.low, item.close];
                         }
                     // The .sort((a, b) => a[0] - b[0]) function is used to sort an array of arrays (or objects) based on their first elements.
                     // In this code, each array's first element is a timestamp, and the sort function arranges them in ascending order.
@@ -157,7 +159,7 @@
                             crosshair: true,
                             type: 'datetime',
                             // Ensure tickInterval is set correctly; here it should likely be in milliseconds if showing seconds
-                            tickInterval: 1000 // one second in milliseconds
+                            tickInterval: 1
                         },
                         yAxis: {
                             title: {
@@ -180,8 +182,8 @@
                             upLineColor: type === 'candlestick' ? 'black' : undefined, // Black line color for candlestick up wicks
                             marker: { 
                                 enabled: true,
-                                radius: 3, // Adjust the size of the scatter points
-                                fillColor: undefined // Set the color of points
+                                radius: 3, 
+                                fillColor: 'blue' 
                             }
                         }]
                     });
