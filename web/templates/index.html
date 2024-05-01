@@ -174,7 +174,7 @@
                                 valueDecimals: 2
                             },
                             dataGrouping: {
-                                enabled: false // consider disabling data grouping for 1-second or 1-minute data
+                                enabled: true // consider disabling data grouping for 1-second or 1-minute data
                             },
                             color: type === 'line' ? undefined : 'red', // Blue for line, red for candlestick
                             upColor: type === 'candlestick' ? 'green' : undefined, // Green for up days in candlestick
@@ -185,7 +185,24 @@
                                 radius: 3, 
                                 fillColor: 'blue' 
                             }
-                        }]
+                        }],
+                        tooltip: {
+                            formatter: function() {
+                                const dateStr = Highcharts.dateFormat('%d-%m-%Y %H:%M:%S', new Date(this.x));
+                                switch (this.series.options.type) {
+                                    case 'scatter':
+                                        return dateStr + '<br>Value: ' + this.y;
+                                    case 'candlestick':
+                                        return dateStr +
+                                            '<br>Open: ' + this.point.open +
+                                            '<br>High: ' + this.point.high +
+                                            '<br>Low: ' + this.point.low +
+                                            '<br>Close: ' + this.point.close;
+                                    default:
+                                        return dateStr + '<br>Value: ' + this.y;
+                                }
+                            }
+                        }
                     });
                 })
                 .catch(error => {
