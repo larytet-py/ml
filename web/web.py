@@ -51,7 +51,6 @@ def get_price_data():
 
     # Fetch the data as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
-    print(result)
     
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
