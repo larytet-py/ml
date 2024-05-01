@@ -14,7 +14,7 @@
 <body>
     <div style="margin-bottom: 10px;">
         <input type="text" id="startTimePicker" placeholder="Select Start Time" />
-        <input type="number" id="durationHours" placeholder="Duration (hours)" min="1" max="72" />
+        <input type="number" id="duration" placeholder="Duration (hours)" min="1" max="72" />
         <button onclick="loadConfigAndData()">Load Data</button>
     </div>
     <!-- Container divs will be dynamically created here -->
@@ -37,8 +37,8 @@
                 }
             });
     
-            // Sets the default value of the HTML input element with ID 'durationHours' to 2.
-            $('#durationHours').val(2);
+            // Sets the default value of the HTML input element with ID 'duration' to 2.
+            $('#duration').val(2);
     
             // Calls a function to load configuration and data when the page is ready.
             loadConfigAndData();
@@ -76,10 +76,11 @@
         function loadData(panel, containerId) {
             // Retrieves the start time from the input with ID 'startTimePicker'.
             var startTime = $('#startTimePicker').val();
-            // Retrieves and converts the duration (in hours) from the input with ID 'durationHours' to an integer.
-            var duration = parseInt($('#durationHours').val());
+            // Retrieves and converts the duration (in hours) from the input with ID 'duration' to an integer.
+            var duration = parseInt($('#duration').val());
             // Calculates the end time by adding the duration to the start time.
-            var endTime = moment(startTime).add(duration, 'hours').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+            var endTime = moment(startTime).add(duration, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+            console.log(`StartTime: ${startTime}, Duration: ${duration}, EndTime: ${endTime}`);
     
             // Iterates over each endpoint specified in the panel's configuration.
             panel.endpoints.forEach(endpoint => {
@@ -130,6 +131,18 @@
     
                     // Initializes a Highcharts stock chart in the specified container.
                     Highcharts.stockChart(containerId, {
+                        buttons: [{
+                            type: 'second',
+                            count: 1,
+                            text: '1s'
+                        }, {
+                            type: 'hour',
+                            count: 1,
+                            text: '1h'
+                        }, {
+                            type: 'all',
+                            text: 'All'
+                        }],
                         rangeSelector: {
                             selected: 1
                         },
@@ -137,7 +150,9 @@
                             text: title
                         },
                         xAxis: {
-                            type: 'datetime'
+                            crosshair: true,
+                            type: 'datetime',
+                            tickInterval: 1, // milliseconds?
                         },
                         yAxis: {
                             title: {
@@ -150,6 +165,9 @@
                             data: seriesData,
                             tooltip: {
                                 valueDecimals: 2
+                            },
+                            dataGrouping: {
+                                enabled: true
                             },
                             color: type === 'line' ? undefined : 'red', // Blue for line, red for candlestick
                             upColor: type === 'candlestick' ? 'green' : undefined, // Green for up days in candlestick

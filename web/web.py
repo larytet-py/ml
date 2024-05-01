@@ -60,45 +60,49 @@ def get_price_data():
 def get_ohlc_data():
     client = clickhouse_connect.get_client(host='localhost')
 
+    # Retrieve symbol from request arguments and validate
     symbol = request.args.get('symbol', default='BTC', type=str)
     if symbol not in OHLC_TABLES:
         return jsonify({'error': 'Invalid symbol'}), 400
     
+    # Retrieve and parse start and end date from request arguments
     start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
     end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
-
-    # Parse datetime strings using dateutil.parser to handle both naive and aware formats
     start_date = dateutil.parser.parse(start_iso)
     end_date = dateutil.parser.parse(end_iso)
 
-    # Convert datetime objects to strings that ClickHouse can handle (assuming UTC)
+    # Format dates for ClickHouse
     start_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
     end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
 
-    table_name = OHLC_TABLES[symbol]
+    # Get the table name from the symbol
+    table_name = TRADES_TABLES[symbol]
 
-    # Parameterized query for dates
-    query = """
+    # Define the new query to fetch price data and treat it as OHLC
+    query = f"""
     SELECT 
-        toFloat64(open) AS open,
-        toFloat64(high) AS high,
-        toFloat64(low) AS low,
-        toFloat64(close) AS close,
-        formatDateTime(time_start, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
+        toFloat64(price) AS price,
+        formatDateTime(timestamp, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
     FROM 
-        {}
+        {table_name}
     WHERE 
-        time_start BETWEEN %(start_date)s AND %(end_date)s
+        timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
-        time_start ASC
-    """.format(table_name)
+        timestamp ASC
+    """
 
-    # Fetch the data as a DataFrame
+    # Execute the query and fetch the result as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
-    
-    # Convert DataFrame to a list of dictionaries (for JSON serialization)
+
+    # Process the DataFrame to set OHLC values to the same price
     data = result.to_dict(orient='records')
-    return jsonify(data)
+    ohlc_data = [
+        {'open': item['price'], 'high': item['price'], 'low': item['price'], 'close': item['price'], 'time': item['time']}
+        for item in data
+    ]
+
+    # Return JSON response
+    return jsonify(ohlc_data)
 
 @app.route('/panels.json')
 def panels_json():
