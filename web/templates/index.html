@@ -79,12 +79,12 @@
             // Retrieves and converts the duration (in hours) from the input with ID 'duration' to an integer.
             var duration = parseInt($('#duration').val());
             // Calculates the end time by adding the duration to the start time.
-            var endTime = moment(startTime).add(2, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');                          
+            var endTime = moment(startTime).add(duration, 'minutes');
     
             // Iterates over each endpoint specified in the panel's configuration.
             panel.endpoints.forEach(endpoint => {
                 // Calls a function to fetch data from each endpoint.
-                fetchData(panel.symbol, startTime, endTime, endpoint.type, endpoint.url, containerId, panel.title);
+                fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, containerId, panel.title);
             });
         }
     
