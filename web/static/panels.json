@@ -5,7 +5,7 @@
         "endpoints": [
             {
                 "url": "/price_data",
-                "type": "line"
+                "type": "scatter"
             }
         ]
     }

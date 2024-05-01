@@ -177,7 +177,12 @@
                             color: type === 'line' ? undefined : 'red', // Blue for line, red for candlestick
                             upColor: type === 'candlestick' ? 'green' : undefined, // Green for up days in candlestick
                             lineColor: type === 'candlestick' ? 'black' : undefined, // Black line color for candlestick wicks
-                            upLineColor: type === 'candlestick' ? 'black' : undefined // Black line color for candlestick up wicks
+                            upLineColor: type === 'candlestick' ? 'black' : undefined, // Black line color for candlestick up wicks
+                            marker: { 
+                                enabled: true,
+                                radius: 3, // Adjust the size of the scatter points
+                                fillColor: undefined // Set the color of points
+                            }
                         }]
                     });
                 })
