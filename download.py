@@ -70,6 +70,7 @@ def download_and_unpack(url, file_name, csv_name, table_name):
 
     os.remove(target_path)
     check_and_insert_data(csv_path, table_name)
+    os.remove(csv_path)
         
 
 def download_files(symbol, start_date, end_date, num_workers, table_name):
