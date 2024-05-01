@@ -75,12 +75,11 @@
         // Defines a function to load data for a specific panel.
         function loadData(panel, containerId) {
             // Retrieves the start time from the input with ID 'startTimePicker'.
-            var startTime = $('#startTimePicker').val();
+            var startTime = moment.utc($('#startTimePicker').val());
             // Retrieves and converts the duration (in hours) from the input with ID 'duration' to an integer.
             var duration = parseInt($('#duration').val());
             // Calculates the end time by adding the duration to the start time.
-            var endTime = moment(startTime).add(duration, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-            console.log(`StartTime: ${startTime}, Duration: ${duration}, EndTime: ${endTime}`);
+            var endTime = moment(startTime).add(2, 'minutes').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');                          
     
             // Iterates over each endpoint specified in the panel's configuration.
             panel.endpoints.forEach(endpoint => {
