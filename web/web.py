@@ -85,7 +85,7 @@ def get_S1c_data():
         toFloat64(high) AS high,
         toFloat64(low) AS low,
         toFloat64(close) AS close,
-        formatDateTime(time_start, '%%Y-%%m-%%d %%H:%%M:%%S') AS time
+        toUnixTimestamp64Milli(toDateTime64(time_start, 3)) AS time
     FROM 
         {}
     WHERE 

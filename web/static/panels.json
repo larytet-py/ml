@@ -14,7 +14,7 @@
         "title": "BTC OHLC",
         "endpoints": [
             {
-                "url": "/ohlc_data",
+                "url": "/s1_data",
                 "type": "candlestick"
             }
         ]
