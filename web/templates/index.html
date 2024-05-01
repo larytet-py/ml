@@ -130,20 +130,25 @@
     
                     // Initializes a Highcharts stock chart in the specified container.
                     Highcharts.stockChart(containerId, {
-                        buttons: [{
-                            type: 'second',
-                            count: 1,
-                            text: '1s'
-                        }, {
-                            type: 'hour',
-                            count: 1,
-                            text: '1h'
-                        }, {
-                            type: 'all',
-                            text: 'All'
-                        }],
                         rangeSelector: {
-                            selected: 1
+                            buttons: [{
+                                type: 'second',
+                                count: 1,
+                                text: '1s'
+                            }, {
+                                type: 'minute',
+                                count: 1,
+                                text: '1m'
+                            }, {
+                                type: 'hour',
+                                count: 1,
+                                text: '1h'
+                            }, {
+                                type: 'all',
+                                text: 'All'
+                            }],
+                            inputEnabled: true, // enables input box
+                            selected: 1 // selects the 1 minute button by default
                         },
                         title: {
                             text: title
@@ -151,7 +156,8 @@
                         xAxis: {
                             crosshair: true,
                             type: 'datetime',
-                            tickInterval: 1, // milliseconds?
+                            // Ensure tickInterval is set correctly; here it should likely be in milliseconds if showing seconds
+                            tickInterval: 1000 // one second in milliseconds
                         },
                         yAxis: {
                             title: {
@@ -166,7 +172,7 @@
                                 valueDecimals: 2
                             },
                             dataGrouping: {
-                                enabled: true
+                                enabled: false // consider disabling data grouping for 1-second or 1-minute data
                             },
                             color: type === 'line' ? undefined : 'red', // Blue for line, red for candlestick
                             upColor: type === 'candlestick' ? 'green' : undefined, // Green for up days in candlestick
