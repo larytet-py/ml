@@ -175,15 +175,15 @@ def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
 
     df.set_index('timestamp', inplace=True)
 
-    # Resample to 1-second intervals
-    ohlc = df['price'].resample('1S').ohlc()
-    volume = df['base_qty'].resample('1S').sum()
+    # Resample
+    ohlc = df['price'].resample('1min').ohlc()
+    volume = df['base_qty'].resample('1min').sum()
 
     # Prepare DataFrame for insertion
     ohlc['volume'] = volume
     ohlc.reset_index(inplace=True)
     ohlc.columns = ['time_start', 'open', 'high', 'low', 'close', 'volume']
-    ohlc['time_end'] = ohlc['time_start'] + timedelta(seconds=1)
+    ohlc['time_end'] = ohlc['time_start'] + timedelta(minutes=1)
 
     # Handling missing data by filling with last known values
     ohlc.fillna(method='ffill', inplace=True)
@@ -228,5 +228,5 @@ if __name__ == "__main__":
     create_table_trades(table_name)
     if not args.disable_download:
         download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)  
-    ohlc_table_name = f"ohlc_S1_{args.symbol}"
+    ohlc_table_name = f"ohlc_M1_{args.symbol}"
     fetch_trades_and_insert(table_name, ohlc_table_name)
