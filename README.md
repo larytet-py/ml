@@ -9,7 +9,7 @@ docker run -d \
   -v $PWD/clickhouse:/var/lib/clickhouse \
   clickhouse/clickhouse-server
 
-docker exec -it ml-clickhouse-server clickhouse-client
+docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 --send_timeout=600
 ```
 
 

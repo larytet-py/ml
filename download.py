@@ -192,12 +192,13 @@ def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
 
 def insert_data(client, df, table_name):
     client.insert_df(table_name, df)
-    logging.info(f"Data inserted successfully into {table_name}")
+    readable_time = df['time_end'].iloc[-1].strftime('%Y-%m-%d %H:%M:%S')    
+    logging.info(f"Data inserted successfully into {table_name} {readable_time}")
 
 def fetch_trades_and_insert(from_table, to_table):
     create_table_ohlc(to_table)
     offset = 0
-    batch_size = 10_000_000
+    batch_size = 100_000
     
     client = get_client()
     while True:
