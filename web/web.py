@@ -1,9 +1,13 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import clickhouse_connect
 from datetime import datetime
-import dateutil 
+import dateutil
+import logging
+import sys
+import click
 
 app = Flask(__name__, template_folder='templates')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 # Define allowed symbols to prevent SQL injection via table names
@@ -48,6 +52,9 @@ def get_price_data():
     ORDER BY 
         timestamp ASC
     """.format(table_name)
+
+    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
+    logging.debug(debug_query)
 
     # Fetch the data as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
@@ -94,6 +101,9 @@ def get_S1c_data():
         time_start ASC
     """.format(table_name)
 
+    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
+    logging.debug(debug_query)
+
     # Fetch the data as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
     
@@ -137,6 +147,9 @@ def get_ohlc_data():
         timestamp ASC
     """
 
+    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
+    logging.debug(debug_query)
+
     # Execute the query and fetch the result as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
 
@@ -154,5 +167,25 @@ def get_ohlc_data():
 def panels_json():
     return send_from_directory('static', 'panels.json')
 
+@app.cli.command("runserver")
+@click.option('--debug_level', default='INFO', help='Set the debug level')
+def runserver(debug_level):
+    numeric_level = getattr(logging, debug_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f'Invalid log level: {debug_level}')
+    logging.getLogger().setLevel(numeric_level)
+    app.run(debug=True, port=8080)
+
 if __name__ == '__main__':
+    # Command line argument parsing for development purposes
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug_level', default='INFO', help='Set the debug level')
+    args = parser.parse_args()
+
+    numeric_level = getattr(logging, args.debug_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f'Invalid log level: {args.debug_level}')
+    logging.getLogger().setLevel(numeric_level)
+    
     app.run(debug=True, port=8080)
