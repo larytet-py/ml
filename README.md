@@ -41,6 +41,14 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 ```
 
 
+# Links
+
+* https://www.youtube.com/watch?v=BRUlSm4gdQ4
+* https://quantpedia.com/machine-learning-execution-time-in-asset-pricing/
+* https://www.youtube.com/watch?v=LTI9i_Njj3U
+* https://www.youtube.com/watch?v=WfrGj3qvDEQ
+
+
 # SQL tips
 
 Verify that the ascending order of the column `time` 
