@@ -47,6 +47,7 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 * https://quantpedia.com/machine-learning-execution-time-in-asset-pricing/
 * https://www.youtube.com/watch?v=LTI9i_Njj3U
 * https://www.youtube.com/watch?v=WfrGj3qvDEQ
+* https://en.wikipedia.org/wiki/Autoregressive_moving-average_model
 
 
 # SQL tips
