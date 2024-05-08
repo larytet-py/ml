@@ -49,6 +49,15 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 * https://www.youtube.com/watch?v=WfrGj3qvDEQ
 * https://en.wikipedia.org/wiki/Autoregressive_moving-average_model
 
+# Books 
+
+* Option Volatility and Pricing by Sheldon Natenberg: https://amzn.to/3hqRglr
+* Dynamic Hedging: https://amzn.to/2TVvgGr
+* Frequently Asked Questions in Quantitative Finance (Second Edition) by Paul Wilmott: https://amzn.to/36rvg3E
+* Python for Data Analysis: https://amzn.to/2T6F1Bm
+* Introduction to Linear Algebra: https://amzn.to/3qXc47m
+* Advances in Active Portfolio Management: https://amzn.to/3xwSfpX
+* Technical Analysis is Mostly Bullshit: https://amzn.to/2TU3M41
 
 # SQL tips
 
