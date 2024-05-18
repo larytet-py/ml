@@ -52,14 +52,12 @@ def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interva
 
         # Calculate metrics for the current chunk
         chunk_trade_density = calculate_metrics(chunk_df, interval)
-        # all_trade_density.extend(chunk_trade_density)
 
         for density, density_time, _, close_price in chunk_trade_density:
             if density > min_density:
                 all_trade_density.append((density_time.replace(tzinfo=timezone.utc), close_price, density))
                 logger.debug(f"{density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{close_price:.5f},{density:.2f}")
 
-        # Increment offset for the next chunk
         offset += chunk_size
 
     return all_trade_density
@@ -94,7 +92,7 @@ def main():
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='DEBUG', help='Set the logging level')
     args = parser.parse_args()
 
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(format='%(message)s')
     global logger
     logger = logging.getLogger(__name__)
     logger.setLevel(args.log_level.upper())
