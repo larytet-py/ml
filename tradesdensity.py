@@ -23,7 +23,7 @@ def calculate_metrics(df, interval='5S'):
             trade_count = len(group)
             if roc != 0:  # Avoid division by zero
                 trade_density = trade_count / roc
-                all_trade_density.append((trade_density, timestamp))
+                all_trade_density.append((trade_density, timestamp, open_price, close_price))
 
     return all_trade_density
 
@@ -48,10 +48,13 @@ def process_data_in_chunks(query, chunk_size, interval):
         if chunk_trade_density:
             min_density_record = min(chunk_trade_density, key=lambda x: x[0])
             max_density_record = max(chunk_trade_density, key=lambda x: x[0])
-            min_density, min_density_time = min_density_record
-            max_density, max_density_time = max_density_record
+            min_density, min_density_time, min_open_price, min_close_price = min_density_record
+            max_density, max_density_time, max_open_price, max_close_price = max_density_record
             chunk_timestamp = chunk_df['timestamp'].iloc[0]
-            logger.debug(f"Min/max trades density in the chunk {chunk_timestamp}: {min_density}@{min_density_time}, {max_density}@{max_density_time}")
+            logger.debug(f"Min/max trades density in the chunk {chunk_timestamp}: "
+                         f"{min_density}@{min_density_time}/{min_open_price}-{min_close_price},"
+                         f"{max_density}@{max_density_time}/{max_open_price}-{max_close_price}"
+            )
 
         # Increment offset for the next chunk
         offset += chunk_size
@@ -61,7 +64,7 @@ def process_data_in_chunks(query, chunk_size, interval):
 # Function to identify unusual trade density
 def identify_unusual_trade_density(all_trade_density, threshold_multiplier=3):
     # Extract trade densities from the tuples
-    trade_densities = [density for density, _ in all_trade_density]
+    trade_densities = [density for density, _, _, _ in all_trade_density]
     trade_density_df = pd.DataFrame(trade_densities, columns=['trade_density'])
     threshold = trade_density_df['trade_density'].mean() + threshold_multiplier * trade_density_df['trade_density'].std()
     return threshold
@@ -117,7 +120,6 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(args.log_level.upper())
 
-
     query_template = f"""
     SELECT id, price, qty, base_qty, time, is_buyer_maker, unknown_flag, timestamp
     FROM trades_{args.symbol}
@@ -146,3 +148,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
