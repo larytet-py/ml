@@ -51,8 +51,7 @@ def process_data_in_chunks(query, chunk_size, interval):
             min_density, min_density_time = min_density_record
             max_density, max_density_time = max_density_record
             chunk_timestamp = chunk_df['timestamp'].iloc[0]
-            logger.debug(f"Min trade density in the chunk {chunk_timestamp}: {min_density} at {min_density_time}")
-            logger.debug(f"Max trade density in the chunk {chunk_timestamp}: {max_density} at {max_density_time}")
+            logger.debug(f"Min/max trades density in the chunk {chunk_timestamp}: {min_density}@{min_density_time}, {max_density}@{max_density_time}")
 
         # Increment offset for the next chunk
         offset += chunk_size
