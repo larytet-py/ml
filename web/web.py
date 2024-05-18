@@ -50,6 +50,7 @@ def get_price_data():
         timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
         timestamp ASC
+
     """.format(table_name)
 
     debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
@@ -91,11 +92,11 @@ def get_ohlc_data():
     # Define the new query to fetch OHLC data
     query = f"""
     SELECT
-        toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS time,
-        any(price) AS open,
-        max(price) AS high,
-        min(price) AS low,
-        anyLast(price) AS close,
+        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS DateTime64)) AS time,
+        toFloat64(any(price)) AS open,
+        toFloat64(max(price)) AS high,
+        toFloat64(min(price)) AS low,
+        toFloat64(anyLast(price)) AS close
         -- count() AS num_trades
     FROM {table_name}
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
@@ -109,7 +110,7 @@ def get_ohlc_data():
     # Execute the query and fetch the result as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
 
-    # Process the DataFrame to convert it into the required format
+    # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
     return jsonify(data)
 
