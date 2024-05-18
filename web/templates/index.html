@@ -112,6 +112,7 @@
                         } else if (type === 'scatter') {
                             return [item.time, item.price];
                         } else if (type === 'candlestick') {
+                            console.log("Fetched data:", data);
                             return [item.time, item.open, item.high, item.low, item.close];
                         }
                     // The .sort((a, b) => a[0] - b[0]) function is used to sort an array of arrays (or objects) based on their first elements.
