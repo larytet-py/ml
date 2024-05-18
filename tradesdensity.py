@@ -22,7 +22,7 @@ def calculate_metrics(df, interval='5S'):
 
             trade_count = len(group)
             if roc != 0:  # Avoid division by zero
-                trade_density = trade_count / roc
+                trade_density = math.log(trade_count / roc)
                 all_trade_density.append((trade_density, timestamp, open_price, close_price))
 
     return all_trade_density
@@ -49,26 +49,10 @@ def process_data_in_chunks(query, chunk_size, interval, min_density):
         for density, density_time, _, close_price in chunk_trade_density:
             if density > min_density:
                 all_trade_density.append((density_time.replace(tzinfo=timezone.utc), close_price, density))
-
-
-        if chunk_trade_density:
-            #min_density_record = min(chunk_trade_density, key=lambda x: x[0])
-            max_density_record = max(chunk_trade_density, key=lambda x: x[0])
-            #min_density, min_density_time, min_open_price, min_close_price = min_density_record
-            max_density, max_density_time, max_open_price, max_close_price = max_density_record
-            max_log_density = math.log(max_density)
-            #chunk_timestamp = chunk_df['timestamp'].iloc[0]
-            if max_log_density > 22:
-                # logger.debug(f"{chunk_timestamp}: "
-                #             f"{min_log_density:.2f}@{min_density_time}, price={min_open_price:.0f}/{min_close_price:.0f},"
-                #             f"{max_log_density:.2f}@{max_density_time}, price={max_open_price:.0f}/{max_close_price:.0f}"
-                # )
-                # print(f"{max_density_time.isoformat()},{current_date},{max_close_price:.5f}")
-                print(f"{max_density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{max_close_price:.5f},{max_log_density:.2f}")
+                logger.debug(f"{density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{close_price:.5f},{density:.2f}")
 
         # Increment offset for the next chunk
         offset += chunk_size
-
 
     return all_trade_density
 
@@ -97,7 +81,7 @@ def main():
     parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--interval', type=float, default=5.0, help='Set the interval in seconds')
-    parser.add_argument('--min_density', type=float, default=0.5, help='Set the minimum trades density to show')
+    parser.add_argument('--min_density', type=float, default=22, help='Set the minimum trades density to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='DEBUG', help='Set the logging level')
     args = parser.parse_args()
 
@@ -118,10 +102,13 @@ def main():
     interval_str = f'{int(args.interval)}S'
 
     # Process data in chunks and calculate trade density
-    all_trade_density = process_data_in_chunks(query_template, chunk_size, interval_str, 22)
+    all_trade_density = process_data_in_chunks(query_template, chunk_size, interval_str, args.min_density)
 
+    logger.info("Filtering")
     all_trade_density = filter_trade_density(all_trade_density)
-    print(all_trade_density)
+    current_date = datetime.now(timezone.utc).isoformat()
+    for density_time, close_price, density in all_trade_density:
+        print(f"{density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{close_price:.5f},{density:.2f}")
 
 if __name__ == "__main__":
     main()
