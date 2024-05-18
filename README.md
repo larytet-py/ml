@@ -16,7 +16,7 @@ docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 -
 Limit the number of partitions in the ClickHouse 
 
 ```SQL
-CREATE TABLE btc_trades
+CREATE TABLE trades_BTC
 (
     id UInt64,
     price Decimal(18, 8),
@@ -24,7 +24,8 @@ CREATE TABLE btc_trades
     base_qty Decimal(12, 8),
     time UInt64,
     is_buyer_maker Boolean,
-    unknown_flag Boolean DEFAULT True
+    unknown_flag Boolean DEFAULT True,
+    timestamp DateTime64(3) -- Millisecond precision
 )
 ENGINE = MergeTree
 PARTITION BY toDate(toDateTime(time / 1000))
