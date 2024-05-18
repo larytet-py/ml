@@ -51,9 +51,9 @@ def process_data_in_chunks(query, chunk_size, interval):
             min_density, min_density_time, min_open_price, min_close_price = min_density_record
             max_density, max_density_time, max_open_price, max_close_price = max_density_record
             chunk_timestamp = chunk_df['timestamp'].iloc[0]
-            logger.debug(f"Min/max trades density in the chunk {chunk_timestamp}: "
-                         f"{min_density}@{min_density_time}/{min_open_price}-{min_close_price},"
-                         f"{max_density}@{max_density_time}/{max_open_price}-{max_close_price}"
+            logger.debug(f"{chunk_timestamp}: "
+                         f"{min_density}@{min_density_time}, price={min_open_price}/{min_close_price},"
+                         f"{max_density}@{max_density_time}, price={max_open_price}/{max_close_price}"
             )
 
         # Increment offset for the next chunk
