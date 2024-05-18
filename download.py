@@ -144,6 +144,7 @@ def create_table_ohlc(table_name):
         volume Decimal(12, 8)
     )
     ENGINE = MergeTree
+    PARTITION BY toDate(time_start)
     ORDER BY (time_start)
     SETTINGS index_granularity = 8192;    
     """
