@@ -12,7 +12,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Define allowed symbols to prevent SQL injection via table names
 TRADES_TABLES = {'BTC': 'trades_BTC', 'ETH': 'trades_ETH'}
-OHLC_TABLES = {'BTC': 'ohlc_S1_BTC', 'ETH': 'ohlc_S1_ETH'}
 
 @app.route('/')
 def index():
@@ -64,61 +63,13 @@ def get_price_data():
     return jsonify(data)
 
 
-@app.route('/s1_data')
-def get_S1c_data():
-    client = clickhouse_connect.get_client(host='localhost')
-
-    symbol = request.args.get('symbol', default='BTC', type=str)
-    if symbol not in OHLC_TABLES:
-        return jsonify({'error': 'Invalid symbol'}), 400
-    
-    start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
-    end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
-
-    # Parse datetime strings using dateutil.parser to handle both naive and aware formats
-    start_date = dateutil.parser.parse(start_iso)
-    end_date = dateutil.parser.parse(end_iso)
-
-    # Convert datetime objects to strings that ClickHouse can handle (assuming UTC)
-    start_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
-    end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
-
-    table_name = OHLC_TABLES[symbol]
-
-    # Parameterized query for dates
-    query = """
-    SELECT 
-        toFloat64(open) AS open,
-        toFloat64(high) AS high,
-        toFloat64(low) AS low,
-        toFloat64(close) AS close,
-        toUnixTimestamp64Milli(toDateTime64(time_start, 3)) AS time
-    FROM 
-        {}
-    WHERE 
-        time_start BETWEEN %(start_date)s AND %(end_date)s
-    ORDER BY 
-        time_start ASC
-    """.format(table_name)
-
-    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
-    logging.debug(debug_query)
-
-    # Fetch the data as a DataFrame
-    result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
-    
-    # Convert DataFrame to a list of dictionaries (for JSON serialization)
-    data = result.to_dict(orient='records')
-    return jsonify(data)
-
-
 @app.route('/ohlc_data')
 def get_ohlc_data():
     client = clickhouse_connect.get_client(host='localhost')
 
     # Retrieve symbol from request arguments and validate
     symbol = request.args.get('symbol', default='BTC', type=str)
-    if symbol not in OHLC_TABLES:
+    if symbol not in TRADES_TABLES:
         return jsonify({'error': 'Invalid symbol'}), 400
     
     # Retrieve and parse start and end date from request arguments
@@ -127,6 +78,9 @@ def get_ohlc_data():
     start_date = dateutil.parser.parse(start_iso)
     end_date = dateutil.parser.parse(end_iso)
 
+    # Retrieve interval duration from request arguments and validate
+    interval_duration = request.args.get('interval', default=60, type=int)
+
     # Format dates for ClickHouse
     start_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
     end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
@@ -134,15 +88,21 @@ def get_ohlc_data():
     # Get the table name from the symbol
     table_name = TRADES_TABLES[symbol]
 
-    # Define the new query to fetch price data and treat it as OHLC
+    # Define the new query to fetch OHLC data
     query = f"""
-    SELECT 
-        toFloat64(price) AS price,
-        toUnixTimestamp64Milli(timestamp) AS time
+    SELECT
+        toUnixTimestamp64Milli(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND)) AS timestamp,
+        any(price) AS open_price,
+        max(price) AS high_price,
+        min(price) AS low_price,
+        anyLast(price) AS close_price,
+        count() AS num_trades
     FROM 
         {table_name}
     WHERE 
         timestamp BETWEEN %(start_date)s AND %(end_date)s
+    GROUP BY
+        toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND)
     ORDER BY 
         timestamp ASC
     """
@@ -153,10 +113,10 @@ def get_ohlc_data():
     # Execute the query and fetch the result as a DataFrame
     result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
 
-    # Process the DataFrame to set OHLC values to the same price
+    # Process the DataFrame to convert it into the required format
     data = result.to_dict(orient='records')
     ohlc_data = [
-        {'open': item['price'], 'high': item['price'], 'low': item['price'], 'close': item['price'], 'time': item['time']}
+        {'open': item['open_price'], 'high': item['high_price'], 'low': item['low_price'], 'close': item['close_price'], 'time': item['timestamp']}
         for item in data
     ]
 
