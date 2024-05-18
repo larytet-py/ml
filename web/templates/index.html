@@ -84,16 +84,16 @@
             // Iterates over each endpoint specified in the panel's configuration.
             panel.endpoints.forEach(endpoint => {
                 // Calls a function to fetch data from each endpoint.
-                fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, containerId, panel.title);
+                fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, panel.interval, containerId, panel.title);
             });
         }
     
         // Defines a function to fetch data from a specified endpoint.
-        function fetchData(symbol, startDate, endDate, type, url, containerId, title, addData = false) {
+        function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, addData = false) {
             // Logs the data fetching details to the console.
             console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}`);
             // Makes an HTTP GET request to fetch data. Encodes query parameters to ensure URL validity.
-            fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`)
+            fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${{interval}}`)
                 .then(response => response.json()) // Parses the response as JSON.
                 .then(data => {
                     // Processes the received data based on the type of data representation (line or OHLC chart).

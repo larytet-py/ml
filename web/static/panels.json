@@ -5,7 +5,8 @@
         "endpoints": [
             {
                 "url": "/price_data",
-                "type": "scatter"
+                "type": "scatter",
+                "interval": 0
             }
         ]
     },
@@ -15,7 +16,8 @@
         "endpoints": [
             {
                 "url": "/ohlc_data",
-                "type": "candlestick"
+                "type": "candlestick",
+                "interval": 60
             }
         ]
     }
