@@ -91,20 +91,16 @@ def get_ohlc_data():
     # Define the new query to fetch OHLC data
     query = f"""
     SELECT
-        toUnixTimestamp64Milli(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND)) AS timestamp,
+        toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS timestamp,
         any(price) AS open_price,
         max(price) AS high_price,
         min(price) AS low_price,
         anyLast(price) AS close_price,
         count() AS num_trades
-    FROM 
-        {table_name}
-    WHERE 
-        timestamp BETWEEN %(start_date)s AND %(end_date)s
-    GROUP BY
-        toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND)
-    ORDER BY 
-        timestamp ASC
+    FROM {table_name}
+    WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+    GROUP BY timestamp
+    ORDER BY timestamp ASC
     """
 
     debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
