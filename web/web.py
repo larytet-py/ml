@@ -115,7 +115,7 @@ def get_ohlc_data():
     return jsonify(data)
 
 @app.route('/trades_density')
-def get_ohlc_data():
+def get_trades_density():
     client = clickhouse_connect.get_client(host='localhost')
 
     # Retrieve symbol from request arguments and validate
