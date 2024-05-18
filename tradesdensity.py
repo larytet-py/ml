@@ -1,6 +1,6 @@
 import argparse
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from clickhouse_connect import get_client
 import pandas as pd
 import logging
@@ -29,6 +29,7 @@ def calculate_metrics(df, interval='5S'):
 
 # Function to process data in chunks, calculate trade density
 def process_data_in_chunks(query, chunk_size, interval):
+    current_date = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
     offset = 0
     all_trade_density = []
 
@@ -52,13 +53,13 @@ def process_data_in_chunks(query, chunk_size, interval):
             max_density, max_density_time, max_open_price, max_close_price = max_density_record
             min_log_density, max_log_density = math.log(min_density),math.log(max_density)
             chunk_timestamp = chunk_df['timestamp'].iloc[0]
-            if min_log_density < 12 or max_log_density > 22:
-                logger.debug(f"{chunk_timestamp}: "
-                            f"{min_log_density:.2f}@{min_density_time}, price={min_open_price:.0f}/{min_close_price:.0f},"
-                            f"{max_log_density:.2f}@{max_density_time}, price={max_open_price:.0f}/{max_close_price:.0f}"
-                )
-            else:
-                logger.debug(f"{chunk_timestamp}")
+            if max_log_density > 20:
+                # logger.debug(f"{chunk_timestamp}: "
+                #             f"{min_log_density:.2f}@{min_density_time}, price={min_open_price:.0f}/{min_close_price:.0f},"
+                #             f"{max_log_density:.2f}@{max_density_time}, price={max_open_price:.0f}/{max_close_price:.0f}"
+                # )
+                # print(f"{max_density_time.isoformat()},{current_date},{max_close_price:.5f}")
+                print(f"{max_density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{max_close_price:.5f}")
 
         # Increment offset for the next chunk
         offset += chunk_size
@@ -152,5 +153,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
