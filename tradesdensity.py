@@ -53,7 +53,7 @@ def process_data_in_chunks(query, chunk_size, interval):
             max_density, max_density_time, max_open_price, max_close_price = max_density_record
             min_log_density, max_log_density = math.log(min_density),math.log(max_density)
             chunk_timestamp = chunk_df['timestamp'].iloc[0]
-            if max_log_density > 20:
+            if max_log_density > 22:
                 # logger.debug(f"{chunk_timestamp}: "
                 #             f"{min_log_density:.2f}@{min_density_time}, price={min_open_price:.0f}/{min_close_price:.0f},"
                 #             f"{max_log_density:.2f}@{max_density_time}, price={max_open_price:.0f}/{max_close_price:.0f}"
