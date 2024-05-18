@@ -2,6 +2,9 @@ import argparse
 from datetime import datetime, timedelta
 from clickhouse_connect import get_client
 import pandas as pd
+import logging
+
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Function to calculate ROC and trade density for each chunk
 def calculate_metrics(df, interval='5S'):
@@ -25,7 +28,7 @@ def calculate_metrics(df, interval='5S'):
 
     return all_trade_density
 
-# Function to process data in chunks and calculate trade density
+# Function to process data in chunks, calculate trade density
 def process_data_in_chunks(query, chunk_size, interval):
     offset = 0
     all_trade_density = []
@@ -34,10 +37,13 @@ def process_data_in_chunks(query, chunk_size, interval):
 
     while True:
         chunk_query = query.format(limit=chunk_size, offset=offset)
-        chunk_df = client.query_dataframe(chunk_query)
+        chunk_df = client.query_df(chunk_query)
         
         if chunk_df.empty:
             break
+
+        last_timestamp = chunk_df['timestamp'].iloc[-1]
+        logging.debug(f"Last timestamp in the chunk: {last_timestamp}")
 
         # Calculate metrics for the current chunk
         all_trade_density.extend(calculate_metrics(chunk_df, interval))
@@ -61,7 +67,7 @@ def get_unusual_trade_density_records(query, chunk_size, interval, threshold):
 
     while True:
         chunk_query = query.format(limit=chunk_size, offset=offset)
-        chunk_df = client.query_dataframe(chunk_query)
+        chunk_df = client.query_df(chunk_query)
         
         if chunk_df.empty:
             break
@@ -96,8 +102,10 @@ def main():
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--interval', type=float, default=5.0, help='Set the interval in seconds')
     parser.add_argument('--min_density', type=float, default=0.5, help='Set the minimum trades density to show')
-    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
+    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='DEBUG', help='Set the logging level')
     args = parser.parse_args()
+
+    logging.getLogger().setLevel(args.log_level.upper())
 
     query_template = f"""
     SELECT id, price, qty, base_qty, time, is_buyer_maker, unknown_flag, timestamp
@@ -107,7 +115,7 @@ def main():
     LIMIT {{limit}} OFFSET {{offset}}
     """
 
-    chunk_size = 1000000  # Adjust the chunk size based on memory availability
+    chunk_size = 100_000
     interval_str = f'{int(args.interval)}S'
 
     # Process data in chunks and calculate trade density
