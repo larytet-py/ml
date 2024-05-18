@@ -89,9 +89,9 @@
         // Defines a function to load data for a specific panel.
         function loadData(panel, containerId) {
             var startTime = moment.utc($('#startTimePicker').val());
-            var duration = parseInt($('#duration').val());
-            var endTime = moment(startTime).add(duration, 'minutes');
             var intervalInSeconds = intervalToSeconds($('#interval').val());
+            var duration = intervalInSeconds * parseInt($('#duration').val());
+            var endTime = moment(startTime).add(duration, 'minutes');
 
             panel.endpoints.forEach(endpoint => {
                 fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, intervalInSeconds, containerId, panel.title);
