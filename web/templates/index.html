@@ -91,7 +91,7 @@
             var startTime = moment.utc($('#startTimePicker').val());
             var intervalInSeconds = intervalToSeconds($('#interval').val());
             var duration = intervalInSeconds * parseInt($('#duration').val());
-            var endTime = moment(startTime).add(duration, 'minutes');
+            var endTime = moment(startTime).add(duration, 'seconds');
 
             panel.endpoints.forEach(endpoint => {
                 fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, intervalInSeconds, containerId, panel.title);
@@ -117,7 +117,6 @@
                         if (type === 'line' || type === 'scatter') {
                             return [item.time, item.price];
                         } else if (type === 'candlestick') {
-                            console.log("Fetched data:", data);
                             return [item.time, item.open, item.high, item.low, item.close];
                         }
                     // The .sort((a, b) => a[0] - b[0]) function is used to sort an array of arrays (or objects) based on their first elements.

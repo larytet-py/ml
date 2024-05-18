@@ -18,5 +18,15 @@
                 "type": "candlestick"
             }
         ]
+    },
+    {
+        "symbol": "BTC",
+        "title": "Trades density",
+        "endpoints": [
+            {
+                "url": "/trades_density",
+                "type": "scatter"
+            }
+        ]
     }
 ]

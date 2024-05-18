@@ -114,6 +114,53 @@ def get_ohlc_data():
     data = result.to_dict(orient='records')
     return jsonify(data)
 
+@app.route('/trades_density')
+def get_ohlc_data():
+    client = clickhouse_connect.get_client(host='localhost')
+
+    # Retrieve symbol from request arguments and validate
+    symbol = request.args.get('symbol', default='BTC', type=str)
+    if symbol not in TRADES_TABLES:
+        return jsonify({'error': 'Invalid symbol'}), 400
+    
+    # Retrieve and parse start and end date from request arguments
+    start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
+    end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
+    start_date = dateutil.parser.parse(start_iso)
+    end_date = dateutil.parser.parse(end_iso)
+
+    # Retrieve interval duration from request arguments and validate
+    interval_duration = request.args.get('interval', default=60, type=int)
+
+    # Format dates for ClickHouse
+    start_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
+    end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
+
+    # Get the table name from the symbol
+    table_name = TRADES_TABLES[symbol]
+
+    # Define the new query to fetch OHLC data
+    query = f"""
+    SELECT
+        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS DateTime64)) AS time,
+        count() AS num_trades,
+        count() / (abs(toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price))) AS price
+    FROM {table_name}
+    WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+    GROUP BY time
+    ORDER BY time ASC
+    """
+
+    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
+    logging.debug(debug_query)
+
+    # Execute the query and fetch the result as a DataFrame
+    result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
+
+    # Convert DataFrame to a list of dictionaries (for JSON serialization)
+    data = result.to_dict(orient='records')
+    return jsonify(data)
+
 @app.route('/panels.json')
 def panels_json():
     return send_from_directory('static', 'panels.json')
