@@ -5,7 +5,6 @@ from clickhouse_connect import get_client
 import pandas as pd
 import logging
 
-
 # Function to calculate ROC and trade density for each chunk
 def calculate_metrics(df, interval='5S'):
     all_trade_density = []
@@ -15,7 +14,7 @@ def calculate_metrics(df, interval='5S'):
     # Group by specified intervals
     grouped = df.groupby(df['timestamp'].dt.floor(interval))
 
-    for _, group in grouped:
+    for timestamp, group in grouped:
         if len(group) > 1:
             open_price = group.iloc[0]['price']
             close_price = group.iloc[-1]['price']
@@ -24,7 +23,7 @@ def calculate_metrics(df, interval='5S'):
             trade_count = len(group)
             if roc != 0:  # Avoid division by zero
                 trade_density = trade_count / roc
-                all_trade_density.append(trade_density)
+                all_trade_density.append((trade_density, timestamp))
 
     return all_trade_density
 
@@ -62,7 +61,9 @@ def process_data_in_chunks(query, chunk_size, interval):
 
 # Function to identify unusual trade density
 def identify_unusual_trade_density(all_trade_density, threshold_multiplier=3):
-    trade_density_df = pd.DataFrame(all_trade_density, columns=['trade_density'])
+    # Extract trade densities from the tuples
+    trade_densities = [density for density, _ in all_trade_density]
+    trade_density_df = pd.DataFrame(trade_densities, columns=['trade_density'])
     threshold = trade_density_df['trade_density'].mean() + threshold_multiplier * trade_density_df['trade_density'].std()
     return threshold
 
