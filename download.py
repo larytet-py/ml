@@ -46,6 +46,8 @@ def check_and_insert_data(csv_name, table_name):
     f = {False: logging.error, True: logging.info}[result.written_rows == len(df)]
     f(f"{result.written_rows} of {len(df)} rows from {csv_name} inserted.")
 
+    client.close()
+
 
 def download_and_unpack(url, file_name, csv_name, table_name):
     csv_path = f"./data/{csv_name}"
@@ -127,6 +129,7 @@ def create_table_trades(table_name):
         return
     
     client.query(create_table_query)
+    client.close()
     logging.info(f"Table '{table_name}' created successfully.")
 
 
@@ -157,6 +160,7 @@ def create_table_ohlc(table_name):
         return
     
     client.query(create_table_query)
+    client.close()
     logging.info(f"Table '{table_name}' created successfully.")
 
 def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
@@ -208,6 +212,8 @@ def fetch_trades_and_insert(from_table, to_table):
             break  
         insert_data(client, df, to_table)
         offset += batch_size  
+
+    client.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")

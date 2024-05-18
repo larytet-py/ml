@@ -13,25 +13,6 @@ docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 -
 ```
 
 
-Limit the number of partitions in the ClickHouse 
-
-```SQL
-CREATE TABLE trades_BTC
-(
-    id UInt64,
-    price Decimal(18, 8),
-    qty Decimal(12, 8),
-    base_qty Decimal(12, 8),
-    time UInt64,
-    is_buyer_maker Boolean,
-    unknown_flag Boolean DEFAULT True,
-    timestamp DateTime64(3) -- Millisecond precision
-)
-ENGINE = MergeTree
-PARTITION BY toDate(toDateTime(time / 1000))
-ORDER BY (timestamp)
-SETTINGS index_granularity = 8192;
-```
 
 
 # Logs
@@ -62,6 +43,28 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 
 # SQL tips
 
+
+Limit the number of partitions in the ClickHouse, keep sorted by timestamp
+
+```SQL
+CREATE TABLE trades_BTC
+(
+    id UInt64,
+    price Decimal(18, 8),
+    qty Decimal(12, 8),
+    base_qty Decimal(12, 8),
+    time UInt64,
+    is_buyer_maker Boolean,
+    unknown_flag Boolean DEFAULT True,
+    timestamp DateTime64(3) -- Millisecond precision
+)
+ENGINE = MergeTree
+PARTITION BY toDate(toDateTime(time / 1000))
+ORDER BY (timestamp)
+SETTINGS index_granularity = 8192;
+```
+
+
 Verify that the ascending order of the column `time` 
 
 ```SQL
@@ -78,3 +81,32 @@ FROM (
 )
 WHERE time_diff < 0;
 ```
+
+Aggregation of tick data in 1 minute OHLCVs
+
+```SQL
+CREATE TABLE ohlc_M1_BTC
+(
+    timestamp DateTime64(3),
+    open_price Decimal(18, 8),
+    high_price Decimal(18, 8),
+    low_price Decimal(18, 8),
+    close_price Decimal(18, 8),
+    num_trades UInt64
+) 
+ENGINE = MergeTree()
+ORDER BY timestamp;
+
+INSERT INTO ohlc_M1_BTC
+SELECT
+    toStartOfInterval(timestamp, INTERVAL 60 SECOND) AS timestamp,
+    any(price) AS open_price,
+    max(price) AS high_price,
+    min(price) AS low_price,
+    anyLast(price) AS close_price,
+    count() AS num_trades
+FROM trades_BTC
+GROUP BY timestamp
+ORDER BY timestamp;
+```
+
