@@ -21,6 +21,8 @@
             <option value="30s">30 seconds</option>
             <option value="1min">1 minute</option>
             <option value="5min">5 minutes</option>
+            <option value="30min">30 minutes</option>
+            <option value="1h">1 hour</option>
         </select>
         <button onclick="loadConfigAndData()">Load Data</button>
     </div>
@@ -52,18 +54,14 @@
 
         function intervalToSeconds(interval) {
             switch (interval) {
-                case '1s':
-                    return 1;
-                case '5s':
-                    return 5;
-                case '30s':
-                    return 30;
-                case '1min':
-                    return 60;
-                case '5min':
-                    return 300;
-                default:
-                    return 300;
+                case '1s': return 1;
+                case '5s':   return 5;
+                case '30s':  return 30;
+                case '1min': return 60;
+                case '5min': return 5*60;
+                case '30min': return 30*60;
+                case '1h': return 60*60;
+                default: return 300;
             }
         }
 
