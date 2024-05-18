@@ -8,15 +8,5 @@
                 "type": "scatter"
             }
         ]
-    },
-    {
-        "symbol": "BTC",
-        "title": "BTC OHLC",
-        "endpoints": [
-            {
-                "url": "/s1_data",
-                "type": "candlestick"
-            }
-        ]
     }
 ]

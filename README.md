@@ -13,6 +13,11 @@ docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 -
 ```
 
 
+Run the WEB server http://127.0.0.1:8080
+
+```sh
+python3 web/web.py --debug_level=DEBUG
+```
 
 
 # Logs
