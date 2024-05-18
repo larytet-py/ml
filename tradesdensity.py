@@ -28,7 +28,7 @@ def calculate_metrics(df, interval='5S'):
     return all_trade_density
 
 # Function to process data in chunks, calculate trade density
-def process_data_in_chunks(query, chunk_size, interval):
+def process_data_in_chunks(query, chunk_size, interval, min_density):
     current_date = datetime.now(timezone.utc).isoformat()
     offset = 0
     all_trade_density = []
@@ -45,7 +45,12 @@ def process_data_in_chunks(query, chunk_size, interval):
         # Calculate metrics for the current chunk
         chunk_trade_density = calculate_metrics(chunk_df, interval)
         # all_trade_density.extend(chunk_trade_density)
-        
+
+        for density, density_time, _, close_price in chunk_trade_density:
+            if density > min_density:
+                all_trade_density.append((density_time.replace(tzinfo=timezone.utc), close_price, density))
+
+
         if chunk_trade_density:
             min_density_record = min(chunk_trade_density, key=lambda x: x[0])
             max_density_record = max(chunk_trade_density, key=lambda x: x[0])
@@ -64,51 +69,27 @@ def process_data_in_chunks(query, chunk_size, interval):
         # Increment offset for the next chunk
         offset += chunk_size
 
+
     return all_trade_density
 
-# Function to identify unusual trade density
-def identify_unusual_trade_density(all_trade_density, threshold_multiplier=3):
-    # Extract trade densities from the tuples
-    trade_densities = [density for density, _, _, _ in all_trade_density]
-    trade_density_df = pd.DataFrame(trade_densities, columns=['trade_density'])
-    threshold = trade_density_df['trade_density'].mean() + threshold_multiplier * trade_density_df['trade_density'].std()
-    return threshold
+def filter_trade_density(trade_density_list, price_diff_threshold=0.01):
+    # Sort by close_price
+    trade_density_list.sort(key=lambda x: x[1])
+    
+    filtered_list = []
+    last_kept_close_price = None
 
-# Function to get unusual trade density records
-def get_unusual_trade_density_records(query, chunk_size, interval, threshold):
-    offset = 0
-    unusual_trade_density_records = []
-    client = get_client()
+    for density_time, close_price, density in trade_density_list:
+        if last_kept_close_price is None or abs(close_price - last_kept_close_price) / last_kept_close_price >= price_diff_threshold:
+            filtered_list.append((density_time, close_price, density))
+            last_kept_close_price = close_price
+        else:
+            # If the price difference is less than the threshold, keep the one with the higher density
+            if density > filtered_list[-1][2]:
+                filtered_list[-1] = (density_time, close_price, density)
+                last_kept_close_price = close_price
 
-    while True:
-        chunk_query = query.format(limit=chunk_size, offset=offset)
-        chunk_df = client.query_df(chunk_query)
-        
-        if chunk_df.empty:
-            break
-
-        # Convert timestamp to pandas datetime
-        chunk_df['timestamp'] = pd.to_datetime(chunk_df['timestamp'])
-
-        # Group by specified intervals
-        grouped = chunk_df.groupby(chunk_df['timestamp'].dt.floor(interval))
-
-        for _, group in grouped:
-            if len(group) > 1:
-                open_price = group.iloc[0]['price']
-                close_price = group.iloc[-1]['price']
-                roc = (close_price - open_price) / open_price
-
-                trade_count = len(group)
-                if roc != 0:  # Avoid division by zero
-                    trade_density = trade_count / roc
-                    if trade_density > threshold:
-                        unusual_trade_density_records.extend(group.to_dict('records'))
-        
-        # Increment offset for the next chunk
-        offset += chunk_size
-
-    return unusual_trade_density_records
+    return filtered_list
 
 def main():
     parser = argparse.ArgumentParser(description="Print prices with unusually low trade density.")
@@ -133,23 +114,14 @@ def main():
     LIMIT {{limit}} OFFSET {{offset}}
     """
 
-    chunk_size = 100_000
+    chunk_size = 1_000_000
     interval_str = f'{int(args.interval)}S'
 
     # Process data in chunks and calculate trade density
-    all_trade_density = process_data_in_chunks(query_template, chunk_size, interval_str)
+    all_trade_density = process_data_in_chunks(query_template, chunk_size, interval_str, 22)
 
-    # Calculate the threshold for unusual trade density
-    threshold = identify_unusual_trade_density(all_trade_density)
-
-    # Get records with unusual trade density
-    unusual_trade_density_records = get_unusual_trade_density_records(query_template, chunk_size, interval_str, threshold)
-
-    # Create a DataFrame with all unusual trade density records
-    unusual_trade_density_df = pd.DataFrame(unusual_trade_density_records)
-
-    # Display the results
-    print(unusual_trade_density_df)
+    all_trade_density = filter_trade_density(all_trade_density)
+    print(all_trade_density)
 
 if __name__ == "__main__":
     main()
