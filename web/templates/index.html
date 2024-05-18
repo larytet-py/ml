@@ -99,7 +99,7 @@
         }
 
         function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, addData = false) {
-            console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
+            console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
             fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${encodeURIComponent(interval)}`)
                 .then(response => response.json())
                 .then(data => {

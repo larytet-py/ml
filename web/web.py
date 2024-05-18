@@ -143,8 +143,11 @@ def get_trades_density():
     query = f"""
     SELECT
         toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS DateTime64)) AS time,
-        count() AS num_trades,
-        count() / (abs(toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price))) AS price
+        if(
+            anyLast(price) = any(price),
+            0,
+            log(count() / (abs(toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price))))
+        ) AS price
     FROM {table_name}
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
     GROUP BY time

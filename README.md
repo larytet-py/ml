@@ -35,6 +35,7 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 * https://www.youtube.com/watch?v=LTI9i_Njj3U
 * https://www.youtube.com/watch?v=WfrGj3qvDEQ
 * https://en.wikipedia.org/wiki/Autoregressive_moving-average_model
+* https://arxiv.org/pdf/2301.12561
 
 # Books 
 
