@@ -100,8 +100,8 @@ def get_ohlc_data():
         -- count() AS num_trades
     FROM {table_name}
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
-    GROUP BY timestamp
-    ORDER BY timestamp ASC
+    GROUP BY time
+    ORDER BY time ASC
     """
 
     debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
