@@ -42,12 +42,15 @@ def process_data_in_chunks(query, chunk_size, interval):
         if chunk_df.empty:
             break
 
-        last_timestamp = chunk_df['timestamp'].iloc[-1]
-        logging.debug(f"Last timestamp in the chunk: {last_timestamp}")
-
         # Calculate metrics for the current chunk
-        all_trade_density.extend(calculate_metrics(chunk_df, interval))
+        chunk_trade_density = calculate_metrics(chunk_df, interval)
+        all_trade_density.extend(chunk_trade_density)
         
+        if chunk_trade_density:
+            min_density, max_density = min(chunk_trade_density), max(chunk_trade_density)
+            last_timestamp = chunk_df['timestamp'].iloc[-1]
+            logging.debug(f"Min/max trade density in the chunk {last_timestamp}: {min_density}, {max_density}")
+
         # Increment offset for the next chunk
         offset += chunk_size
 
