@@ -3,6 +3,7 @@ import math
 from datetime import datetime, timezone
 from clickhouse_connect import get_client
 import pandas as pd
+import concurrent.futures
 import logging
 
 # Function to calculate ROC and trade density for each chunk
@@ -27,16 +28,23 @@ def calculate_metrics(df, interval='5S'):
 
     return all_trade_density
 
-# Function to process data in chunks, calculate trade density
-def process_data_in_chunks(query, chunk_size, interval, min_density):
+
+def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interval, min_density):
     current_date = datetime.now(timezone.utc).isoformat()
     offset = 0
     all_trade_density = []
-
     client = get_client()
 
+    query_template = f"""
+    SELECT id, price, qty, base_qty, time, is_buyer_maker, unknown_flag, timestamp
+    FROM {table_name}
+    WHERE timestamp BETWEEN '{start_date}' AND '{end_date}'
+    ORDER BY timestamp
+    LIMIT {{limit}} OFFSET {{offset}}
+    """
+
     while True:
-        chunk_query = query.format(limit=chunk_size, offset=offset)
+        chunk_query = query_template.format(limit=chunk_size, offset=offset)
         chunk_df = client.query_df(chunk_query)
         
         if chunk_df.empty:
@@ -55,6 +63,7 @@ def process_data_in_chunks(query, chunk_size, interval, min_density):
         offset += chunk_size
 
     return all_trade_density
+
 
 def filter_trade_density(trade_density_list, price_diff_threshold=0.01):
     # Sort by close_price
@@ -90,19 +99,12 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(args.log_level.upper())
 
-    query_template = f"""
-    SELECT id, price, qty, base_qty, time, is_buyer_maker, unknown_flag, timestamp
-    FROM trades_{args.symbol}
-    WHERE timestamp BETWEEN '{args.start_date}' AND '{args.end_date}'
-    ORDER BY timestamp
-    LIMIT {{limit}} OFFSET {{offset}}
-    """
 
     chunk_size = 1_000_000
     interval_str = f'{int(args.interval)}S'
 
     # Process data in chunks and calculate trade density
-    all_trade_density = process_data_in_chunks(query_template, chunk_size, interval_str, args.min_density)
+    all_trade_density = process_data_in_chunks(f"trades_{args.symbol}", args.start_date, args.end_date, chunk_size, interval_str, args.min_density)
 
     logger.info("Filtering")
     all_trade_density = filter_trade_density(all_trade_density)
