@@ -15,6 +15,13 @@
     <div style="margin-bottom: 10px;">
         <input type="text" id="startTimePicker" placeholder="Select Start Time" />
         <input type="number" id="duration" placeholder="Duration (hours)" min="1" max="72" />
+        <select id="interval">
+            <option value="1s">1 second</option>
+            <option value="5s">5 seconds</option>
+            <option value="30s">30 seconds</option>
+            <option value="1min">1 minute</option>
+            <option value="5min">5 minutes</option>
+        </select>
         <button onclick="loadConfigAndData()">Load Data</button>
     </div>
     <!-- Container divs will be dynamically created here -->
@@ -28,73 +35,75 @@
             $('#startTimePicker').daterangepicker({
                 // Configures the date range picker to behave as a single date picker with time selection.
                 singleDatePicker: true,
-                timePicker: true, // Enables time selection.
+                timePicker: true,
                 timePicker24Hour: true, // Sets time format to 24-hour clock.
                 timePickerIncrement: 15, // Sets the increment of minutes selection to 15 minutes.
                 startDate: moment().subtract(24, 'days'), // Default starting date is 4 days before the current day.
                 locale: {
-                    format: 'YYYY-MM-DDTHH:mm:ss.SSS[Z]' // Sets the format for displaying selected dates.
+                    format: 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'
                 }
             });
-    
-            // Sets the default value of the HTML input element with ID 'duration' to 2.
+            // Sets the default value of the HTML input element with ID 'duration' to 2 (min).
             $('#duration').val(2);
-    
+
             // Calls a function to load configuration and data when the page is ready.
             loadConfigAndData();
         });
-    
-        // Defines a function to load configuration and data.
+
+        function intervalToSeconds(interval) {
+            switch (interval) {
+                case '1s':
+                    return 1;
+                case '5s':
+                    return 5;
+                case '30s':
+                    return 30;
+                case '1min':
+                    return 60;
+                case '5min':
+                    return 300;
+                default:
+                    return 300;
+            }
+        }
+
         function loadConfigAndData() {
             // Fetch API is used to make an HTTP request to retrieve 'panels.json'.
             fetch('panels.json')
-                .then(response => response.json()) // Parses the response as JSON.
+                .then(response => response.json())
                 .then(panels => {
-                    // Iterates over each panel object in the 'panels' array.
                     panels.forEach(panel => {
-                        // Creates a unique container ID by modifying the panel title. Removes non-alphanumeric characters.
                         var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
-                        // Creates a new <div> element and sets its attributes for ID and CSS styles.
                         var containerDiv = $('<div>').attr('id', containerId).css({
                             height: '600px',
                             minWidth: '310px',
                             marginBottom: '20px'
                         });
-                        // Appends the newly created <div> to the body of the HTML document.
                         $('body').append(containerDiv);
-                        // Calls a function to load data for each panel using the container ID.
                         loadData(panel, containerId);
                     });
                 })
                 .catch(error => {
-                    // Logs an error message in the console if the fetch operation fails.
                     console.error('Error loading panel config:', error);
                 });
         }
-    
+
         // Defines a function to load data for a specific panel.
         function loadData(panel, containerId) {
-            // Retrieves the start time from the input with ID 'startTimePicker'.
             var startTime = moment.utc($('#startTimePicker').val());
-            // Retrieves and converts the duration (in hours) from the input with ID 'duration' to an integer.
             var duration = parseInt($('#duration').val());
-            // Calculates the end time by adding the duration to the start time.
             var endTime = moment(startTime).add(duration, 'minutes');
-    
-            // Iterates over each endpoint specified in the panel's configuration.
+            var intervalInSeconds = intervalToSeconds($('#interval').val());
+
             panel.endpoints.forEach(endpoint => {
-                // Calls a function to fetch data from each endpoint.
-                fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, panel.interval, containerId, panel.title);
+                fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, intervalInSeconds, containerId, panel.title);
             });
         }
-    
-        // Defines a function to fetch data from a specified endpoint.
+
         function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, addData = false) {
-            // Logs the data fetching details to the console.
-            console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}`);
-            // Makes an HTTP GET request to fetch data. Encodes query parameters to ensure URL validity.
-            fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${{interval}}`)
-                .then(response => response.json()) // Parses the response as JSON.
+            console.log(`Fetching data: ${symbol}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
+            fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${encodeURIComponent(interval)}`)
+                .then(response => response.json())
                 .then(data => {
                     // Processes the received data based on the type of data representation (line or OHLC chart).
                     // The `seriesData` constant is assigned the result of the `map` method called on the `data` array.
@@ -107,9 +116,7 @@
                     // This transformation is crucial for the Highcharts library used later to render the data accurately in the specified chart type.
                     // The `map` method returns a new array consisting of these transformed items, which is then assigned to `seriesData`.
                     const seriesData = data.map(item => {
-                        if (type === 'line') {
-                            return [item.time, item.price];
-                        } else if (type === 'scatter') {
+                        if (type === 'line' || type === 'scatter') {
                             return [item.time, item.price];
                         } else if (type === 'candlestick') {
                             console.log("Fetched data:", data);
@@ -123,15 +130,13 @@
                     // - If the result is positive, 'a' is placed after 'b'.
                     // - If the result is zero, the order of 'a' and 'b' relative to each other does not change.
                     // This sorting method ensures that the data is ordered chronologically, which is crucial for correctly displaying data in time-sensitive charts.
-                    }).sort((a, b) => a[0] - b[0]); 
-    
-                    // If no data is received, logs a message and returns early.
+                    }).sort((a, b) => a[0] - b[0]);
+
                     if (seriesData.length == 0) {
                         console.log('Got no data. Ignore');
                         return;
                     }
-    
-                    // Initializes a Highcharts stock chart in the specified container.
+
                     Highcharts.stockChart(containerId, {
                         rangeSelector: {
                             buttons: [{
@@ -150,8 +155,8 @@
                                 type: 'all',
                                 text: 'All'
                             }],
-                            inputEnabled: true, // enables input box
-                            selected: 1 // selects the 1 minute button by default
+                            inputEnabled: true,
+                            selected: 1
                         },
                         title: {
                             text: title
@@ -175,12 +180,12 @@
                                 valueDecimals: 2
                             },
                             dataGrouping: {
-                                enabled: true // consider disabling data grouping for 1-second or 1-minute data
+                                enabled: true
                             },
-                            color: type === 'line' ? undefined : 'red', // Blue for line, red for candlestick
-                            upColor: type === 'candlestick' ? 'green' : undefined, // Green for up days in candlestick
-                            lineColor: type === 'candlestick' ? 'black' : undefined, // Black line color for candlestick wicks
-                            upLineColor: type === 'candlestick' ? 'black' : undefined, // Black line color for candlestick up wicks
+                            color: type === 'line' ? undefined : 'red',
+                            upColor: type === 'candlestick' ? 'green' : undefined,
+                            lineColor: type === 'candlestick' ? 'black' : undefined,
+                            upLineColor: type === 'candlestick' ? 'black' : undefined,
                             marker: { 
                                 enabled: true,
                                 radius: 3, 
@@ -207,10 +212,9 @@
                     });
                 })
                 .catch(error => {
-                    // Logs an error message in the console if the fetch operation fails.
                     console.error('Error fetching data:', error);
                 });
         }
     </script>
-    </body>
+</body>
 </html>
