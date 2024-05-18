@@ -115,7 +115,7 @@ def create_table_trades(table_name):
     )
     ENGINE = MergeTree
     PARTITION BY toDate(toDateTime(time / 1000))
-    ORDER BY (id)
+    ORDER BY (timestamp)
     SETTINGS index_granularity = 8192;
     """
 
