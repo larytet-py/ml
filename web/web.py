@@ -91,12 +91,12 @@ def get_ohlc_data():
     # Define the new query to fetch OHLC data
     query = f"""
     SELECT
-        toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS timestamp,
-        any(price) AS open_price,
-        max(price) AS high_price,
-        min(price) AS low_price,
-        anyLast(price) AS close_price,
-        count() AS num_trades
+        toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS time,
+        any(price) AS open,
+        max(price) AS high,
+        min(price) AS low,
+        anyLast(price) AS close,
+        -- count() AS num_trades
     FROM {table_name}
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
     GROUP BY timestamp
@@ -111,13 +111,7 @@ def get_ohlc_data():
 
     # Process the DataFrame to convert it into the required format
     data = result.to_dict(orient='records')
-    ohlc_data = [
-        {'open': item['open_price'], 'high': item['high_price'], 'low': item['low_price'], 'close': item['close_price'], 'time': item['timestamp']}
-        for item in data
-    ]
-
-    # Return JSON response
-    return jsonify(ohlc_data)
+    return jsonify(data)
 
 @app.route('/panels.json')
 def panels_json():
