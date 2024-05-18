@@ -59,7 +59,7 @@ def process_data_in_chunks(query, chunk_size, interval):
                 #             f"{max_log_density:.2f}@{max_density_time}, price={max_open_price:.0f}/{max_close_price:.0f}"
                 # )
                 # print(f"{max_density_time.isoformat()},{current_date},{max_close_price:.5f}")
-                print(f"{max_density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{max_close_price:.5f}")
+                print(f"{max_density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{max_close_price:.5f},{max_log_density:.2f}")
 
         # Increment offset for the next chunk
         offset += chunk_size
