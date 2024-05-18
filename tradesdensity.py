@@ -1,10 +1,10 @@
 import argparse
+import math
 from datetime import datetime, timedelta
 from clickhouse_connect import get_client
 import pandas as pd
 import logging
 
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Function to calculate ROC and trade density for each chunk
 def calculate_metrics(df, interval='5S'):
@@ -19,7 +19,7 @@ def calculate_metrics(df, interval='5S'):
         if len(group) > 1:
             open_price = group.iloc[0]['price']
             close_price = group.iloc[-1]['price']
-            roc = (close_price - open_price) / open_price
+            roc = math.fabs((close_price - open_price) / open_price)
 
             trade_count = len(group)
             if roc != 0:  # Avoid division by zero
@@ -47,9 +47,13 @@ def process_data_in_chunks(query, chunk_size, interval):
         all_trade_density.extend(chunk_trade_density)
         
         if chunk_trade_density:
-            min_density, max_density = min(chunk_trade_density), max(chunk_trade_density)
-            last_timestamp = chunk_df['timestamp'].iloc[-1]
-            logging.debug(f"Min/max trade density in the chunk {last_timestamp}: {min_density}, {max_density}")
+            min_density_record = min(chunk_trade_density, key=lambda x: x[0])
+            max_density_record = max(chunk_trade_density, key=lambda x: x[0])
+            min_density, min_density_time = min_density_record
+            max_density, max_density_time = max_density_record
+            chunk_timestamp = chunk_df['timestamp'].iloc[0]
+            logger.debug(f"Min trade density in the chunk {chunk_timestamp}: {min_density} at {min_density_time}")
+            logger.debug(f"Max trade density in the chunk {chunk_timestamp}: {max_density} at {max_density_time}")
 
         # Increment offset for the next chunk
         offset += chunk_size
@@ -108,7 +112,11 @@ def main():
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='DEBUG', help='Set the logging level')
     args = parser.parse_args()
 
-    logging.getLogger().setLevel(args.log_level.upper())
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+    global logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(args.log_level.upper())
+
 
     query_template = f"""
     SELECT id, price, qty, base_qty, time, is_buyer_maker, unknown_flag, timestamp
