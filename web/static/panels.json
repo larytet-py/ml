@@ -1,16 +1,6 @@
 [
     {
         "symbol": "BTC",
-        "title": "BTC Trades",
-        "endpoints": [
-            {
-                "url": "/price_data",
-                "type": "scatter"
-            }
-        ]
-    },
-    {
-        "symbol": "BTC",
         "title": "BTC OHLCV",
         "endpoints": [
             {

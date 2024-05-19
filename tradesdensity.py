@@ -3,8 +3,10 @@ import math
 from datetime import datetime, timezone
 from clickhouse_connect import get_client
 import pandas as pd
-import concurrent.futures
 import logging
+
+import multiprocessing as mp
+from functools import partial
 
 # Function to calculate ROC and trade density for each chunk
 def calculate_metrics(df, interval='5S'):
@@ -29,10 +31,8 @@ def calculate_metrics(df, interval='5S'):
     return all_trade_density
 
 
-def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interval, min_density):
+def process_chunk(table_name, start_date, end_date, chunk_size, interval, min_density, offset):
     current_date = datetime.now(timezone.utc).isoformat()
-    offset = 0
-    all_trade_density = []
     client = get_client()
 
     query_template = f"""
@@ -42,24 +42,40 @@ def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interva
     ORDER BY timestamp
     LIMIT {{limit}} OFFSET {{offset}}
     """
+    
+    chunk_query = query_template.format(limit=chunk_size, offset=offset)
+    chunk_df = client.query_df(chunk_query)
+    
+    if chunk_df.empty:
+        return []
 
-    while True:
-        chunk_query = query_template.format(limit=chunk_size, offset=offset)
-        chunk_df = client.query_df(chunk_query)
-        
-        if chunk_df.empty:
-            break
+    # Calculate metrics for the current chunk
+    chunk_trade_density = calculate_metrics(chunk_df, interval)
+    result = []
+    for density, density_time, _, close_price in chunk_trade_density:
+        if density > min_density:
+            result.append((density_time.replace(tzinfo=timezone.utc), close_price, density))
+            print(f"{density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{close_price:.5f},{density:.2f}")
+    return result
 
-        # Calculate metrics for the current chunk
-        chunk_trade_density = calculate_metrics(chunk_df, interval)
+def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interval, min_density):
+    client = get_client()
 
-        for density, density_time, _, close_price in chunk_trade_density:
-            if density > min_density:
-                all_trade_density.append((density_time.replace(tzinfo=timezone.utc), close_price, density))
-                logger.debug(f"{density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{close_price:.5f},{density:.2f}")
+    # Determine the total number of records to process
+    count_query = f"""
+    SELECT COUNT(*) AS count
+    FROM {table_name}
+    WHERE timestamp BETWEEN '{start_date}' AND '{end_date}'
+    """
+    total_count = client.query_df(count_query).iloc[0]['count']
 
-        offset += chunk_size
-
+    offsets = range(0, total_count, chunk_size)
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        worker = partial(process_chunk, table_name, start_date, end_date, chunk_size, interval, min_density)
+        results = pool.map(worker, offsets)
+    
+    # Flatten the list of lists
+    all_trade_density = [item for sublist in results for item in sublist]
     return all_trade_density
 
 
@@ -87,8 +103,8 @@ def main():
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
     parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
-    parser.add_argument('--interval', type=float, default=5.0, help='Set the interval in seconds')
-    parser.add_argument('--min_density', type=float, default=22, help='Set the minimum trades density to show')
+    parser.add_argument('--interval', type=float, default=5.0*60, help='Set the interval in seconds')
+    parser.add_argument('--min_density', type=float, default=18, help='Set the minimum trades density to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='DEBUG', help='Set the logging level')
     args = parser.parse_args()
 
