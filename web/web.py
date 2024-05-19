@@ -153,6 +153,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug_level', default='INFO', help='Set the debug level')
+    parser.add_argument('--port', default=8080, help='HTTP port to bind')
     args = parser.parse_args()
 
     numeric_level = getattr(logging, args.debug_level.upper(), None)
@@ -160,4 +161,4 @@ if __name__ == '__main__':
         raise ValueError(f'Invalid log level: {args.debug_level}')
     logging.getLogger().setLevel(numeric_level)
     
-    app.run(debug=True, port=8080)
+    app.run(debug=True, port=args.port)
