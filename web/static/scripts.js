@@ -68,6 +68,19 @@ function loadData(panel, containerId) {
     });
 }
 
+function syncExtremes(e) {
+    var thisChart = this.chart;
+    if (e.trigger !== 'syncExtremes') {
+        Highcharts.each(Highcharts.charts, function(chart) {
+            if (chart !== thisChart) {
+                if (chart.xAxis[0].setExtremes) {
+                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
+                }
+            }
+        });
+    }
+}
+
 function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, addData = false) {
     console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
     fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${encodeURIComponent(interval)}`)
@@ -115,6 +128,18 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
                         count: 1,
                         text: '1m'
                     }, {
+                        type: 'minute',
+                        count: 5,
+                        text: '5m'
+                    }, {
+                        type: 'minute',
+                        count: 15,
+                        text: '15m'
+                    }, {
+                        type: 'minute',
+                        count: 30,
+                        text: '30m'
+                    }, {
                         type: 'hour',
                         count: 1,
                         text: '1h'
@@ -132,7 +157,12 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
                     crosshair: true,
                     type: 'datetime',
                     // Ensure tickInterval is set correctly; here it should likely be in milliseconds if showing seconds
-                    tickInterval: 1
+                    tickInterval: 1,
+                    events: {
+                        setExtremes: function(e) {
+                            syncExtremes(e);
+                        }
+                    }
                 },
                 yAxis: {
                     title: {

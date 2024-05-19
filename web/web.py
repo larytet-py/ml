@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import clickhouse_connect
 import dateutil
-import click
 import logging
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
