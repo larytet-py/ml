@@ -2,6 +2,11 @@
 // event handling, and AJAX interactions. The "$" symbol is an alias for "jQuery".
 // Everything inside $(function() {...}) will run once the document is fully loaded.
 $(function() {
+    // Default starting date is 24 days before the current day.
+    var startTimePickerVal = Cookies.get('startTimePicker') || moment().subtract(24, 'days').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+    var intervalVal = Cookies.get('interval') || '1s';
+    var durationVal = Cookies.get('duration') || 2000;
+
     // Selects the HTML element with the ID 'startTimePicker' and applies a date range picker plugin.
     // This plugin provides a user-friendly interface for date picking in web forms.
     $('#startTimePicker').daterangepicker({
@@ -10,16 +15,29 @@ $(function() {
         timePicker: true,
         timePicker24Hour: true, // Sets time format to 24-hour clock.
         timePickerIncrement: 15, // Sets the increment of minutes selection to 15 minutes.
-        startDate: moment().subtract(24, 'days'), // Default starting date is 4 days before the current day.
+        startDate: moment(startTimePickerVal).subtract(24, 'days'),
         locale: {
             format: 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'
         }
     });
+
     // Sets the default value of the HTML input element with ID 'duration' to 2 (min).
-    $('#duration').val(2);
+    $('#interval').val(intervalVal);
+    $('#duration').val(durationVal);
 
     // Calls a function to load configuration and data when the page is ready.
     loadConfigAndData();
+
+    // Save settings to cookies when they change
+    $('#startTimePicker').on('apply.daterangepicker', function(ev, picker) {
+        Cookies.set('startTimePicker', picker.startDate.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'));
+    });
+    $('#interval').on('change', function() {
+        Cookies.set('interval', $(this).val());
+    });
+    $('#duration').on('change', function() {
+        Cookies.set('duration', $(this).val());
+    });
 });
 
 function intervalToSeconds(interval) {
@@ -59,7 +77,7 @@ function loadConfigAndData() {
 // Defines a function to load data for a specific panel.
 function loadData(panel, containerId) {
     var startTime = moment.utc($('#startTimePicker').val());
-    var intervalInSeconds = intervalToSeconds($('#interval').val());
+        var intervalInSeconds = intervalToSeconds($('#interval').val());
     var duration = intervalInSeconds * parseInt($('#duration').val());
     var endTime = moment(startTime).add(duration, 'seconds');
 
