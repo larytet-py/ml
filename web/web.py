@@ -22,7 +22,7 @@ def get_client():
 def validate_and_parse_args(client):
     symbol = request.args.get('symbol', default='BTC', type=str)
     if symbol not in TRADES_TABLES:
-        return None, None, None, None, jsonify({'error': 'Invalid symbol'}), 400
+        return None, None, None, None, None, jsonify({'error': 'Invalid symbol'}), 400
 
     start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
     end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
@@ -33,9 +33,11 @@ def validate_and_parse_args(client):
     start_str = start_date.strftime('%Y-%m-%d %H:%M:%S')
     end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
 
+    interval_duration = request.args.get('interval', default=60, type=int)
+
     table_name = TRADES_TABLES[symbol]
 
-    return start_str, end_str, table_name, None, None
+    return start_str, end_str, table_name, interval_duration, None, None
 
 def execute_query(query, parameters):
     client = get_client()
@@ -48,7 +50,7 @@ def execute_query(query, parameters):
 def get_price_data():
     client = get_client()
 
-    start_str, end_str, table_name, error_response, status = validate_and_parse_args(client)
+    start_str, end_str, table_name, _, error_response, status = validate_and_parse_args(client)
     if error_response:
         return error_response, status
 
@@ -70,11 +72,9 @@ def get_price_data():
 def get_ohlc_data():
     client = get_client()
 
-    start_str, end_str, table_name, error_response, status = validate_and_parse_args(client)
+    start_str, end_str, table_name, interval_duration, error_response, status = validate_and_parse_args(client)
     if error_response:
         return error_response, status
-
-    interval_duration = request.args.get('interval', default=60, type=int)
 
     query = f"""
     SELECT
@@ -104,11 +104,9 @@ def get_ohlc_data():
 def get_trades_density():
     client = get_client()
 
-    start_str, end_str, table_name, error_response, status = validate_and_parse_args(client)
+    start_str, end_str, table_name, interval_duration, error_response, status = validate_and_parse_args(client)
     if error_response:
         return error_response, status
-
-    interval_duration = request.args.get('interval', default=60, type=int)
 
     query = f"""
     SELECT
