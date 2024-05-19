@@ -37,12 +37,12 @@ def get_trades_density(table_name, start_date, end_date, interval, min_density):
             continue
 
         result.append((row['timestamp'].replace(tzinfo=timezone.utc), row['open'], row['density']))
-        logger.info(f"{row['timestamp'].replace(tzinfo=timezone.utc).isoformat()},{datetime.now(timezone.utc).isoformat()},{row['open']:.5f},{row['density']:.2f}")
+        logger.debug(f"{row['timestamp'].replace(tzinfo=timezone.utc).isoformat()},{datetime.now(timezone.utc).isoformat()},{row['open']:.5f},{row['density']:.2f}")
 
     return result
 
 
-def filter_trade_density(trade_density_list, price_diff_threshold=0.01):
+def filter_trade_density(trade_density_list, price_diff_threshold):
     # Sort by close_price
     trade_density_list.sort(key=lambda x: x[1])
     
@@ -69,6 +69,7 @@ def main():
     parser.add_argument('--interval', type=float, default=5*60, help='Set the interval in seconds')
     parser.add_argument('--min_density', type=float, default=18, help='Set the minimum trades density to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
+    parser.add_argument('--price_diff_threshold', type=float, default=0.01, help='Set the minimum distance between the RS lines')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(message)s')
@@ -76,11 +77,10 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(args.log_level.upper())
 
-    # Process data in chunks and calculate trade density
     all_trade_density = get_trades_density(f"trades_{args.symbol}", args.start_date, args.end_date, args.interval, args.min_density)
 
-    logger.info("Filtering")
-    all_trade_density = filter_trade_density(all_trade_density)
+    logger.debug("Filtering")
+    all_trade_density = filter_trade_density(all_trade_density, args.price_diff_threshold)
     current_date = datetime.now(timezone.utc).isoformat()
     for density_time, close_price, density in all_trade_density:
         logger.info(f"{density_time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{close_price:.5f},{density:.2f}")
