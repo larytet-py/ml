@@ -10,7 +10,7 @@
             {
                 "url": "/price_ma",
                 "type": "line",
-                "parameters": {"period": 9}
+                "parameters": {"period": 600}
             }
         ]
     },

@@ -1,5 +1,4 @@
 import argparse
-from dataclasses import asdict, dataclass
 from flask import Flask, request, jsonify, send_from_directory
 import clickhouse_connect
 import dateutil
@@ -19,13 +18,6 @@ def index():
 def get_client():
     return clickhouse_connect.get_client(host='localhost')
 
-@dataclass
-class QueryParameters:
-    start_date: str
-    end_date: str
-    table_name: str
-    interval_duration: int
-
 def validate_and_parse_args():
     symbol = request.args.get('symbol', default='BTC', type=str)
     if symbol not in TRADES_TABLES:
@@ -44,17 +36,23 @@ def validate_and_parse_args():
 
     table_name = TRADES_TABLES[symbol]
 
-    return QueryParameters(start_str, end_str, table_name, interval_duration), None, 200
+    return { 
+        'start_date': start_str,
+        'end_date': end_str,
+        'table_name': table_name,
+        'interval_duration': interval_duration
+    }, None, 200
 
 def execute_query(query, parameters):
-    parameters = asdict(parameters)
-
-    debug_query = query % {
-            'start_date': parameters['start_date'],
-            'end_date': parameters['end_date'],
-            'table_name': parameters['table_name'],
-            'interval_duration': parameters['interval_duration']
-        }   
+    param_dict = {
+        'start_date': parameters['start_date'],
+        'end_date': parameters['end_date'],
+        'table_name': parameters['table_name'],
+        'interval_duration': parameters['interval_duration']
+    }    
+    if 'period' in parameters:
+        param_dict['period'] = parameters['period']
+    debug_query = query % param_dict        
     logging.debug(debug_query)
    
     # Execute the query and fetch the result as a DataFrame
@@ -91,16 +89,22 @@ def get_price_ma():
     if error_response:
         return error_response, status
 
+    parameters['period'] = request.args.get('period', default=60, type=int)
+
     query = """
-    SELECT 
-        toUnixTimestamp64Milli(timestamp) AS time,
-        toFloat64(price) AS price
+    SELECT
+        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64)
+        ) AS time,
+        avg(price) OVER (
+            ORDER BY toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64))
+            ROWS BETWEEN %(period)s PRECEDING AND CURRENT ROW
+        ) AS moving_average
     FROM 
         %(table_name)s
     WHERE 
         timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
-        timestamp ASC
+        time ASC
     """
 
     data = execute_query(query, parameters)
