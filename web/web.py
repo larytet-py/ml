@@ -17,6 +17,11 @@ TRADES_TABLES = {'BTC': 'trades_BTC', 'ETH': 'trades_ETH'}
 def index():
     return send_from_directory('static', 'index.html')
 
+@app.route('/scripts.js')
+def scriptsjs():
+    return send_from_directory('static', 'scripts.js')
+
+
 @app.route('/price_data')
 def get_price_data():
     client = clickhouse_connect.get_client(host='localhost')
