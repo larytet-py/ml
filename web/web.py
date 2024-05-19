@@ -139,15 +139,6 @@ def get_trades_density():
     data = result.to_dict(orient='records')
     return jsonify(data)
 
-@app.cli.command("runserver")
-@click.option('--debug_level', default='INFO', help='Set the debug level')
-def runserver(debug_level):
-    numeric_level = getattr(logging, debug_level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {debug_level}')
-    logging.getLogger().setLevel(numeric_level)
-    app.run(debug=True, port=8080)
-
 if __name__ == '__main__':
     # Command line argument parsing for development purposes
     import argparse
