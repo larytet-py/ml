@@ -15,8 +15,7 @@ TRADES_TABLES = {'BTC': 'trades_BTC', 'ETH': 'trades_ETH'}
 
 @app.route('/')
 def index():
-    # Render your HTML file
-    return render_template('index.html')
+    return send_from_directory('static', 'index.html')
 
 @app.route('/price_data')
 def get_price_data():
