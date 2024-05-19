@@ -93,10 +93,17 @@ def get_price_ma():
 
     query = """
     SELECT
-        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64)
-        ) AS time,
+        -- Convert timestamp to milliseconds and group by intervals of specified duration
+        toUnixTimestamp64Milli(
+            CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64)
+        ) AS time,      
+        -- Calculate the moving average of the price using window function
         avg(price) OVER (
-            ORDER BY toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64))
+            -- Order data by timestamp in milliseconds grouped by intervals of specified duration
+            ORDER BY toUnixTimestamp64Milli(
+                CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64)
+            )
+            -- Define window frame: from 'period' number of preceding rows to the current row
             ROWS BETWEEN %(period)s PRECEDING AND CURRENT ROW
         ) AS moving_average
     FROM 
