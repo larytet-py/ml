@@ -68,7 +68,7 @@ def main():
     parser.add_argument('--end_date', default=datetime.now().replace(microsecond=0), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--interval', type=float, default=5*60, help='Set the interval in seconds')
     parser.add_argument('--min_density', type=float, default=18, help='Set the minimum trades density to show')
-    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='DEBUG', help='Set the logging level')
+    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(message)s')
