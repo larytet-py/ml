@@ -43,18 +43,25 @@ def validate_and_parse_args():
         'interval_duration': interval_duration
     }, None, 200
 
+
 def execute_query(query, parameters):
+    def format_param(value):
+        if isinstance(value, str):
+            return f"'{value}'"
+        return str(value)
+
     param_dict = {
-        'start_date': parameters['start_date'],
-        'end_date': parameters['end_date'],
-        'table_name': parameters['table_name'],
-        'interval_duration': parameters['interval_duration']
+        'start_date': format_param(parameters['start_date']),
+        'end_date': format_param(parameters['end_date']),
+        'table_name': parameters['table_name'],  # Assuming table_name doesn't need quotes
+        'interval_duration': format_param(parameters['interval_duration'])
     }    
     if 'period' in parameters:
-        param_dict['period'] = parameters['period']
-    debug_query = query % param_dict        
+        param_dict['period'] = format_param(parameters['period'])
+    
+    debug_query = query % param_dict
     logging.debug(debug_query)
-   
+      
     # Execute the query and fetch the result as a DataFrame
     result = get_client().query_df(query, parameters)
 
