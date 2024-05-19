@@ -72,22 +72,21 @@ function loadData(panel, containerId) {
             intervalInSeconds, 
             containerId, 
             panel.title,
-            endpoint.parameters
+            endpoint.parameters || {}
         );
     });
 }
 
-function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title) {
+function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, parameters) {
     console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
 
     let queryParams = new URLSearchParams({
-        symbol: encodeURIComponent(symbol),
-        start: encodeURIComponent(startDate),
-        end: encodeURIComponent(endDate),
-        interval: encodeURIComponent(interval)
+        symbol: symbol,
+        start: startDate,
+        end: endDate,
+        interval: interval
     });
 
-    // Append additional parameters if they exist
     if (parameters) {
         Object.keys(parameters).forEach(key => {
             queryParams.append(key, parameters[key]);
