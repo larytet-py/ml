@@ -70,7 +70,7 @@ def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interva
     total_count = client.query_df(count_query).iloc[0]['count']
 
     offsets = range(0, total_count, chunk_size)
-    with mp.Pool(processes=3) as pool:
+    with mp.Pool(processes=2) as pool:
         worker = partial(process_chunk, table_name, start_date, end_date, chunk_size, interval, min_density)
         results = pool.map(worker, offsets)
     

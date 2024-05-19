@@ -117,3 +117,23 @@ GROUP BY timestamp
 ORDER BY timestamp;
 ```
 
+Generate trades density 
+
+```SQL
+CREATE TABLE trades_density
+ENGINE = MergeTree()
+ORDER BY timestamp AS
+SELECT
+    toStartOfInterval(timestamp, INTERVAL 300 SECOND) AS timestamp,
+    (toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price)) AS roc,
+    count() as count,
+    if(
+        anyLast(price) = any(price),
+        0,
+        log(count() / (abs(toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price))))
+    ) AS density
+FROM trades_BTC
+WHERE timestamp BETWEEN '2021-01-01 00:00:00' AND '2024-04-25 11:38:58'
+GROUP BY timestamp
+ORDER BY timestamp ASC
+```
