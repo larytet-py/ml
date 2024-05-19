@@ -98,9 +98,9 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
             // The `map` method returns a new array consisting of these transformed items, which is then assigned to `seriesData`.
             const seriesData = data.map(item => {
                 if (type === 'line' || type === 'scatter') {
-                    return [item.time, item.price];
+                    return [item[0], item[1]];
                 } else if (type === 'candlestick') {
-                    return [item.time, item.open, item.high, item.low, item.close];
+                    return [item[0], item[1], item[2], item[3], item[4]];
                 }
             // The .sort((a, b) => a[0] - b[0]) function is used to sort an array of arrays (or objects) based on their first elements.
             // In this code, each array's first element is a timestamp, and the sort function arranges them in ascending order.
