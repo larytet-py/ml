@@ -1,9 +1,9 @@
+from dataclasses import dataclass
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import clickhouse_connect
-from datetime import datetime
 import dateutil
-import logging
 import click
+import logging
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,10 +19,17 @@ def index():
 def get_client():
     return clickhouse_connect.get_client(host='localhost')
 
+@dataclass
+class QueryParameters:
+    start_str: str
+    end_str: str
+    table_name: str
+    interval_duration: int
+
 def validate_and_parse_args(client):
     symbol = request.args.get('symbol', default='BTC', type=str)
     if symbol not in TRADES_TABLES:
-        return None, None, None, None, None, jsonify({'error': 'Invalid symbol'}), 400
+        return None, jsonify({'error': 'Invalid symbol'}), 400
 
     start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
     end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
@@ -37,7 +44,7 @@ def validate_and_parse_args(client):
 
     table_name = TRADES_TABLES[symbol]
 
-    return start_str, end_str, table_name, interval_duration, None, None
+    return QueryParameters(start_str, end_str, table_name, interval_duration), None, 200
 
 def execute_query(query, parameters):
     client = get_client()
@@ -50,7 +57,7 @@ def execute_query(query, parameters):
 def get_price_data():
     client = get_client()
 
-    start_str, end_str, table_name, _, error_response, status = validate_and_parse_args(client)
+    params, error_response, status = validate_and_parse_args(client)
     if error_response:
         return error_response, status
 
@@ -59,42 +66,42 @@ def get_price_data():
         toFloat64(price) AS price,
         toUnixTimestamp64Milli(timestamp) AS time
     FROM 
-        {table_name}
+        {params.table_name}
     WHERE 
         timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY 
         timestamp ASC
     """
 
-    return execute_query(query, {'start_date': start_str, 'end_date': end_str})
+    return execute_query(query, {'start_date': params.start_str, 'end_date': params.end_str})
 
 @app.route('/ohlc_data')
 def get_ohlc_data():
     client = get_client()
 
-    start_str, end_str, table_name, interval_duration, error_response, status = validate_and_parse_args(client)
+    params, error_response, status = validate_and_parse_args(client)
     if error_response:
         return error_response, status
 
     query = f"""
     SELECT
-        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS DateTime64)) AS time,
+        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {params.interval_duration} SECOND) AS DateTime64)) AS time,
         toFloat64(any(price)) AS open,
         toFloat64(max(price)) AS high,
         toFloat64(min(price)) AS low,
         toFloat64(anyLast(price)) AS close
         -- count() AS num_trades
-    FROM {table_name}
+    FROM {params.table_name}
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
     GROUP BY time
     ORDER BY time ASC
     """
 
-    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
+    debug_query = query.replace("%(start_date)s", f"'{params.start_str}'").replace("%(end_date)s", f"'{params.end_str}'")
     logging.debug(debug_query)
 
     # Execute the query and fetch the result as a DataFrame
-    result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
+    result = client.query_df(query, parameters={'start_date': params.start_str, 'end_date': params.end_str})
 
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
@@ -104,29 +111,29 @@ def get_ohlc_data():
 def get_trades_density():
     client = get_client()
 
-    start_str, end_str, table_name, interval_duration, error_response, status = validate_and_parse_args(client)
+    params, error_response, status = validate_and_parse_args(client)
     if error_response:
         return error_response, status
 
     query = f"""
     SELECT
-        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {interval_duration} SECOND) AS DateTime64)) AS time,
+        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL {params.interval_duration} SECOND) AS DateTime64)) AS time,
         if(
             anyLast(price) = any(price),
             0,
             log(count() / (abs(toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price))))
         ) AS price
-    FROM {table_name}
+    FROM {params.table_name}
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
     GROUP BY time
     ORDER BY time ASC
     """
 
-    debug_query = query.replace("%(start_date)s", f"'{start_str}'").replace("%(end_date)s", f"'{end_str}'")
+    debug_query = query.replace("%(start_date)s", f"'{params.start_str}'").replace("%(end_date)s", f"'{params.end_str}'")
     logging.debug(debug_query)
 
     # Execute the query and fetch the result as a DataFrame
-    result = client.query_df(query, parameters={'start_date': start_str, 'end_date': end_str})
+    result = client.query_df(query, parameters={'start_date': params.start_str, 'end_date': params.end_str})
 
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
