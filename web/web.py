@@ -1,3 +1,4 @@
+import argparse
 from dataclasses import asdict, dataclass
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import clickhouse_connect
@@ -131,8 +132,6 @@ def get_trades_density():
     return data
 
 if __name__ == '__main__':
-    # Command line argument parsing for development purposes
-    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug_level', default='INFO', help='Set the debug level')
     parser.add_argument('--port', default=8080, help='HTTP port to bind')
