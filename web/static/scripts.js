@@ -80,148 +80,149 @@ function loadData(panel, containerId) {
 function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, parameters) {
     console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
 
-    let queryParams = new URLSearchParams({
-        symbol: symbol,
-        start: startDate,
-        end: endDate,
-        interval: interval
-    });
-
-    if (parameters) {
-        Object.keys(parameters).forEach(key => {
-            queryParams.append(key, parameters[key]);
-        });
-    }
+    let queryParams = createQueryParams(symbol, startDate, endDate, interval, parameters);
 
     fetch(`${url}?${queryParams.toString()}`)
         .then(response => response.json())
         .then(data => {
-            // Processes the received data based on the type of data representation (line or OHLC chart).
-            // The `seriesData` constant is assigned the result of the `map` method called on the `data` array.
-            // `map` is used to transform each item in the original `data` array into a new format suitable for chart representation.
-            // Each `item` in `data` is expected to contain data points with properties like time, price, and possibly open, high, low, close values for OHLC charts.
-            // The arrow function `(item => { ... })` passed to `map` is executed for each element of `data`:
-            // - Inside the arrow function, conditional logic checks the 'type' to format the data appropriately:
-            //   - If `type` is 'line', the function transforms the item into a new array containing the item's time as a timestamp and its price.
-            //   - If `type` is 'ohlc', the function transforms the item into a new array with the item's time as a timestamp followed by its open, high, low, and close values.
-            // This transformation is crucial for the Highcharts library used later to render the data accurately in the specified chart type.
-            // The `map` method returns a new array consisting of these transformed items, which is then assigned to `seriesData`.
-            const seriesData = data.map(item => {
-                if (type === 'line' || type === 'scatter') {
-                    return [item[0], item[1]];
-                } else if (type === 'candlestick') {
-                    return [item[0], item[1], item[2], item[3], item[4]];
-                }
-            // The .sort((a, b) => a[0] - b[0]) function is used to sort an array of arrays (or objects) based on their first elements.
-            // In this code, each array's first element is a timestamp, and the sort function arranges them in ascending order.
-            // The arrow function (a, b) => a[0] - b[0] takes two parameters, 'a' and 'b', which represent two elements of the array being sorted.
-            // The function calculates the difference between the first element of 'a' and 'b':
-            // - If the result is negative, 'a' is placed before 'b'.
-            // - If the result is positive, 'a' is placed after 'b'.
-            // - If the result is zero, the order of 'a' and 'b' relative to each other does not change.
-            // This sorting method ensures that the data is ordered chronologically, which is crucial for correctly displaying data in time-sensitive charts.
-            }).sort((a, b) => a[0] - b[0]);
-
-            if (seriesData.length == 0) {
+            const seriesData = processSeriesData(data, type);
+            if (seriesData.length === 0) {
                 console.log('Got no data. Ignore');
                 return;
             }
 
-            Highcharts.stockChart(containerId, {
-                rangeSelector: {
-                    buttons: [{
-                        type: 'second',
-                        count: 1,
-                        text: '1s'
-                    }, {
-                        type: 'minute',
-                        count: 1,
-                        text: '1m'
-                    }, {
-                        type: 'minute',
-                        count: 5,
-                        text: '5m'
-                    }, {
-                        type: 'minute',
-                        count: 15,
-                        text: '15m'
-                    }, {
-                        type: 'minute',
-                        count: 30,
-                        text: '30m'
-                    }, {
-                        type: 'hour',
-                        count: 1,
-                        text: '1h'
-                    }, {
-                        type: 'all',
-                        text: 'All'
-                    }],
-                    inputEnabled: true,
-                    selected: 1
-                },
-                title: {
-                    text: title
-                },
-                xAxis: {
-                    crosshair: true,
-                    type: 'datetime',
-                    // Ensure tickInterval is set correctly; here it should likely be in milliseconds if showing seconds
-                    tickInterval: 1,
-                    events: {
-                        setExtremes: function(e) {
-                            syncExtremes(e);
-                        }
-                    }
-                },
-                yAxis: {
-                    title: {
-                        text: 'Price'
-                    }
-                },
-                series: [{
-                    type: type,
-                    name: title,
-                    data: seriesData,
-                    tooltip: {
-                        valueDecimals: 2
-                    },
-                    dataGrouping: {
-                        enabled: true
-                    },
-                    color: type === 'line' ? undefined : 'red',
-                    upColor: type === 'candlestick' ? 'green' : undefined,
-                    lineColor: type === 'candlestick' ? 'black' : undefined,
-                    upLineColor: type === 'candlestick' ? 'black' : undefined,
-                    marker: { 
-                        enabled: true,
-                        radius: 3, 
-                        fillColor: 'blue' 
-                    }
-                }],
-                tooltip: {
-                    formatter: function() {
-                        const dateStr = Highcharts.dateFormat('%d-%m-%Y %H:%M:%S', new Date(this.x));
-                        switch (this.series.options.type) {
-                            case 'scatter':
-                                return dateStr + '<br>Value: ' + this.y;
-                            case 'candlestick':
-                                return dateStr +
-                                    '<br>Open: ' + this.point.open +
-                                    '<br>High: ' + this.point.high +
-                                    '<br>Low: ' + this.point.low +
-                                    '<br>Close: ' + this.point.close;
-                            default:
-                                return dateStr + '<br>Value: ' + this.y;
-                        }
-                    }
-                }
-            });
+            let chart = Highcharts.charts.find(c => c.renderTo.id === containerId);
+            if (chart) {
+                addSeriesToChart(chart, type, title, seriesData);
+            } else {
+                createNewChart(containerId, type, title, seriesData);
+            }
         })
         .catch(error => {
             console.error('Error fetching data:', error);
         });
 }
+
+function createQueryParams(symbol, startDate, endDate, interval, parameters) {
+    let queryParams = new URLSearchParams({ symbol, start: startDate, end: endDate, interval });
+    if (parameters) {
+        Object.keys(parameters).forEach(key => {
+            queryParams.append(key, parameters[key]);
+        });
+    }
+    return queryParams;
+}
+
+function processSeriesData(data, type) {
+    return data.map(item => {
+        if (type === 'line' || type === 'scatter') {
+            return [item[0], item[1]];
+        } else if (type === 'candlestick') {
+            return [item[0], item[1], item[2], item[3], item[4]];
+        }
+    }).sort((a, b) => a[0] - b[0]);
+}
+
+function addSeriesToChart(chart, type, title, seriesData) {
+    chart.addSeries({
+        type: type,
+        name: title,
+        data: seriesData,
+        tooltip: {
+            valueDecimals: 2
+        },
+        dataGrouping: {
+            enabled: true
+        },
+        color: type === 'line' ? undefined : 'red',
+        upColor: type === 'candlestick' ? 'green' : undefined,
+        lineColor: type === 'candlestick' ? 'black' : undefined,
+        upLineColor: type === 'candlestick' ? 'black' : undefined,
+        marker: {
+            enabled: type === 'line' ? false : true,
+            radius: 3,
+            fillColor: 'blue'
+        }
+    });
+}
+
+function createNewChart(containerId, type, title, seriesData) {
+    Highcharts.stockChart(containerId, {
+        rangeSelector: {
+            buttons: getRangeSelectorButtons(),
+            inputEnabled: true,
+            selected: 1
+        },
+        title: {
+            text: title
+        },
+        xAxis: {
+            crosshair: true,
+            type: 'datetime',
+            tickInterval: 1,
+            events: {
+                setExtremes: function(e) {
+                    syncExtremes(e);
+                }
+            }
+        },
+        yAxis: {
+            title: {
+                text: 'Price'
+            }
+        },
+        series: [{
+            type: type,
+            name: title,
+            data: seriesData,
+            tooltip: {
+                valueDecimals: 2
+            },
+            dataGrouping: {
+                enabled: true
+            },
+            color: type === 'line' ? undefined : 'red',
+            upColor: type === 'candlestick' ? 'green' : undefined,
+            lineColor: type === 'candlestick' ? 'black' : undefined,
+            upLineColor: type === 'candlestick' ? 'black' : undefined,
+            marker: {
+                enabled: type === 'line' ? false : true,
+                radius: 3,
+                fillColor: 'blue'
+            }
+        }],
+        tooltip: {
+            formatter: function() {
+                return formatTooltip(this);
+            }
+        }
+    });
+}
+
+function getRangeSelectorButtons() {
+    return [
+        { type: 'second', count: 1, text: '1s' },
+        { type: 'minute', count: 1, text: '1m' },
+        { type: 'minute', count: 5, text: '5m' },
+        { type: 'minute', count: 15, text: '15m' },
+        { type: 'minute', count: 30, text: '30m' },
+        { type: 'hour', count: 1, text: '1h' },
+        { type: 'all', text: 'All' }
+    ];
+}
+
+function formatTooltip(point) {
+    const dateStr = Highcharts.dateFormat('%d-%m-%Y %H:%M:%S', new Date(point.x));
+    switch (point.series.options.type) {
+        case 'scatter':
+            return `${dateStr}<br>Value: ${point.y}`;
+        case 'candlestick':
+            return `${dateStr}<br>Open: ${point.point.open}<br>High: ${point.point.high}<br>Low: ${point.point.low}<br>Close: ${point.point.close}`;
+        default:
+            return `${dateStr}<br>Value: ${point.y}`;
+    }
+}
+
 
 function syncExtremes(e) {
     var thisChart = this.chart;
