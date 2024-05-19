@@ -3,11 +3,10 @@ import clickhouse_connect
 from datetime import datetime
 import dateutil
 import logging
-import sys
 import click
 
-app = Flask(__name__, template_folder='templates')
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+app = Flask(__name__, template_folder='templates', static_folder='static')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 # Define allowed symbols to prevent SQL injection via table names
@@ -15,11 +14,7 @@ TRADES_TABLES = {'BTC': 'trades_BTC', 'ETH': 'trades_ETH'}
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
-
-@app.route('/scripts.js')
-def scriptsjs():
-    return send_from_directory('static', 'scripts.js')
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/price_data')
@@ -167,10 +162,6 @@ def get_trades_density():
     # Convert DataFrame to a list of dictionaries (for JSON serialization)
     data = result.to_dict(orient='records')
     return jsonify(data)
-
-@app.route('/panels.json')
-def panels_json():
-    return send_from_directory('static', 'panels.json')
 
 @app.cli.command("runserver")
 @click.option('--debug_level', default='INFO', help='Set the debug level')

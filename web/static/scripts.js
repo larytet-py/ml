@@ -37,7 +37,7 @@ function intervalToSeconds(interval) {
 
 function loadConfigAndData() {
     // Fetch API is used to make an HTTP request to retrieve 'panels.json'.
-    fetch('panels.json')
+    fetch('static/panels.json')
         .then(response => response.json())
         .then(panels => {
             panels.forEach(panel => {
