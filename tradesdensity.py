@@ -70,7 +70,7 @@ def process_data_in_chunks(table_name, start_date, end_date, chunk_size, interva
     total_count = client.query_df(count_query).iloc[0]['count']
 
     offsets = range(0, total_count, chunk_size)
-    with mp.Pool(processes=mp.cpu_count()) as pool:
+    with mp.Pool(processes=3) as pool:
         worker = partial(process_chunk, table_name, start_date, end_date, chunk_size, interval, min_density)
         results = pool.map(worker, offsets)
     
@@ -101,7 +101,7 @@ def filter_trade_density(trade_density_list, price_diff_threshold=0.01):
 def main():
     parser = argparse.ArgumentParser(description="Print prices with unusually low trade density.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
-    parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
+    parser.add_argument('--start_date', default=datetime.strptime("2021-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--interval', type=float, default=5.0*60, help='Set the interval in seconds')
     parser.add_argument('--min_density', type=float, default=18, help='Set the minimum trades density to show')
