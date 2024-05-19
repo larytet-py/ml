@@ -71,14 +71,30 @@ function loadData(panel, containerId) {
             endpoint.url, 
             intervalInSeconds, 
             containerId, 
-            panel.title
+            panel.title,
+            endpoint.parameters
         );
     });
 }
 
 function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title) {
     console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
-    fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${encodeURIComponent(interval)}`)
+
+    let queryParams = new URLSearchParams({
+        symbol: encodeURIComponent(symbol),
+        start: encodeURIComponent(startDate),
+        end: encodeURIComponent(endDate),
+        interval: encodeURIComponent(interval)
+    });
+
+    // Append additional parameters if they exist
+    if (parameters) {
+        Object.keys(parameters).forEach(key => {
+            queryParams.append(key, parameters[key]);
+        });
+    }
+
+    fetch(`${url}?${queryParams.toString()}`)
         .then(response => response.json())
         .then(data => {
             // Processes the received data based on the type of data representation (line or OHLC chart).

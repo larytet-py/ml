@@ -6,6 +6,11 @@
             {
                 "url": "/price_data",
                 "type": "scatter"
+            },
+            {
+                "url": "/price_ma",
+                "type": "line",
+                "parameters": {"period": 9}
             }
         ]
     },

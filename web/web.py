@@ -85,6 +85,27 @@ def get_price_data():
     data = execute_query(query, parameters)
     return data
 
+@app.route('/price_ma')
+def get_price_ma():
+    parameters, error_response, status = validate_and_parse_args()
+    if error_response:
+        return error_response, status
+
+    query = """
+    SELECT 
+        toUnixTimestamp64Milli(timestamp) AS time,
+        toFloat64(price) AS price
+    FROM 
+        %(table_name)s
+    WHERE 
+        timestamp BETWEEN %(start_date)s AND %(end_date)s
+    ORDER BY 
+        timestamp ASC
+    """
+
+    data = execute_query(query, parameters)
+    return data
+
 @app.route('/ohlc_data')
 def get_ohlc_data():
     parameters, error_response, status = validate_and_parse_args()
