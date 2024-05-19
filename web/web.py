@@ -1,6 +1,6 @@
 import argparse
 from dataclasses import asdict, dataclass
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory
 import clickhouse_connect
 import dateutil
 import logging

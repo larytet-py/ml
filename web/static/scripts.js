@@ -64,24 +64,19 @@ function loadData(panel, containerId) {
     var endTime = moment(startTime).add(duration, 'seconds');
 
     panel.endpoints.forEach(endpoint => {
-        fetchData(panel.symbol, startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), endpoint.type, endpoint.url, intervalInSeconds, containerId, panel.title);
+        fetchData(panel.symbol, 
+            startTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), 
+            endTime.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'), 
+            endpoint.type, 
+            endpoint.url, 
+            intervalInSeconds, 
+            containerId, 
+            panel.title
+        );
     });
 }
 
-function syncExtremes(e) {
-    var thisChart = this.chart;
-    if (e.trigger !== 'syncExtremes') {
-        Highcharts.each(Highcharts.charts, function(chart) {
-            if (chart !== thisChart) {
-                if (chart.xAxis[0].setExtremes) {
-                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
-                }
-            }
-        });
-    }
-}
-
-function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, addData = false) {
+function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title) {
     console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
     fetch(`${url}?symbol=${encodeURIComponent(symbol)}&start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}&interval=${encodeURIComponent(interval)}`)
         .then(response => response.json())
@@ -211,4 +206,17 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
         .catch(error => {
             console.error('Error fetching data:', error);
         });
+}
+
+function syncExtremes(e) {
+    var thisChart = this.chart;
+    if (e.trigger !== 'syncExtremes') {
+        Highcharts.each(Highcharts.charts, function(chart) {
+            if (chart !== thisChart) {
+                if (chart.xAxis[0].setExtremes) {
+                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
+                }
+            }
+        });
+    }
 }
