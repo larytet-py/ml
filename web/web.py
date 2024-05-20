@@ -154,16 +154,52 @@ def get_trades_density():
         return error_response, status
 
     query = """
+    WITH
+        trades_1s AS (
+            SELECT
+                toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL 1 SECOND) AS DateTime64)) AS time,
+                toFloat64(any(price)) AS open,
+                toFloat64(anyLast(price)) AS close,
+                count() AS num_trades
+            FROM %(table_name)s
+            WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+            GROUP BY time
+            ORDER BY time ASC
+        ),
+        rolling_metrics AS (
+            SELECT
+                time,
+                sum(num_trades) OVER (
+                    ORDER BY time
+                    ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                ) AS rolling_num_trades,
+                abs(
+                    (max(close) OVER (
+                        ORDER BY time
+                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                    ) - min(open) OVER (
+                        ORDER BY time
+                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                    )) / nullif(min(open) OVER (
+                        ORDER BY time
+                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                    ), 0)
+                ) AS rolling_roc
+            FROM trades_1s
+        )
     SELECT
-        toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(interval_duration)s SECOND) AS DateTime64)) AS time,
+        time,
         if(
-            anyLast(price) = any(price),
-            0,
-            log(count() / (abs(toFloat64(anyLast(price)) - toFloat64(any(price))) / toFloat64(any(price))))
-        ) AS density
-    FROM %(table_name)s
-    WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
-    GROUP BY time
+            rolling_roc = 0,
+            last_value(log(rolling_num_trades / nullif(rolling_roc, 0))) OVER (
+                ORDER BY time
+                ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+            ),
+            log(
+                rolling_num_trades / nullif(rolling_roc, 0)
+            )
+        ) AS forward_filled_density
+    FROM rolling_metrics
     ORDER BY time ASC
     """
 

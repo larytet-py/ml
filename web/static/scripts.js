@@ -38,6 +38,11 @@ $(function() {
     $('#duration').on('change', function() {
         Cookies.set('duration', $(this).val());
     });
+
+    $('#loadButton').on('click', function() {
+        clearCharts();
+        loadConfigAndData();
+    });
 });
 
 function intervalToSeconds(interval) {
@@ -152,7 +157,7 @@ function addSeriesToChart(chart, type, title, seriesData) {
         dataGrouping: {
             enabled: true
         },
-        color: type === 'line' ? undefined : 'red',
+        color: type === 'line' ? 'lightblue' : 'red',
         upColor: type === 'candlestick' ? 'green' : undefined,
         lineColor: type === 'candlestick' ? 'black' : undefined,
         upLineColor: type === 'candlestick' ? 'black' : undefined,
@@ -253,4 +258,20 @@ function syncExtremes(e) {
             }
         });
     }
+}
+
+function clearCharts() {
+    // Remove all div elements with IDs starting with 'container_' that are specifically meant for charts
+    $('div[id^="container_"]').remove();
+
+    // Destroy all existing Highcharts instances
+    Highcharts.charts.forEach((chart, index) => {
+        if (chart) {
+            chart.destroy();
+            Highcharts.charts[index] = null; // Clear the reference
+        }
+    });
+
+    // Remove null values from Highcharts.charts array
+    Highcharts.charts = Highcharts.charts.filter(chart => chart !== null);
 }

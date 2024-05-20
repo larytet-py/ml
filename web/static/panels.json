@@ -4,10 +4,6 @@
         "title": "BTC trades",
         "endpoints": [
             {
-                "url": "/price_data",
-                "type": "scatter"
-            },
-            {
                 "url": "/price_ma",
                 "type": "line",
                 "parameters": {"period": 600}
@@ -30,7 +26,7 @@
         "endpoints": [
             {
                 "url": "/trades_density",
-                "type": "scatter"
+                "type": "line"
             }
         ]
     }
