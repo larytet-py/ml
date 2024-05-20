@@ -1,2 +1,3 @@
 clickhouse/*
 data/*
+__pycache__/*
