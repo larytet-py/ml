@@ -40,7 +40,6 @@ $(function() {
     });
 
     $('#loadButton').on('click', function() {
-        clearCharts();
         loadConfigAndData();
     });
 });

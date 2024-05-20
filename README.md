@@ -137,3 +137,57 @@ WHERE timestamp BETWEEN '2021-01-01 00:00:00' AND '2024-04-25 11:38:58'
 GROUP BY timestamp
 ORDER BY timestamp ASC
 ```
+
+# Performnace test 
+
+```sql
+INSERT INTO ohlcv_M1_BTC SELECT
+    toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, toIntervalSecond(60)), 'DateTime64')) AS time,
+    toFloat64(any(price)) AS open,
+    toFloat64(max(price)) AS high,
+    toFloat64(min(price)) AS low,
+    toFloat64(anyLast(price)) AS close,
+    count() AS num_trades
+FROM trades_BTC
+GROUP BY time
+ORDER BY time ASC
+```
+
+```sh
+time docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 --send_timeout=600 --query="WITH
+    rolling_metrics AS (
+        SELECT
+            time,
+            sum(num_trades) OVER (
+                ORDER BY time
+                ROWS BETWEEN 60 PRECEDING AND CURRENT ROW
+            ) AS rolling_num_trades,
+            abs(
+                (max(close) OVER (
+                    ORDER BY time
+                    ROWS BETWEEN 60 PRECEDING AND CURRENT ROW
+                ) - min(open) OVER (
+                    ORDER BY time
+                    ROWS BETWEEN 60 PRECEDING AND CURRENT ROW
+                )) / nullif(min(open) OVER (
+                    ORDER BY time
+                    ROWS BETWEEN 60 PRECEDING AND CURRENT ROW
+                ), 0)
+            ) AS rolling_roc
+        FROM ohlcv_M1_BTC
+    )
+SELECT
+    time,
+    if(
+        rolling_roc = 0,
+        last_value(log(rolling_num_trades / nullif(rolling_roc, 0))) OVER (
+            ORDER BY time
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+        ),
+        log(
+            rolling_num_trades / nullif(rolling_roc, 0)
+        )
+    ) AS forward_filled_density
+FROM rolling_metrics
+ORDER BY time ASC;" --format CSV > output.csv
+```
