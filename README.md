@@ -141,6 +141,18 @@ ORDER BY timestamp ASC
 # Performnace test 
 
 ```sql
+CREATE TABLE ohlcv_M1_BTC
+(
+    time UInt64,
+    open Float64,
+    high Float64,
+    low Float64,
+    close Float64,
+    num_trades Int
+) 
+ENGINE = MergeTree()
+ORDER BY time;
+
 INSERT INTO ohlcv_M1_BTC SELECT
     toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, toIntervalSecond(60)), 'DateTime64')) AS time,
     toFloat64(any(price)) AS open,
@@ -150,7 +162,7 @@ INSERT INTO ohlcv_M1_BTC SELECT
     count() AS num_trades
 FROM trades_BTC
 GROUP BY time
-ORDER BY time ASC
+ORDER BY time ASC;
 ```
 
 ```sh
