@@ -242,4 +242,32 @@ FROM
     )
 )
 ORDER BY bin_range_start;
+
+
+SELECT 
+    base_qty_bin,
+    count(*) AS count
+FROM (
+    SELECT 
+        CASE
+            WHEN log10(base_qty) < 1 THEN '<10^1'
+            WHEN log10(base_qty) >= 1 AND log10(base_qty) < 2 THEN '10^1 - 10^2'
+            WHEN log10(base_qty) >= 2 AND log10(base_qty) < 3 THEN '10^2 - 10^3'
+            WHEN log10(base_qty) >= 3 AND log10(base_qty) < 4 THEN '10^3 - 10^4'
+            WHEN log10(base_qty) >= 4 AND log10(base_qty) < 5 THEN '10^4 - 10^5'
+            WHEN log10(base_qty) >= 5 AND log10(base_qty) < 6 THEN '10^5 - 10^6'
+            WHEN log10(base_qty) >= 6 AND log10(base_qty) < 7 THEN '10^6 - 10^7'
+            WHEN log10(base_qty) >= 7 AND log10(base_qty) < 8 THEN '10^7 - 10^8'
+            ELSE '>10^8'
+        END AS base_qty_bin
+    FROM (
+        SELECT toFloat64(base_qty) AS base_qty
+        FROM trades_BTC
+    )
+)
+GROUP BY 
+    base_qty_bin
+ORDER BY 
+    base_qty_bin ASC format CSV;
+
 ```
