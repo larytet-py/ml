@@ -49,7 +49,8 @@ CREATE TABLE ohlc_S30_BTC
     low_price Decimal(18, 8),
     close_price Decimal(18, 8),
     num_trades UInt64,
-    price_stddev Decimal(18, 8)
+    price_stddev Float64,
+    roc Float64
 ) 
 ENGINE = MergeTree()
 ORDER BY timestamp;
@@ -62,10 +63,14 @@ SELECT
     min(price) AS low_price,
     anyLast(price) AS close_price,
     count() AS num_trades,
-    stddevPop(price)/any(price) AS price_stddev
+    stddevPop(toFloat64(price))/toFloat64(any(price)) AS price_stddev,
+    (toFloat64(anyLast(price))-toFloat64(any(price)))/toFloat64(any(price)) as roc
 FROM trades_BTC
 GROUP BY timestamp
 ORDER BY timestamp;
+
+SELECT min(num_trades) AS min_num_trades
+FROM ohlc_S30_BTC;
 ```
 
 Generate trades density 
