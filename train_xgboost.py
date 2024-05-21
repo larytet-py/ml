@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 # Correct SQL Query
 query = """
-WITH 1000000 as rows
+WITH 3000*1000*1000 as rows
 SELECT 
     s5.timestamp AS timestamp,
     s30.price_stddev AS S30_stddev,
