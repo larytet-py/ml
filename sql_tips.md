@@ -41,26 +41,28 @@ WHERE time_diff < 0;
 Aggregation of tick data in 1 minute OHLCVs
 
 ```SQL
-CREATE TABLE ohlc_M1_BTC
+CREATE TABLE ohlc_S30_BTC
 (
     timestamp DateTime64(3),
     open_price Decimal(18, 8),
     high_price Decimal(18, 8),
     low_price Decimal(18, 8),
     close_price Decimal(18, 8),
-    num_trades UInt64
+    num_trades UInt64,
+    price_stddev Decimal(18, 8)
 ) 
 ENGINE = MergeTree()
 ORDER BY timestamp;
 
-INSERT INTO ohlc_M1_BTC
+INSERT INTO ohlc_S30_BTC
 SELECT
-    toStartOfInterval(timestamp, INTERVAL 60 SECOND) AS timestamp,
+    toStartOfInterval(timestamp, INTERVAL 30 SECOND) AS timestamp,
     any(price) AS open_price,
     max(price) AS high_price,
     min(price) AS low_price,
     anyLast(price) AS close_price,
-    count() AS num_trades
+    count() AS num_trades,
+    stddevPop(price)/any(price) AS price_stddev
 FROM trades_BTC
 GROUP BY timestamp
 ORDER BY timestamp;
