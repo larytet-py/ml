@@ -2,10 +2,12 @@ from clickhouse_connect import get_client
 import pandas as pd
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler
 
 # Correct SQL Query
 query = """
+WITH 1000000 as rows
 SELECT 
     s5.timestamp AS timestamp,
     s30.price_stddev AS S30_stddev,
@@ -17,13 +19,13 @@ FROM
         timestamp,
         price_stddev,
         roc
-     FROM ohlc_S5_BTC LIMIT 1000000) AS s5
+     FROM ohlc_S5_BTC LIMIT rows) AS s5
 JOIN 
     (SELECT 
         timestamp,
         price_stddev,
         roc
-     FROM ohlc_S30_BTC LIMIT 1000000) AS s30
+     FROM ohlc_S30_BTC LIMIT rows) AS s30
 ON 
     s30.timestamp = toStartOfMinute(s5.timestamp) + INTERVAL (toSecond(s5.timestamp) % 30) SECOND
 ORDER BY s5.timestamp
@@ -82,12 +84,23 @@ if features:  # Check if features list is not empty
     ])
     y = pd.Series(targets)
 
+    # Standardize the features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
     # Split the data into training and testing sets
     if len(features) > 1:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-        # Create and train the model
-        model = xgb.XGBRegressor()
+        # Create and train the model with modified parameters
+        model = xgb.XGBRegressor(
+            n_estimators=100,
+            learning_rate=0.1,
+            max_depth=5,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42
+        )
         model.fit(X_train, y_train)
 
         # Make predictions
@@ -95,7 +108,14 @@ if features:  # Check if features list is not empty
 
         # Evaluate the model
         mse = mean_squared_error(y_test, y_pred)
-        print(f'Mean Squared Error: {mse:.2f}')
+        r2 = r2_score(y_test, y_pred)
+        print(f'Mean Squared Error: {mse:.4f}')
+        print(f'R^2 Score: {r2:.4f}')
+
+        # Debugging: Print some of the predictions and actual values
+        print("Predictions vs Actual:")
+        for pred, actual in zip(y_pred[:10], y_test[:10]):
+            print(f'Predicted: {pred:.4f}, Actual: {actual:.4f}')
     else:
         print("Not enough data for train-test split. Ensure you have sufficient data.")
 else:
