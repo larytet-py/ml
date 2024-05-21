@@ -203,3 +203,43 @@ SELECT
 FROM rolling_metrics
 ORDER BY time ASC;" --format CSV > output.csv
 ```
+
+
+Histogram 
+
+```sql
+SELECT histogram(5)(base_qty) AS base_qty_histogram
+FROM
+(
+    SELECT toFloat64(base_qty) AS base_qty
+    FROM trades_BTC
+) FORMAT CSV;
+
+
+WITH 
+    20 AS bins,
+    40 AS max_width,
+    (SELECT count(*) FROM trades_BTC) AS total_rows
+SELECT
+    bin_range_start,
+    bin_range_end,
+    height,
+    bar(height, 0, total_rows/(bins/3), max_width) AS bar
+FROM
+(
+    SELECT
+        bin_tuple.1 AS bin_range_start,
+        bin_tuple.2 AS bin_range_end,
+        bin_tuple.3 AS height
+    FROM
+    (
+        SELECT arrayJoin(hist) AS bin_tuple
+        FROM
+        (
+            SELECT histogram(bins)(log10(toFloat64(base_qty))) AS hist
+            FROM trades_BTC
+        )
+    )
+)
+ORDER BY bin_range_start;
+```
