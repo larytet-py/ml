@@ -4,62 +4,61 @@ import pandas as pd
 
 query = """
 SELECT 
-    toStartOfFiveMinute(timestamp) AS interval_start,
-    avg(roc) AS avg_roc,
-    avg(price_stddev) AS avg_stddev
-FROM ohlc_S5_BTC
-GROUP BY interval_start
-UNION ALL
-SELECT 
-    toStartOfFiveMinute(timestamp) AS interval_start,
-    avg(roc) AS avg_roc,
-    avg(price_stddev) AS avg_stddev
-FROM ohlc_S30_BTC
-GROUP BY interval_start
-ORDER BY interval_start
+    s5.timestamp AS timestamp,
+    s30.price_stddev AS S30_stddev,
+    s30.roc AS S30_roc,
+    s5.price_stddev AS S5_stddev,
+    s5.roc AS S5_roc
+FROM 
+    (SELECT 
+        timestamp,
+        price_stddev,
+        roc
+     FROM ohlc_S5_BTC) AS s5
+JOIN 
+    (SELECT 
+        timestamp,
+        price_stddev,
+        roc
+     FROM ohlc_S30_BTC limit) AS s30
+ON 
+    s30.timestamp = toStartOfMinute(s5.timestamp) + INTERVAL (toMinute(s5.timestamp) % 30) SECOND
+ORDER BY s5.timestamp;
 """
 
 client = get_client()
+result_df = client.query_df(query)
 
-# Function to fetch data in chunks
-def fetch_data_in_chunks(client, query, batch_size=10000):
-    offset = 0
-    while True:
-        batch_query = f"""
-        {query}
-        LIMIT {batch_size} OFFSET {offset}
-        """
-        df = client.query_df(batch_query)
-        if df.empty:
-            break
-        yield df
-        offset += batch_size
+result_df['timestamp'] = pd.to_datetime(result_df['timestamp'])
+result_df.set_index('timestamp', inplace=True)
 
+# Create rolling windows of 5 minutes
+rolling_windows = result_df.rolling(window='5T', closed='right')
+
+# Extract features for the first 4 minutes and the target for the 5th minute
 features = []
 targets = []
 
-for batch_df in fetch_data_in_chunks(client, query):
-    batch_df['interval_start'] = pd.to_datetime(batch_df['interval_start'])
-    batch_df.set_index('interval_start', inplace=True)
-    
-    rolling_windows = batch_df.rolling(window='5T', closed='right')
-    
-    for window in rolling_windows:
-        if len(window) == 5:
-            feature_window = window.iloc[:-1]  # First 4 minutes
-            target_window = window.iloc[-1]    # 5th minute
-            
-            # Extract the features
-            feature_vector = feature_window[['avg_roc', 'avg_stddev']].values.flatten()
-            features.append(feature_vector)
-            
-            # Define the target
-            target_value = target_window['avg_roc']
-            targets.append(target_value)
+for window in rolling_windows:
+    if len(window) == 5:
+        feature_window = window.iloc[:-1]  # First 4 minutes
+        target_window = window.iloc[-1]    # 5th minute
+        
+        # Extract the features
+        feature_vector = feature_window[['S30_stddev', 'S30_roc', 'S5_stddev', 'S5_roc']].values.flatten()
+        features.append(feature_vector)
+        
+        # Define the target
+        target_value = target_window['S5_roc']
+        targets.append(target_value)
 
-X = pd.DataFrame(features, columns=['roc1', 'stddev1', 'roc2', 'stddev2', 'roc3', 'stddev3', 'roc4', 'stddev4'])
+X = pd.DataFrame(features, columns=[
+    'S30_stddev1', 'S30_roc1', 'S5_stddev1', 'S5_roc1',
+    'S30_stddev2', 'S30_roc2', 'S5_stddev2', 'S5_roc2',
+    'S30_stddev3', 'S30_roc3', 'S5_stddev3', 'S5_roc3',
+    'S30_stddev4', 'S30_roc4', 'S5_stddev4', 'S5_roc4'
+])
 y = pd.Series(targets)
-
 
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
