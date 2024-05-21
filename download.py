@@ -11,7 +11,7 @@ from clickhouse_connect import get_client
 import logging
 
 # Setup the logging configuration
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(levelname)s - %(message)s')
 
 def get_first_and_last_timestamp_with_pandas(csv_name):
     df = pd.read_csv(csv_name, usecols=[4])  # 'time' is in the 5th column (index 4)
@@ -178,7 +178,7 @@ def insert_data(client, df, table_name):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
-    parser.add_argument('--start_date', default=datetime.strptime("2024-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
+    parser.add_argument('--start_date', default=datetime.strptime("2021-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
     parser.add_argument('--disable-download', action='store_true', help='Disable the download functionality.')
