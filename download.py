@@ -48,7 +48,6 @@ def check_and_insert_data(csv_name, table_name):
 
     client.close()
 
-
 def download_and_unpack(url, file_name, csv_name, table_name):
     csv_path = f"./data/{csv_name}"
     if os.path.exists(csv_path):
@@ -132,36 +131,12 @@ def create_table_trades(table_name):
     client.close()
     logging.info(f"Table '{table_name}' created successfully.")
 
-
-def create_table_ohlc(table_name):
-    check_table_exists_query = f"EXISTS TABLE {table_name}"
-    create_table_query = f"""
-    CREATE TABLE {table_name}
-    (
-        time_start DateTime,
-        time_end DateTime,
-        open Decimal(18, 8),
-        high Decimal(18, 8),
-        low Decimal(18, 8),
-        close Decimal(18, 8),
-        volume Decimal(12, 8)
-    )
-    ENGINE = MergeTree
-    PARTITION BY toDate(time_start)
-    ORDER BY (time_start)
-    SETTINGS index_granularity = 8192;    
-    """
-
+def optimize(table_name):
+    logging.info(f"Optimize '{table_name}'.")
+    create_table_query = f"""OPTIMIZE {table_name} FINAL"""
     client = get_client()
-    result = client.query(check_table_exists_query)
-    count_result = result.result_rows[0][0] if result.result_rows else 0
-    if count_result > 0:
-        logging.debug(f"Table '{table_name}' already exists.")
-        return
-    
     client.query(create_table_query)
     client.close()
-    logging.info(f"Table '{table_name}' created successfully.")
 
 def fetch_and_aggregate_data(client, table_name, offset=0, batch_size=10000):
     trades_query = f"""
@@ -200,21 +175,6 @@ def insert_data(client, df, table_name):
     readable_time = df['time_end'].iloc[-1].strftime('%Y-%m-%d %H:%M:%S')    
     logging.info(f"Data inserted successfully into {table_name} {readable_time}")
 
-def fetch_trades_and_insert(from_table, to_table):
-    create_table_ohlc(to_table)
-    offset = 0
-    batch_size = 100_000
-    
-    client = get_client()
-    while True:
-        df = fetch_and_aggregate_data(client, from_table, offset, batch_size)
-        if df.empty:
-            break  
-        insert_data(client, df, to_table)
-        offset += batch_size  
-
-    client.close()
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
@@ -235,5 +195,3 @@ if __name__ == "__main__":
     create_table_trades(table_name)
     if not args.disable_download:
         download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)  
-    ohlc_table_name = f"ohlc_M1_{args.symbol}"
-    fetch_trades_and_insert(table_name, ohlc_table_name)
