@@ -20,10 +20,10 @@ JOIN
         timestamp,
         price_stddev,
         roc
-     FROM ohlc_S30_BTC limit) AS s30
+     FROM ohlc_S30_BTC) AS s30
 ON 
     s30.timestamp = toStartOfMinute(s5.timestamp) + INTERVAL (toMinute(s5.timestamp) % 30) SECOND
-ORDER BY s5.timestamp;
+ORDER BY s5.timestamp
 """
 
 client = get_client()
