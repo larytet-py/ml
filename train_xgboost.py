@@ -7,13 +7,55 @@ from sklearn.preprocessing import StandardScaler
 
 # Correct SQL Query
 query = """
-WITH 3000*1000*1000 as rows
+WITH 1000*1000 AS rows, 
+     bin_intervals AS (SELECT 
+        CASE
+            WHEN log10(base_qty) < 1 THEN '<10^1'
+            WHEN log10(base_qty) >= 1 AND log10(base_qty) < 2 THEN '10^1 - 10^2'
+            WHEN log10(base_qty) >= 2 AND log10(base_qty) < 3 THEN '10^2 - 10^3'
+            WHEN log10(base_qty) >= 3 AND log10(base_qty) < 4 THEN '10^3 - 10^4'
+            WHEN log10(base_qty) >= 4 AND log10(base_qty) < 5 THEN '10^4 - 10^5'
+            WHEN log10(base_qty) >= 5 AND log10(base_qty) < 6 THEN '10^5 - 10^6'
+            WHEN log10(base_qty) >= 6 AND log10(base_qty) < 7 THEN '10^6 - 10^7'
+            WHEN log10(base_qty) >= 7 AND log10(base_qty) < 8 THEN '10^7 - 10^8'
+            ELSE '>10^8'
+        END AS base_qty_bin,
+        timestamp
+     FROM (
+        SELECT toFloat64(base_qty) AS base_qty, timestamp
+        FROM trades_BTC
+     )
+),
+bin_counts AS (
+    SELECT
+        timestamp,
+        base_qty_bin,
+        count(*) AS bin_count
+    FROM bin_intervals
+    GROUP BY timestamp, base_qty_bin
+),
+total_counts AS (
+    SELECT
+        timestamp,
+        sum(bin_count) AS total_count
+    FROM bin_counts
+    GROUP BY timestamp
+)
 SELECT 
     s5.timestamp AS timestamp,
     s30.price_stddev AS S30_stddev,
     s30.roc AS S30_roc,
     s5.price_stddev AS S5_stddev,
-    s5.roc AS S5_roc
+    s5.roc AS S5_roc,
+    sum(if(base_qty_bin='<10^1', bin_count, 0)) / max(total_count) AS ratio_10_1,
+    sum(if(base_qty_bin='10^1 - 10^2', bin_count, 0)) / max(total_count) AS ratio_10_1_10_2,
+    sum(if(base_qty_bin='10^2 - 10^3', bin_count, 0)) / max(total_count) AS ratio_10_2_10_3,
+    sum(if(base_qty_bin='10^3 - 10^4', bin_count, 0)) / max(total_count) AS ratio_10_3_10_4,
+    sum(if(base_qty_bin='10^4 - 10^5', bin_count, 0)) / max(total_count) AS ratio_10_4_10_5,
+    sum(if(base_qty_bin='10^5 - 10^6', bin_count, 0)) / max(total_count) AS ratio_10_5_10_6,
+    sum(if(base_qty_bin='10^6 - 10^7', bin_count, 0)) / max(total_count) AS ratio_10_6_10_7,
+    sum(if(base_qty_bin='10^7 - 10^8', bin_count, 0)) / max(total_count) AS ratio_10_7_10_8,
+    sum(if(base_qty_bin='>10^8', bin_count, 0)) / max(total_count) AS ratio_greater_10_8
 FROM 
     (SELECT 
         timestamp,
@@ -28,6 +70,9 @@ JOIN
      FROM ohlc_S30_BTC LIMIT rows) AS s30
 ON 
     s30.timestamp = toStartOfMinute(s5.timestamp) + INTERVAL (toSecond(s5.timestamp) % 30) SECOND
+LEFT JOIN bin_counts ON s5.timestamp = bin_counts.timestamp
+LEFT JOIN total_counts ON s5.timestamp = total_counts.timestamp
+GROUP BY s5.timestamp, s30.price_stddev, s30.roc, s5.price_stddev, s5.roc
 ORDER BY s5.timestamp
 """
 
@@ -87,6 +132,23 @@ if features:  # Check if features list is not empty
     # Standardize the features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
+
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    # Inspect feature distributions
+    for column in X.columns:
+        plt.figure(figsize=(10, 6))
+        sns.histplot(X[column], bins=50, kde=True)
+        plt.title(f'Distribution of {column}')
+        plt.show()
+
+    # Inspect target variable distribution
+    plt.figure(figsize=(10, 6))
+    sns.histplot(y, bins=50, kde=True)
+    plt.title('Distribution of S5_roc (Target Variable)')
+    plt.show()
 
     # Split the data into training and testing sets
     if len(features) > 1:
