@@ -1,79 +1,28 @@
 from clickhouse_connect import get_client
 import pandas as pd
 import xgboost as xgb
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 
 # Correct SQL Query
 query = """
-WITH 1000*1000 AS rows, 
-     bin_intervals AS (SELECT 
-        CASE
-            WHEN log10(base_qty) < 1 THEN '<10^1'
-            WHEN log10(base_qty) >= 1 AND log10(base_qty) < 2 THEN '10^1 - 10^2'
-            WHEN log10(base_qty) >= 2 AND log10(base_qty) < 3 THEN '10^2 - 10^3'
-            WHEN log10(base_qty) >= 3 AND log10(base_qty) < 4 THEN '10^3 - 10^4'
-            WHEN log10(base_qty) >= 4 AND log10(base_qty) < 5 THEN '10^4 - 10^5'
-            WHEN log10(base_qty) >= 5 AND log10(base_qty) < 6 THEN '10^5 - 10^6'
-            WHEN log10(base_qty) >= 6 AND log10(base_qty) < 7 THEN '10^6 - 10^7'
-            WHEN log10(base_qty) >= 7 AND log10(base_qty) < 8 THEN '10^7 - 10^8'
-            ELSE '>10^8'
-        END AS base_qty_bin,
-        timestamp
-     FROM (
-        SELECT toFloat64(base_qty) AS base_qty, timestamp
-        FROM trades_BTC
-     )
-),
-bin_counts AS (
-    SELECT
-        timestamp,
-        base_qty_bin,
-        count(*) AS bin_count
-    FROM bin_intervals
-    GROUP BY timestamp, base_qty_bin
-),
-total_counts AS (
-    SELECT
-        timestamp,
-        sum(bin_count) AS total_count
-    FROM bin_counts
-    GROUP BY timestamp
-)
+WITH 1*10*1000 as rows
 SELECT 
-    s5.timestamp AS timestamp,
-    s30.price_stddev AS S30_stddev,
-    s30.roc AS S30_roc,
-    s5.price_stddev AS S5_stddev,
-    s5.roc AS S5_roc,
-    sum(if(base_qty_bin='<10^1', bin_count, 0)) / max(total_count) AS ratio_10_1,
-    sum(if(base_qty_bin='10^1 - 10^2', bin_count, 0)) / max(total_count) AS ratio_10_1_10_2,
-    sum(if(base_qty_bin='10^2 - 10^3', bin_count, 0)) / max(total_count) AS ratio_10_2_10_3,
-    sum(if(base_qty_bin='10^3 - 10^4', bin_count, 0)) / max(total_count) AS ratio_10_3_10_4,
-    sum(if(base_qty_bin='10^4 - 10^5', bin_count, 0)) / max(total_count) AS ratio_10_4_10_5,
-    sum(if(base_qty_bin='10^5 - 10^6', bin_count, 0)) / max(total_count) AS ratio_10_5_10_6,
-    sum(if(base_qty_bin='10^6 - 10^7', bin_count, 0)) / max(total_count) AS ratio_10_6_10_7,
-    sum(if(base_qty_bin='10^7 - 10^8', bin_count, 0)) / max(total_count) AS ratio_10_7_10_8,
-    sum(if(base_qty_bin='>10^8', bin_count, 0)) / max(total_count) AS ratio_greater_10_8
-FROM 
-    (SELECT 
-        timestamp,
-        price_stddev,
-        roc
-     FROM ohlc_S5_BTC LIMIT rows) AS s5
-JOIN 
-    (SELECT 
-        timestamp,
-        price_stddev,
-        roc
-     FROM ohlc_S30_BTC LIMIT rows) AS s30
-ON 
-    s30.timestamp = toStartOfMinute(s5.timestamp) + INTERVAL (toSecond(s5.timestamp) % 30) SECOND
-LEFT JOIN bin_counts ON s5.timestamp = bin_counts.timestamp
-LEFT JOIN total_counts ON s5.timestamp = total_counts.timestamp
-GROUP BY s5.timestamp, s30.price_stddev, s30.roc, s5.price_stddev, s5.roc
-ORDER BY s5.timestamp
+    timestamp,
+    price_stddev AS S30_stddev,
+    roc AS S30_roc,
+    dist_10_100,
+    dist_100_1000,
+    dist_1000_10000,
+    dist_10000_100000,
+    dist_100000_1000000,
+    dist_1000000_10000000,
+    dist_10000000_100000000,
+    dist_greater_100000000
+FROM ohlc_S30_BTC
+ORDER BY timestamp
+LIMIT rows
 """
 
 # Fetch Data
@@ -108,11 +57,16 @@ for i in window_indices:
         target_window = window.iloc[-1]    # 5th minute
         
         # Extract the features
-        feature_vector = feature_window[['S30_stddev', 'S30_roc', 'S5_stddev', 'S5_roc']].values.flatten()
+        feature_vector = feature_window[[
+            'S30_stddev', 'S30_roc',
+            'dist_10_100', 'dist_100_1000', 'dist_1000_10000',
+            'dist_10000_100000', 'dist_100000_1000000', 'dist_1000000_10000000',
+            'dist_10000000_100000000', 'dist_greater_100000000'
+        ]].values.flatten()
         features.append(feature_vector)
         
         # Define the target
-        target_value = target_window['S5_roc']
+        target_value = target_window['S30_roc']
         targets.append(target_value)
 
 # Debugging: Check lengths of features and targets
@@ -121,52 +75,53 @@ print(f'Number of target values: {len(targets)}')
 
 # Convert to DataFrame and Series
 if features:  # Check if features list is not empty
-    X = pd.DataFrame(features, columns=[
-        'S30_stddev1', 'S30_roc1', 'S5_stddev1', 'S5_roc1',
-        'S30_stddev2', 'S30_roc2', 'S5_stddev2', 'S5_roc2',
-        'S30_stddev3', 'S30_roc3', 'S5_stddev3', 'S5_roc3',
-        'S30_stddev4', 'S30_roc4', 'S5_stddev4', 'S5_roc4'
-    ])
+    feature_columns = [
+        'S30_stddev1', 'S30_roc1',
+        'dist_10_1001', 'dist_100_10001', 'dist_1000_100001',
+        'dist_10000_1000001', 'dist_100000_10000001', 'dist_1000000_100000001',
+        'dist_10000000_1000000001', 'dist_greater_1000000001',
+        'S30_stddev2', 'S30_roc2',
+        'dist_10_1002', 'dist_100_10002', 'dist_1000_100002',
+        'dist_10000_1000002', 'dist_100000_10000002', 'dist_1000000_100000002',
+        'dist_10000000_1000000002', 'dist_greater_1000000002',
+        'S30_stddev3', 'S30_roc3',
+        'dist_10_1003', 'dist_100_10003', 'dist_1000_100003',
+        'dist_10000_1000003', 'dist_100000_10000003', 'dist_1000000_100000003',
+        'dist_10000000_1000000003', 'dist_greater_1000000003',
+        'S30_stddev4', 'S30_roc4',
+        'dist_10_1004', 'dist_100_10004', 'dist_1000_100004',
+        'dist_10000_1000004', 'dist_100000_10000004', 'dist_1000000_100000004',
+        'dist_10000000_1000000004', 'dist_greater_1000000004'
+    ]
+    
+    X = pd.DataFrame(features, columns=feature_columns)
     y = pd.Series(targets)
 
     # Standardize the features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    # Inspect feature distributions
-    for column in X.columns:
-        plt.figure(figsize=(10, 6))
-        sns.histplot(X[column], bins=50, kde=True)
-        plt.title(f'Distribution of {column}')
-        plt.show()
-
-    # Inspect target variable distribution
-    plt.figure(figsize=(10, 6))
-    sns.histplot(y, bins=50, kde=True)
-    plt.title('Distribution of S5_roc (Target Variable)')
-    plt.show()
-
     # Split the data into training and testing sets
     if len(features) > 1:
         X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-        # Create and train the model with modified parameters
-        model = xgb.XGBRegressor(
-            n_estimators=100,
-            learning_rate=0.1,
-            max_depth=5,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=42
-        )
-        model.fit(X_train, y_train)
+        # Hyperparameter tuning with GridSearchCV
+        param_grid = {
+            'n_estimators': [5, 50, 100, 200],
+            'learning_rate': [0.001, 0.01, 0.1, 0.2],
+            'max_depth': [1, 3, 5, 7],
+            'subsample': [0.2, 0.6, 0.8, 1.0],
+            'colsample_bytree': [0.2, 0.6, 0.8, 1.0]
+        }
+
+        model = xgb.XGBRegressor(random_state=42)
+        grid_search = GridSearchCV(estimator=model, param_grid=param_grid, cv=3, scoring='neg_mean_squared_error', verbose=1)
+        grid_search.fit(X_train, y_train)
+
+        best_model = grid_search.best_estimator_
 
         # Make predictions
-        y_pred = model.predict(X_test)
+        y_pred = best_model.predict(X_test)
 
         # Evaluate the model
         mse = mean_squared_error(y_test, y_pred)
@@ -178,7 +133,12 @@ if features:  # Check if features list is not empty
         print("Predictions vs Actual:")
         for pred, actual in zip(y_pred[:10], y_test[:10]):
             print(f'Predicted: {pred:.4f}, Actual: {actual:.4f}')
+
+        print(f'Best hyperparameters: {grid_search.best_params_}')
     else:
         print("Not enough data for train-test split. Ensure you have sufficient data.")
 else:
     print("No features generated. Check the rolling window logic.")
+
+
+

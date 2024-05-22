@@ -38,10 +38,10 @@ FROM (
 WHERE time_diff < 0;
 ```
 
-Aggregation of tick data in 1 minute OHLCVs
+Aggregation of tick data in 5 sec OHLCVs
 
 ```SQL
-CREATE TABLE ohlc_S30_BTC
+CREATE TABLE ohlc_S5_BTC
 (
     timestamp DateTime64(3),
     open_price Decimal(18, 8),
@@ -51,13 +51,16 @@ CREATE TABLE ohlc_S30_BTC
     num_trades UInt64,
     price_stddev Float64,
     roc Float64
+    dist_10_100 Float64
+    dist_100_1000 Float64
+    ...
 ) 
 ENGINE = MergeTree()
 ORDER BY timestamp;
 
-INSERT INTO ohlc_S30_BTC
+INSERT INTO ohlc_S5_BTC
 SELECT
-    toStartOfInterval(timestamp, INTERVAL 30 SECOND) AS timestamp,
+    toStartOfInterval(timestamp, INTERVAL 5 SECOND) AS timestamp,
     any(price) AS open_price,
     max(price) AS high_price,
     min(price) AS low_price,
