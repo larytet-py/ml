@@ -221,30 +221,37 @@ def get_autocorrelation():
     window_size = request.args.get('window_size', default=30, type=int)
 
     query = """
-    SELECT timestamp, price
-    FROM %(table_name)s
-    WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
-    ORDER BY timestamp ASC
+    SELECT 
+        toUnixTimestamp64Milli(timestamp) AS time, 
+        toFloat64(price) as price
+    FROM 
+        %(table_name)s
+    WHERE 
+        timestamp BETWEEN %(start_date)s AND %(end_date)s
+    ORDER BY 
+        timestamp ASC
     """
     
     df = execute_query(query, parameters)
     
-    autocorrelations = []
+    autocorrelations = pd.DataFrame(columns=['time', 'autocorrelation'])
 
     for i in range(window_size, len(df) + 1):
         window = df['price'][i-window_size:i].to_numpy()
         mean_window = np.mean(window)
 
-        numerator = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window))
         denominator = np.sum((window - mean_window) ** 2)
+        numerator = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window))
 
         autocorrelation = 1
         if denominator != 0:
             autocorrelation = numerator / denominator
 
-        autocorrelations.append((df['timestamp'][i-1], autocorrelation))
+        # Append a row
+        autocorrelations.loc[len(autocorrelations)] =  {'time': df['time'][i-1], 'autocorrelation': autocorrelation}
 
-    return jsonify(autocorrelations)
+    print(getJSON(autocorrelations).data)
+    return getJSON(autocorrelations)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
