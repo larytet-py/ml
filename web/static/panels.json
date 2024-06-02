@@ -16,7 +16,7 @@
             {
                 "url": "/trades_density",
                 "type": "line",
-                "parameters": {"period": 200}
+                "parameters": {"period": 20}
             }
         ]
     }
