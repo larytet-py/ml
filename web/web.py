@@ -232,9 +232,16 @@ def get_autocorrelation():
     autocorrelations = []
 
     for i in range(window_size, len(df) + 1):
-        window = df['price'][i-window_size:i]
+        window = df['price'][i-window_size:i].to_numpy()
         mean_window = np.mean(window)
-        autocorrelation = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window)) / np.sum((window - mean_window) ** 2)
+
+        numerator = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window))
+        denominator = np.sum((window - mean_window) ** 2)
+
+        autocorrelation = 1
+        if denominator != 0:
+            autocorrelation = numerator / denominator
+
         autocorrelations.append((df['timestamp'][i-1], autocorrelation))
 
     return jsonify(autocorrelations)
