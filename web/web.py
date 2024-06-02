@@ -230,20 +230,27 @@ def get_trades_rate():
             FROM %(table_name)s
             WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
         ),
+        aggregated_trades AS (
+            SELECT
+                intDiv(time, 10) * 10 AS time_bucket, -- aggregate the trades into 10-millisecond buckets
+                sum(trade_count) AS trade_count
+            FROM trades
+            GROUP BY time_bucket
+        ),
         rolling_metrics AS (
             SELECT
-                time,
+                time_bucket,
                 sum(trade_count) OVER (
-                    ORDER BY time
-                    RANGE BETWEEN %(period)s MILLISECOND PRECEDING AND CURRENT ROW
+                    ORDER BY time_bucket
+                    ROWS BETWEEN intDiv(%(period)s, 10) PRECEDING AND CURRENT ROW -- pick (period/10) 10ms buckets
                 ) AS rolling_num_trades
-            FROM trades
+            FROM aggregated_trades
         )
     SELECT
-        time,
-        rolling_num_trades / (%(period)s / 1000.0) AS rolling_rate_trades_per_sec
+        time_bucket AS time,
+        rolling_num_trades / (%(period)s/1000) AS rolling_rate_trades_per_sec -- trades rate in seconds
     FROM rolling_metrics
-    ORDER BY time ASC;
+    ORDER BY time ASC
     """
 
     data = execute_query(query, parameters)
