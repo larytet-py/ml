@@ -47,7 +47,6 @@ def validate_and_parse_args():
         'interval_duration': interval_duration
     }, None, 200
 
-
 def execute_query(query, parameters):
     def format_param(value):
         if isinstance(value, str):
@@ -69,8 +68,11 @@ def execute_query(query, parameters):
     # Execute the query and fetch the result as a DataFrame
     result = get_client().query_df(query, parameters)
 
+    return result
+
+def getJSON(df):
     # Convert DataFrame to a list of tuples
-    data = list(result.itertuples(index=False, name=None))
+    data = list(df.itertuples(index=False, name=None))
     return jsonify(data)
 
 @app.route('/price_data')
@@ -92,7 +94,7 @@ def get_price_data():
     """
 
     data = execute_query(query, parameters)
-    return data
+    return getJSON(data)
 
 @app.route('/price_ma')
 def get_price_ma():
@@ -126,7 +128,7 @@ def get_price_ma():
     """
 
     data = execute_query(query, parameters)
-    return data
+    return getJSON(data)
 
 @app.route('/ohlc_data')
 def get_ohlc_data():
@@ -149,7 +151,7 @@ def get_ohlc_data():
     """
 
     data = execute_query(query, parameters)
-    return data
+    return getJSON(data)
 
 @app.route('/trades_density')
 def get_trades_density():
@@ -208,7 +210,7 @@ def get_trades_density():
     """
 
     data = execute_query(query, parameters)
-    return data
+    return getJSON(data)
 
 @app.route('/autocorrelation')
 def get_autocorrelation():
@@ -219,19 +221,18 @@ def get_autocorrelation():
     window_size = request.args.get('window_size', default=30, type=int)
 
     query = """
-    SELECT timestamp, close_price
+    SELECT timestamp, price
     FROM %(table_name)s
     WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
     ORDER BY timestamp ASC
     """
     
-    data = execute_query(query, parameters)
-    df = pd.DataFrame(data, columns=['timestamp', 'close_price'])
+    df = execute_query(query, parameters)
     
     autocorrelations = []
 
     for i in range(window_size, len(df) + 1):
-        window = df['close_price'][i-window_size:i]
+        window = df['price'][i-window_size:i]
         mean_window = np.mean(window)
         autocorrelation = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window)) / np.sum((window - mean_window) ** 2)
         autocorrelations.append((df['timestamp'][i-1], autocorrelation))
