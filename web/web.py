@@ -159,13 +159,11 @@ def get_trades_density():
     if error_response:
         return error_response, status
 
-    parameters['period'] = request.args.get('period', default=60, type=int)
-
     query = """
     WITH
         trades_1s AS (
             SELECT
-                toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(period)s MILLISECOND) AS DateTime64)) AS time,
+                toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL 1 SECOND) AS DateTime64)) AS time,
                 toFloat64(any(price)) AS open,
                 toFloat64(anyLast(price)) AS close,
                 count() AS num_trades
@@ -209,6 +207,43 @@ def get_trades_density():
         ) AS forward_filled_density
     FROM rolling_metrics
     ORDER BY time ASC
+    """
+
+    data = execute_query(query, parameters)
+    return getJSON(data)
+
+@app.route('/trades_rate')
+def get_trades_rate():
+    parameters, error_response, status = validate_and_parse_args()
+    if error_response:
+        return error_response, status
+
+    parameters['period'] = request.args.get('period', default=60, type=int)
+
+    query = """
+    WITH
+        trades AS (
+            SELECT
+                toUnixTimestamp64Milli(timestamp) AS time,
+                price,
+                1 AS trade_count
+            FROM %(table_name)s
+            WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+        ),
+        rolling_metrics AS (
+            SELECT
+                time,
+                sum(trade_count) OVER (
+                    ORDER BY time
+                    RANGE BETWEEN %(period)s MILLISECOND PRECEDING AND CURRENT ROW
+                ) AS rolling_num_trades
+            FROM trades
+        )
+    SELECT
+        time,
+        rolling_num_trades / (%(period)s / 1000.0) AS rolling_rate_trades_per_sec
+    FROM rolling_metrics
+    ORDER BY time ASC;
     """
 
     data = execute_query(query, parameters)

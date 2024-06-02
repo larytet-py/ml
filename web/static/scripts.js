@@ -235,7 +235,7 @@ function getRangeSelectorButtons() {
 }
 
 function formatTooltip(point) {
-    const dateStr = Highcharts.dateFormat('%d-%m-%Y %H:%M:%S.SSS', new Date(point.x));
+    const dateStr = Highcharts.dateFormat('%d-%m-%Y %H:%M:%S.%L', new Date(point.x));
     switch (point.series.options.type) {
         case 'scatter':
             return `${dateStr}<br>Value: ${point.y}`;

@@ -14,9 +14,9 @@
         "title": "trades density",
         "endpoints": [
             {
-                "url": "/trades_density",
+                "url": "/trades_rate",
                 "type": "line",
-                "parameters": {"period": 20}
+                "parameters": {"period": 500}
             }
         ]
     }
