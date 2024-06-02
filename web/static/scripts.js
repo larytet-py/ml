@@ -2,8 +2,9 @@
 // event handling, and AJAX interactions. The "$" symbol is an alias for "jQuery".
 // Everything inside $(function() {...}) will run once the document is fully loaded.
 $(function() {
+    var timeFormat = 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'
     // Default starting date is 24 days before the current day.
-    var startTimePickerVal = Cookies.get('startTimePicker') || moment().subtract(24, 'days').format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+    var startTimePickerVal = Cookies.get('startTimePicker') || moment().subtract(24, 'days').format(timeFormat);
     var intervalVal = Cookies.get('interval') || '1s';
     var durationVal = Cookies.get('duration') || 2000;
 
@@ -14,10 +15,10 @@ $(function() {
         singleDatePicker: true,
         timePicker: true,
         timePicker24Hour: true, // Sets time format to 24-hour clock.
-        timePickerIncrement: 15, // Sets the increment of minutes selection to 15 minutes.
+        timePickerIncrement: 5, // Sets the increment of minutes selection to 15 minutes.
         startDate: startTimePickerVal,
         locale: {
-            format: 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'
+            format: timeFormat
         }
     });
 
@@ -30,7 +31,7 @@ $(function() {
 
     // Save settings to cookies when they change
     $('#startTimePicker').on('apply.daterangepicker', function(ev, picker) {
-        Cookies.set('startTimePicker', picker.startDate.format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'));
+        Cookies.set('startTimePicker', picker.startDate.format(timeFormat));
     });
     $('#interval').on('change', function() {
         Cookies.set('interval', $(this).val());
