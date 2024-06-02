@@ -237,7 +237,7 @@ def get_autocorrelation():
     autocorrelations = pd.DataFrame(columns=['time', 'autocorrelation'])
 
     for i in range(window_size, len(df) + 1):
-        window = df['price'][i-window_size:i].to_numpy()
+        window = df['price'][i-window_size:i]
         mean_window = np.mean(window)
 
         denominator = np.sum((window - mean_window) ** 2)
@@ -250,7 +250,6 @@ def get_autocorrelation():
         # Append a row
         autocorrelations.loc[len(autocorrelations)] =  {'time': df['time'][i-1], 'autocorrelation': autocorrelation}
 
-    print(getJSON(autocorrelations).data)
     return getJSON(autocorrelations)
 
 if __name__ == '__main__':
