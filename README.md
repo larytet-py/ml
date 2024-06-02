@@ -27,6 +27,33 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server/clickhouse-server.log"
 ```
 
+# Configuration 
+
+```json
+[
+    {
+        "symbol": "BTC",
+        "title": "BTC 5s",
+        "endpoints": [
+            {
+                "url": "/ohlc_data",
+                "type": "line"
+            }
+        ]
+    },
+    {
+        "symbol": "BTC",
+        "title": "Autocorrelation",
+        "endpoints": [
+            {
+                "url": "/autocorrelation",
+                "type": "line",
+                "parameters": {"window_size": 300}
+            }
+        ]
+    }
+]
+```
 
 # Links
 

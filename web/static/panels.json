@@ -1,11 +1,11 @@
 [
     {
         "symbol": "BTC",
-        "title": "BTC Trades",
+        "title": "BTC 5s",
         "endpoints": [
             {
-                "url": "/price_data",
-                "type": "scatter"
+                "url": "/ohlc_data",
+                "type": "line"
             }
         ]
     },
@@ -16,7 +16,7 @@
             {
                 "url": "/autocorrelation",
                 "type": "line",
-                "parameters": {"window_size": 30}
+                "parameters": {"window_size": 300}
             }
         ]
     }
