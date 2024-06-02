@@ -1,21 +1,22 @@
 [
     {
         "symbol": "BTC",
-        "title": "BTC OHLCV",
+        "title": "BTC Trades",
         "endpoints": [
             {
-                "url": "/ohlc_data",
-                "type": "candlestick"
+                "url": "/price_data",
+                "type": "scatter"
             }
         ]
     },
     {
         "symbol": "BTC",
-        "title": "Trades density",
+        "title": "Autocorrelation",
         "endpoints": [
             {
-                "url": "/trades_density",
-                "type": "line"
+                "url": "/autocorrelation",
+                "type": "line",
+                "parameters": {"window_size": 30}
             }
         ]
     }

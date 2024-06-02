@@ -1,4 +1,8 @@
 import argparse
+
+import pandas as pd
+import numpy as np
+
 from flask import Flask, request, jsonify, send_from_directory
 import clickhouse_connect
 import dateutil
@@ -205,6 +209,34 @@ def get_trades_density():
 
     data = execute_query(query, parameters)
     return data
+
+@app.route('/autocorrelation')
+def get_autocorrelation():
+    parameters, error_response, status = validate_and_parse_args()
+    if error_response:
+        return error_response, status
+
+    window_size = request.args.get('window_size', default=30, type=int)
+
+    query = """
+    SELECT timestamp, close_price
+    FROM %(table_name)s
+    WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+    ORDER BY timestamp ASC
+    """
+    
+    data = execute_query(query, parameters)
+    df = pd.DataFrame(data, columns=['timestamp', 'close_price'])
+    
+    autocorrelations = []
+
+    for i in range(window_size, len(df) + 1):
+        window = df['close_price'][i-window_size:i]
+        mean_window = np.mean(window)
+        autocorrelation = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window)) / np.sum((window - mean_window) ** 2)
+        autocorrelations.append((df['timestamp'][i-1], autocorrelation))
+
+    return jsonify(autocorrelations)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
