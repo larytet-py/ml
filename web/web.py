@@ -159,11 +159,13 @@ def get_trades_density():
     if error_response:
         return error_response, status
 
+    parameters['period'] = request.args.get('period', default=60, type=int)
+
     query = """
     WITH
         trades_1s AS (
             SELECT
-                toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL 1 SECOND) AS DateTime64)) AS time,
+                toUnixTimestamp64Milli(CAST(toStartOfInterval(timestamp, INTERVAL %(period)s MILLISECOND) AS DateTime64)) AS time,
                 toFloat64(any(price)) AS open,
                 toFloat64(anyLast(price)) AS close,
                 count() AS num_trades

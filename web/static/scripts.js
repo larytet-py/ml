@@ -15,7 +15,7 @@ $(function() {
         singleDatePicker: true,
         timePicker: true,
         timePicker24Hour: true, // Sets time format to 24-hour clock.
-        timePickerIncrement: 5, // Sets the increment of minutes selection to 15 minutes.
+        timePickerIncrement: 1, // Sets the increment of minutes selection to 15 minutes.
         startDate: startTimePickerVal,
         locale: {
             format: timeFormat

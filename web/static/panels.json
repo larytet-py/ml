@@ -1,11 +1,22 @@
 [
     {
         "symbol": "BTC",
-        "title": "BTC OHLC",
+        "title": "BTC trades",
         "endpoints": [
             {
-                "url": "/ohlc_data",
-                "type": "line"
+                "url": "/price_data",
+                "type": "scatter"
+            }
+        ]
+    },
+    {
+        "symbol": "BTC",
+        "title": "trades density",
+        "endpoints": [
+            {
+                "url": "/trades_density",
+                "type": "line",
+                "parameters": {"period": 200}
             }
         ]
     }
