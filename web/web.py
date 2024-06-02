@@ -243,7 +243,7 @@ def get_autocorrelation():
         denominator = np.sum((window - mean_window) ** 2)
         numerator = np.sum((window[:-1] - mean_window) * (window[1:] - mean_window))
 
-        autocorrelation = 1
+        autocorrelation = 0
         if denominator != 0:
             autocorrelation = numerator / denominator
 

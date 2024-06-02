@@ -1,22 +1,11 @@
 [
     {
         "symbol": "BTC",
-        "title": "BTC 5s",
+        "title": "BTC OHLC",
         "endpoints": [
             {
                 "url": "/ohlc_data",
                 "type": "line"
-            }
-        ]
-    },
-    {
-        "symbol": "BTC",
-        "title": "Autocorrelation",
-        "endpoints": [
-            {
-                "url": "/autocorrelation",
-                "type": "line",
-                "parameters": {"window_size": 300}
             }
         ]
     }
