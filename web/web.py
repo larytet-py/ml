@@ -180,19 +180,16 @@ def get_trades_density():
                     ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
                 ) AS rolling_num_trades,
                 abs(
-                    COALESCE(
-                        (max(close) OVER (
-                            ORDER BY time
-                            ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
-                        ) - min(open) OVER (
-                            ORDER BY time
-                            ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
-                        )) / NULLIF(min(open) OVER (
-                            ORDER BY time
-                            ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
-                        ), 0),
-                        1
-                    )
+                    (max(close) OVER (
+                        ORDER BY time
+                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                    ) - min(open) OVER (
+                        ORDER BY time
+                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                    )) / NULLIF(min(open) OVER (
+                        ORDER BY time
+                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                    ), 0)
                 ) AS rolling_roc
             FROM trades_1s
         )
