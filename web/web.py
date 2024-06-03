@@ -180,16 +180,19 @@ def get_trades_density():
                     ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
                 ) AS rolling_num_trades,
                 abs(
-                    (max(close) OVER (
-                        ORDER BY time
-                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
-                    ) - min(open) OVER (
-                        ORDER BY time
-                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
-                    )) / nullif(min(open) OVER (
-                        ORDER BY time
-                        ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
-                    ), 0)
+                    COALESCE(
+                        (max(close) OVER (
+                            ORDER BY time
+                            ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                        ) - min(open) OVER (
+                            ORDER BY time
+                            ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                        )) / NULLIF(min(open) OVER (
+                            ORDER BY time
+                            ROWS BETWEEN %(interval_duration)s PRECEDING AND CURRENT ROW
+                        ), 0),
+                        1
+                    )
                 ) AS rolling_roc
             FROM trades_1s
         )
@@ -197,12 +200,14 @@ def get_trades_density():
         time,
         if(
             rolling_roc = 0,
-            last_value(log(rolling_num_trades / nullif(rolling_roc, 0))) OVER (
+            last_value(
+                log(COALESCE(rolling_num_trades / NULLIF(rolling_roc, 0), 1))
+            ) OVER (
                 ORDER BY time
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
             ),
             log(
-                rolling_num_trades / nullif(rolling_roc, 0)
+                COALESCE(rolling_num_trades / NULLIF(rolling_roc, 0), 0)
             )
         ) AS forward_filled_density
     FROM rolling_metrics
