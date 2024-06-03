@@ -11,12 +11,12 @@
     },
     {
         "symbol": "BTC",
-        "title": "trades density",
+        "title": "trades StdDev",
         "endpoints": [
             {
-                "url": "/trades_density",
+                "url": "/trades_sd",
                 "type": "line",
-                "parameters": {"period": 100}
+                "parameters": {"period": 300}
             }
         ]
     }

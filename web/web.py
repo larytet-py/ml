@@ -204,7 +204,7 @@ def get_trades_density():
                 ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
             ),
             log(
-                COALESCE(rolling_num_trades / NULLIF(rolling_roc, 0), 0)
+                rolling_num_trades / NULLIF(rolling_roc, 0)
             )
         ) AS forward_filled_density
     FROM rolling_metrics
@@ -251,6 +251,51 @@ def get_trades_rate():
     SELECT
         time_bucket AS time,
         rolling_num_trades / (%(period)s/1000) AS rolling_rate_trades_per_sec -- trades rate in seconds
+    FROM rolling_metrics
+    ORDER BY time ASC
+    """
+
+    data = execute_query(query, parameters)
+    return getJSON(data)
+
+@app.route('/trades_sd')
+def get_trades_sd():
+    parameters, error_response, status = validate_and_parse_args()
+    if error_response:
+        return error_response, status
+
+    parameters['period'] = request.args.get('period', default=60, type=int)
+
+    query = """
+    WITH
+        trades AS (
+            SELECT
+                toUnixTimestamp64Milli(timestamp) AS time,
+                price,
+                1 AS trade_count
+            FROM %(table_name)s
+            WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+        ),
+        aggregated_trades AS (
+            SELECT
+                intDiv(time, 10) * 10 AS time_bucket, -- aggregate the trades into 10-millisecond buckets
+                sum(trade_count) AS trade_count,
+                avg(price) AS avg_price
+            FROM trades
+            GROUP BY time_bucket
+        ),
+        rolling_metrics AS (
+            SELECT
+                time_bucket,
+                stddevPop(avg_price) OVER (
+                    ORDER BY time_bucket
+                    ROWS BETWEEN intDiv(%(period)s, 10) PRECEDING AND CURRENT ROW -- calculate rolling stddev for the period
+                ) AS rolling_stddev_price
+            FROM aggregated_trades
+        )
+    SELECT
+        time_bucket AS time,
+        rolling_stddev_price AS rolling_stddev
     FROM rolling_metrics
     ORDER BY time ASC
     """
