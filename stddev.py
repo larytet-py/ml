@@ -19,7 +19,7 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
         ),
         aggregated_trades AS (
             SELECT
-                intDiv(time, {interval} * 1000) * {interval} * 1000 AS time_bucket, -- aggregate the trades into interval buckets
+                intDiv(time, 10) * 10 AS time_bucket, -- aggregate the trades into 10-millisecond buckets
                 avg(price) AS avg_price
             FROM trades
             GROUP BY time_bucket
@@ -29,7 +29,7 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
                 time_bucket,
                 stddevPop(avg_price) OVER (
                     ORDER BY time_bucket
-                    ROWS BETWEEN intDiv(60000, {interval} * 1000) PRECEDING AND CURRENT ROW -- calculate rolling stddev for the period
+                    ROWS BETWEEN intDiv({interval}, 10) PRECEDING AND CURRENT ROW -- calculate rolling stddev for the period
                 ) AS rolling_stddev_price
             FROM aggregated_trades
         )
