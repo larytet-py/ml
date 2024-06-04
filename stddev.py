@@ -51,23 +51,46 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
 
     return result
 
-
-def filter_low_stddev_areas(low_stddev_list, price_diff_threshold):
+def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
+    # Sort the list by price first
     low_stddev_list.sort(key=lambda x: x[1])
     
-    filtered_list = []
+    # Dictionary to accumulate consolidation durations and start times for each price level
+    consolidations = {}
     last_kept_price = None
+    current_consolidation_start = None
 
     for time, price, stddev in low_stddev_list:
+        # Check if the price difference is greater than the threshold
         if last_kept_price is None or abs(price - last_kept_price) / last_kept_price >= price_diff_threshold:
-            filtered_list.append((time, price, stddev))
-            last_kept_price = price
-        else:
-            if stddev < filtered_list[-1][2]:
-                filtered_list[-1] = (time, price, stddev)
-                last_kept_price = price
+            
+            # Finalize the current consolidation
+            if last_kept_price is not None and current_consolidation_start is not None:
+                duration = (time - current_consolidation_start).total_seconds()
+                if last_kept_price not in consolidations:
+                    consolidations[last_kept_price] = (duration, current_consolidation_start)
+                else:
+                    consolidations[last_kept_price] = (consolidations[last_kept_price][0] + duration, consolidations[last_kept_price][1])
 
-    return filtered_list
+            # Setup a new consolidation period
+            last_kept_price = price
+            current_consolidation_start = time
+        else:
+            # Continue the current consolidation period
+            if current_consolidation_start is None:
+                current_consolidation_start = time
+    
+    # Handle the final consolidation period
+    if last_kept_price is not None and current_consolidation_start is not None:
+        duration = (low_stddev_list[-1][0] - current_consolidation_start).total_seconds()
+        if last_kept_price not in consolidations:
+            consolidations[last_kept_price] = (duration, current_consolidation_start)
+        else:
+            consolidations[last_kept_price] = (consolidations[last_kept_price][0] + duration, consolidations[last_kept_price][1])
+
+    return consolidations
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Print price levels with longest consolidations by time.")
@@ -77,7 +100,7 @@ def main():
     parser.add_argument('--interval', type=float, default=60, help='Set the interval in seconds')
     parser.add_argument('--max_stddev', type=float, default=0.01, help='Set the maximum standard deviation to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
-    parser.add_argument('--price_diff_threshold', type=float, default=0.01, help='Set the minimum distance between the price levels')
+    parser.add_argument('--price_diff_threshold', type=float, default=0.0001, help='Set the minimum distance between the price levels')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(message)s')
@@ -88,10 +111,10 @@ def main():
     low_stddev_areas = get_low_stddev_areas(f"trades_{args.symbol}", args.start_date, args.end_date, args.interval, args.max_stddev)
 
     logger.debug("Filtering")
-    filtered_areas = filter_low_stddev_areas(low_stddev_areas, args.price_diff_threshold)
+    consolidations = sum_consolidation_durations(low_stddev_areas, args.price_diff_threshold)
     current_date = datetime.now(timezone.utc).isoformat()
-    for time, price, stddev in filtered_areas:
-        logger.info(f"{time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{price:.5f},{stddev:.5f}")
+    for price, (duration, time) in consolidations:
+        logger.info(f"{time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{price:.5f},{duration:.2f}")
 
 if __name__ == "__main__":
     main()
