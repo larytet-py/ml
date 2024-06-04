@@ -63,9 +63,11 @@ def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
     last_kept_price = None
     current_consolidation_start = None
 
-    for time, price, stddev in low_stddev_list:
+    for time, price, _ in low_stddev_list:
+        rounded_price = round(price / price_diff_threshold) * price_diff_threshold
+
         # Check if the price difference is greater than the threshold
-        if last_kept_price is None or abs(price - last_kept_price) / last_kept_price >= price_diff_threshold:
+        if last_kept_price is None or abs(rounded_price - last_kept_price) / last_kept_price >= price_diff_threshold:
             
             # Finalize the current consolidation
             if last_kept_price is not None and current_consolidation_start is not None:
@@ -76,7 +78,7 @@ def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
                     consolidations[last_kept_price] = (consolidations[last_kept_price][0] + duration, consolidations[last_kept_price][1])
 
             # Setup a new consolidation period
-            last_kept_price = price
+            last_kept_price = rounded_price
             current_consolidation_start = time
         else:
             # Continue the current consolidation period
