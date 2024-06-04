@@ -93,6 +93,7 @@ def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
         else:
             consolidations[last_kept_price] = (consolidations[last_kept_price][0] + duration, consolidations[last_kept_price][1])
 
+    print(consolidations[:10])
     return consolidations
 
 
