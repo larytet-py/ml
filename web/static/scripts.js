@@ -66,7 +66,7 @@ function loadConfigAndData() {
             panels.forEach(panel => {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
                 var containerDiv = $('<div>').attr('id', containerId).css({
-                    height: '600px',
+                    height: '1200px',
                     minWidth: '310px',
                     marginBottom: '20px'
                 });

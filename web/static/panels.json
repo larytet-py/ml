@@ -16,7 +16,7 @@
             {
                 "url": "/trades_sd",
                 "type": "line",
-                "parameters": {"period": 300}
+                "parameters": {"period": 100}
             }
         ]
     }
