@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from clickhouse_connect import get_client
 import pandas as pd
 import logging
@@ -19,7 +19,7 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
         ),
         aggregated_trades AS (
             SELECT
-                intDiv(time, 10) * 10 AS time_bucket, -- aggregate the trades into 10-millisecond buckets
+                intDiv(time, 100) * 100 AS time_bucket, -- aggregate the trades into 100-millisecond buckets
                 avg(price) AS avg_price
             FROM trades
             GROUP BY time_bucket
@@ -27,9 +27,10 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
         rolling_metrics AS (
             SELECT
                 time_bucket,
+                avg_price,
                 stddevPop(avg_price) OVER (
                     ORDER BY time_bucket
-                    ROWS BETWEEN intDiv({interval}, 10) PRECEDING AND CURRENT ROW -- calculate rolling stddev for the period
+                    ROWS BETWEEN intDiv({interval}, 100) PRECEDING AND CURRENT ROW -- calculate rolling stddev for the period
                 ) AS rolling_stddev_price
             FROM aggregated_trades
         )
@@ -46,8 +47,10 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
     
     result = []
     for _, row in result_df.iterrows():
-        result.append((row['time'].replace(tzinfo=timezone.utc), row['price'], row['rolling_stddev']))
-        logger.debug(f"{row['time'].replace(tzinfo=timezone.utc).isoformat()},{datetime.now(timezone.utc).isoformat()},{row['price']:.5f},{row['rolling_stddev']:.5f}")
+        # Convert Unix timestamp in milliseconds to a datetime object with millisecond precision
+        timestamp = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=row['time'])
+        result.append((timestamp, row['price'], row['rolling_stddev']))
+        logger.debug(f"{timestamp.isoformat()},{datetime.now(timezone.utc).isoformat()},{row['price']:.5f},{row['rolling_stddev']:.5f}")
 
     return result
 
@@ -97,8 +100,8 @@ def main():
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
     parser.add_argument('--start_date', default=datetime.strptime("2021-01-01", "%Y-%m-%d"), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now().replace(microsecond=0), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
-    parser.add_argument('--interval', type=float, default=60, help='Set the interval in seconds')
-    parser.add_argument('--max_stddev', type=float, default=0.01, help='Set the maximum standard deviation to show')
+    parser.add_argument('--interval', type=float, default=5, help='Set the interval in seconds')
+    parser.add_argument('--max_stddev', type=float, default=0.004, help='Set the maximum standard deviation to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
     parser.add_argument('--price_diff_threshold', type=float, default=0.0001, help='Set the minimum distance between the price levels')
     args = parser.parse_args()
