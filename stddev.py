@@ -50,7 +50,7 @@ def get_low_stddev_areas(table_name, start_date, end_date, interval, max_stddev)
         # Convert Unix timestamp in milliseconds to a datetime object with millisecond precision
         timestamp = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=row['time'])
         result.append((timestamp, row['price'], row['rolling_stddev']))
-        logger.debug(f"{timestamp.isoformat()},{datetime.now(timezone.utc).isoformat()},{row['price']:.5f},{row['rolling_stddev']:.5f}")
+        # logger.debug(f"{timestamp.isoformat()},{datetime.now(timezone.utc).isoformat()},{row['price']:.5f},{row['rolling_stddev']:.5f}")
 
     return result
 
@@ -64,21 +64,17 @@ def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
     current_consolidation_start = None
 
     for time, price, _ in low_stddev_list:
-        rounded_price = round(price / price_diff_threshold) * price_diff_threshold
-
         # Check if the price difference is greater than the threshold
-        if last_kept_price is None or abs(rounded_price - last_kept_price) / last_kept_price >= price_diff_threshold:
+        if last_kept_price is None or abs(price - last_kept_price) / last_kept_price >= price_diff_threshold:
             
             # Finalize the current consolidation
             if last_kept_price is not None and current_consolidation_start is not None:
                 duration = (time - current_consolidation_start).total_seconds()
-                if last_kept_price not in consolidations:
-                    consolidations[last_kept_price] = (duration, current_consolidation_start)
-                else:
-                    consolidations[last_kept_price] = (consolidations[last_kept_price][0] + duration, consolidations[last_kept_price][1])
+                stored_value = consolidations.get(last_kept_price, (0, None))
+                consolidations[last_kept_price] = (stored_value[0] + duration, current_consolidation_start if stored_value[1] is None else stored_value[1])
 
             # Setup a new consolidation period
-            last_kept_price = rounded_price
+            last_kept_price = price
             current_consolidation_start = time
         else:
             # Continue the current consolidation period
@@ -88,12 +84,9 @@ def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
     # Handle the final consolidation period
     if last_kept_price is not None and current_consolidation_start is not None:
         duration = (low_stddev_list[-1][0] - current_consolidation_start).total_seconds()
-        if last_kept_price not in consolidations:
-            consolidations[last_kept_price] = (duration, current_consolidation_start)
-        else:
-            consolidations[last_kept_price] = (consolidations[last_kept_price][0] + duration, consolidations[last_kept_price][1])
+        stored_value = consolidations.get(last_kept_price, (0, None))
+        consolidations[last_kept_price] = (stored_value[0] + duration, current_consolidation_start if stored_value[1] is None else stored_value[1])
 
-    print(consolidations[:10])
     return consolidations
 
 
@@ -120,7 +113,7 @@ def main():
     consolidations = sum_consolidation_durations(low_stddev_areas, args.price_diff_threshold)
     current_date = datetime.now(timezone.utc).isoformat()
     for price, (duration, time) in consolidations:
-        logger.info(f"{time.isoformat()},{current_date},{price:.5f},{duration:.20f}")
+        logger.info(f"{time.isoformat()},{current_date},{price:.50f},{duration:.20f}")
 
 if __name__ == "__main__":
     main()
