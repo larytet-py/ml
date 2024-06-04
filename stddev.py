@@ -117,7 +117,7 @@ def main():
     consolidations = sum_consolidation_durations(low_stddev_areas, args.price_diff_threshold)
     current_date = datetime.now(timezone.utc).isoformat()
     for price, (duration, time) in consolidations:
-        logger.info(f"{time.replace(tzinfo=timezone.utc).isoformat()},{current_date},{price:.5f},{duration:.2f}")
+        logger.info(f"{time.isoformat()},{current_date},{price:.5f},{duration:.20f}")
 
 if __name__ == "__main__":
     main()
