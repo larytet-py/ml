@@ -58,7 +58,7 @@ function intervalToSeconds(interval) {
     }
 }
 
-function createResizablePanel(containerId) {
+function createPanel(containerId) {
     var containerDiv = $('<div>').attr('id', containerId).addClass('resizable-panel').css({
         height: '1200px',
         minWidth: '310px',
@@ -68,14 +68,18 @@ function createResizablePanel(containerId) {
     });
     $('body').append(containerDiv);
 
-    // Add a panel's resizer handle at the bottom of the panel
+}
+
+var resizing = false;
+
+function addResizerHandle(containerId) {
     var resizerDiv = $('<div>').addClass('resizer').css({
         width: '100%',
         height: '5px',
         cursor: 'ns-resize', 
         backgroundColor: '#444'
     });
-    containerDiv.append(resizerDiv);
+    $('#' + containerId).append(resizerDiv);
 
     // Handle resizing
     resizerDiv.on('mousedown', function (e) {
@@ -103,8 +107,9 @@ function loadConfigAndData() {
         .then(panels => {
             panels.forEach(panel => {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
-                createResizablePanel(containerId);
+                createPanel(containerId);
                 loadData(panel, containerId);
+                addResizerHandle(containerId)
             });
         })
         .catch(error => {
