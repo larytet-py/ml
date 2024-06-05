@@ -58,6 +58,40 @@ function intervalToSeconds(interval) {
     }
 }
 
+function createResizablePanel(containerId) {
+    var containerDiv = $('<div>').attr('id', containerId).addClass('resizable-panel').css({
+        height: '1200px',
+        minWidth: '310px',
+        marginBottom: '20px',
+        resize: 'vertical', // Enable vertical resizing
+        overflow: 'auto' // Allow content to be scrolled if needed
+    });
+    $('body').append(containerDiv);
+
+    // Add a resizer handle at the bottom of the panel
+    var resizerDiv = $('<div>').addClass('resizer').css({
+        width: '100%',
+        height: '5px',
+        cursor: 'ns-resize', // Set cursor to indicate vertical resizing
+        backgroundColor: '#ccc'
+    });
+    containerDiv.append(resizerDiv);
+
+    // Handle resizing
+    resizerDiv.on('mousedown', function (e) {
+        startY = e.pageY;
+        startHeight = containerDiv.height();
+        $(document).on('mousemove', function (e) {
+            var height = startHeight + e.pageY - startY;
+            containerDiv.css('height', height + 'px');
+        });
+        $(document).on('mouseup', function () {
+            $(document).off('mousemove');
+            $(document).off('mouseup');
+        });
+    });
+}
+
 function loadConfigAndData() {
     // Fetch API is used to make an HTTP request to retrieve 'panels.json'.
     fetch('static/panels.json')
@@ -65,12 +99,7 @@ function loadConfigAndData() {
         .then(panels => {
             panels.forEach(panel => {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
-                var containerDiv = $('<div>').attr('id', containerId).css({
-                    height: '1200px',
-                    minWidth: '310px',
-                    marginBottom: '20px'
-                });
-                $('body').append(containerDiv);
+                createResizablePanel(containerId);
                 loadData(panel, containerId);
             });
         })

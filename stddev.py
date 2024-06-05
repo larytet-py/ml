@@ -68,6 +68,29 @@ def sum_consolidation_durations(low_stddev_list, price_diff_threshold):
     return consolidations
 
 
+def filter_consolidations(consolidations, price_diff_threshold):
+    # Convert the dictionary to a list of tuples for easier sorting and filtering
+    consolidation_list = [(price, duration, start_time) for price, (duration, start_time) in consolidations.items()]
+
+    # Sort by price
+    consolidation_list.sort(key=lambda x: x[0])
+    
+    filtered_list = []
+    last_kept_price = None
+
+    for price, duration, start_time in consolidation_list:
+        if last_kept_price is None or abs(price - last_kept_price) / last_kept_price >= price_diff_threshold:
+            filtered_list.append((price, duration, start_time))
+            last_kept_price = price
+        else:
+            # If the price difference is less than the threshold, keep the one with the longer duration
+            if duration > filtered_list[-1][1]:
+                filtered_list[-1] = (price, duration, start_time)
+                last_kept_price = price
+
+    return filtered_list
+
+
 def main():
     parser = argparse.ArgumentParser(description="Print price levels with longest consolidations by time.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
@@ -76,7 +99,7 @@ def main():
     parser.add_argument('--interval', type=float, default=5, help='Set the interval in seconds')
     parser.add_argument('--max_stddev', type=float, default=0.004, help='Set the maximum standard deviation to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
-    parser.add_argument('--price_diff_threshold', type=float, default=0.0001, help='Set the minimum distance between the price levels')
+    parser.add_argument('--price_diff_threshold', type=float, default=0.003, help='Set the minimum distance between the price levels')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(message)s')
@@ -87,10 +110,13 @@ def main():
     logger.info("Collect")
     low_stddev_areas = get_low_stddev_areas(f"trades_{args.symbol}", args.start_date, args.end_date, args.interval, args.max_stddev)
 
-    logger.info("Filtering")
+    logger.info("Get durations")
     consolidations = sum_consolidation_durations(low_stddev_areas, args.price_diff_threshold)
+
+    logger.info("Filter")
+    consolidations = filter_consolidations(consolidations, args.price_diff_threshold)
     current_date = datetime.now(timezone.utc).isoformat()
-    for price, (duration, time) in sorted(consolidations.items()):
+    for price, duration, time in consolidations:
         logger.info(f"{time.isoformat()},{current_date},{price:.2f},{duration:.0f}")
 
 if __name__ == "__main__":
