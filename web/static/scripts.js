@@ -59,8 +59,9 @@ function intervalToSeconds(interval) {
 }
 
 function createPanel(containerId) {
+    var savedHeight = Cookies.get(containerId + '_height');
     var containerDiv = $('<div>').attr('id', containerId).addClass('resizable-panel').css({
-        height: '300px',
+        height: savedHeight ? savedHeight + 'px' : '300px',
         minWidth: '310px',
         marginBottom: '20px',
         resize: 'vertical', // Enable vertical resizing
@@ -112,6 +113,10 @@ function addResizerHandle(containerId) {
             resizing = false;
             $(document).off('mousemove', mouseMoveHandler);
             $(document).off('mouseup', mouseUpHandler);
+
+            // Save the current height of the panel to cookies
+            var containerId = containerDiv.attr('id');
+            Cookies.set(containerId + '_height', containerDiv.height());            
         }
     }
 }
