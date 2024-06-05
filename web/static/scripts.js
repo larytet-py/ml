@@ -68,27 +68,31 @@ function createResizablePanel(containerId) {
     });
     $('body').append(containerDiv);
 
-    // Add a resizer handle at the bottom of the panel
+    // Add a panel's resizer handle at the bottom of the panel
     var resizerDiv = $('<div>').addClass('resizer').css({
         width: '100%',
         height: '5px',
-        cursor: 'ns-resize', // Set cursor to indicate vertical resizing
-        backgroundColor: '#ccc'
+        cursor: 'ns-resize', 
+        backgroundColor: '#444'
     });
     containerDiv.append(resizerDiv);
 
     // Handle resizing
     resizerDiv.on('mousedown', function (e) {
+        resizing = true;
         startY = e.pageY;
         startHeight = containerDiv.height();
-        $(document).on('mousemove', function (e) {
+    });
+
+    $(document).on('mousemove', function (e) {
+        if (resizing) {
             var height = startHeight + e.pageY - startY;
             containerDiv.css('height', height + 'px');
-        });
-        $(document).on('mouseup', function () {
-            $(document).off('mousemove');
-            $(document).off('mouseup');
-        });
+        }
+    });
+
+    $(document).on('mouseup', function () {
+        resizing = false;
     });
 }
 
