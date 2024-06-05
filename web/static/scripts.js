@@ -60,11 +60,12 @@ function intervalToSeconds(interval) {
 
 function createPanel(containerId) {
     var containerDiv = $('<div>').attr('id', containerId).addClass('resizable-panel').css({
-        height: '1200px',
+        height: '300px',
         minWidth: '310px',
         marginBottom: '20px',
         resize: 'vertical', // Enable vertical resizing
-        overflow: 'auto' // Allow content to be scrolled if needed
+        overflow: 'auto', // Allow content to be scrolled if needed
+        position: 'relative' // Positioning of components
     });
     $('body').append(containerDiv);
 
@@ -73,32 +74,48 @@ function createPanel(containerId) {
 var resizing = false;
 
 function addResizerHandle(containerId) {
+    var containerDiv = $('#' + containerId);
+
     var resizerDiv = $('<div>').addClass('resizer').css({
         width: '100%',
-        height: '5px',
+        height: '2px',
         cursor: 'ns-resize', 
-        backgroundColor: '#444'
+        backgroundColor: '#888',
+        position: 'absolute',
+        bottom: 0,
+        zIndex: 9999
     });
-    $('#' + containerId).append(resizerDiv);
+
+    containerDiv.append(resizerDiv);
+
+    var startY, startHeight, resizing = false;
 
     // Handle resizing
     resizerDiv.on('mousedown', function (e) {
+        e.preventDefault();
         resizing = true;
         startY = e.pageY;
         startHeight = containerDiv.height();
+        $(document).on('mousemove', mouseMoveHandler);
+        $(document).on('mouseup', mouseUpHandler);
     });
 
-    $(document).on('mousemove', function (e) {
+    function mouseMoveHandler(e) {
         if (resizing) {
             var height = startHeight + e.pageY - startY;
             containerDiv.css('height', height + 'px');
         }
-    });
+    }
 
-    $(document).on('mouseup', function () {
-        resizing = false;
-    });
+    function mouseUpHandler() {
+        if (resizing) {
+            resizing = false;
+            $(document).off('mousemove', mouseMoveHandler);
+            $(document).off('mouseup', mouseUpHandler);
+        }
+    }
 }
+
 
 function loadConfigAndData() {
     // Fetch API is used to make an HTTP request to retrieve 'panels.json'.
@@ -109,7 +126,6 @@ function loadConfigAndData() {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
                 createPanel(containerId);
                 loadData(panel, containerId);
-                addResizerHandle(containerId)
             });
         })
         .catch(error => {
@@ -154,57 +170,15 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
 
             let chart = Highcharts.charts.find(c => c.renderTo.id === containerId);
             if (chart) {
-                addSeriesToChart(chart, type, title, seriesData);
+                //addSeriesToChart(chart, type, title, seriesData);
             } else {
                 createNewChart(containerId, type, title, seriesData);
+                addResizerHandle(containerId);
             }
         })
         .catch(error => {
             console.error('Error fetching data:', error);
         });
-}
-
-function createQueryParams(symbol, startDate, endDate, interval, parameters) {
-    let queryParams = new URLSearchParams({ symbol, start: startDate, end: endDate, interval });
-    if (parameters) {
-        Object.keys(parameters).forEach(key => {
-            queryParams.append(key, parameters[key]);
-        });
-    }
-    return queryParams;
-}
-
-function processSeriesData(data, type) {
-    return data.map(item => {
-        if (type === 'line' || type === 'scatter') {
-            return [item[0], item[1]];
-        } else if (type === 'candlestick') {
-            return [item[0], item[1], item[2], item[3], item[4]];
-        }
-    }).sort((a, b) => a[0] - b[0]);
-}
-
-function addSeriesToChart(chart, type, title, seriesData) {
-    chart.addSeries({
-        type: type,
-        name: title,
-        data: seriesData,
-        tooltip: {
-            valueDecimals: 2
-        },
-        dataGrouping: {
-            enabled: true
-        },
-        color: type === 'line' ? 'lightblue' : 'red',
-        upColor: type === 'candlestick' ? 'green' : undefined,
-        lineColor: type === 'candlestick' ? 'black' : undefined,
-        upLineColor: type === 'candlestick' ? 'black' : undefined,
-        marker: {
-            enabled: type === 'line' ? false : true,
-            radius: 3,
-            fillColor: 'blue'
-        }
-    });
 }
 
 function createNewChart(containerId, type, title, seriesData) {
@@ -256,6 +230,49 @@ function createNewChart(containerId, type, title, seriesData) {
             formatter: function() {
                 return formatTooltip(this);
             }
+        }
+    });
+}
+
+function createQueryParams(symbol, startDate, endDate, interval, parameters) {
+    let queryParams = new URLSearchParams({ symbol, start: startDate, end: endDate, interval });
+    if (parameters) {
+        Object.keys(parameters).forEach(key => {
+            queryParams.append(key, parameters[key]);
+        });
+    }
+    return queryParams;
+}
+
+function processSeriesData(data, type) {
+    return data.map(item => {
+        if (type === 'line' || type === 'scatter') {
+            return [item[0], item[1]];
+        } else if (type === 'candlestick') {
+            return [item[0], item[1], item[2], item[3], item[4]];
+        }
+    }).sort((a, b) => a[0] - b[0]);
+}
+
+function addSeriesToChart(chart, type, title, seriesData) {
+    chart.addSeries({
+        type: type,
+        name: title,
+        data: seriesData,
+        tooltip: {
+            valueDecimals: 2
+        },
+        dataGrouping: {
+            enabled: true
+        },
+        color: type === 'line' ? 'lightblue' : 'red',
+        upColor: type === 'candlestick' ? 'green' : undefined,
+        lineColor: type === 'candlestick' ? 'black' : undefined,
+        upLineColor: type === 'candlestick' ? 'black' : undefined,
+        marker: {
+            enabled: type === 'line' ? false : true,
+            radius: 3,
+            fillColor: 'blue'
         }
     });
 }
