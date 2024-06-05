@@ -69,7 +69,6 @@ function createPanel(containerId) {
         position: 'relative' // Positioning of components
     });
     $('body').append(containerDiv);
-
 }
 
 var resizing = false;
@@ -92,14 +91,16 @@ function addResizerHandle(containerId) {
     var startY, startHeight, resizing = false;
 
     // Handle resizing
-    resizerDiv.on('mousedown', function (e) {
+    resizerDiv.on('mousedown', mouseDownHandler);
+
+    function mouseDownHandler(e) {
         e.preventDefault();
         resizing = true;
         startY = e.pageY;
         startHeight = containerDiv.height();
         $(document).on('mousemove', mouseMoveHandler);
         $(document).on('mouseup', mouseUpHandler);
-    });
+    }
 
     function mouseMoveHandler(e) {
         if (resizing) {
