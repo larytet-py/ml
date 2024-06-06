@@ -77,7 +77,7 @@ def main():
     parser.add_argument('--end_date', default=datetime.now().replace(microsecond=0), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--max_roc', type=float, default=0.004, help='Set the maximum ROC to show')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
-    parser.add_argument('--price_diff_threshold', type=float, default=0.003, help='Set the minimum distance between the price levels')
+    parser.add_argument('--price_diff_threshold', type=float, default=0.005, help='Set the minimum distance between the price levels')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(message)s')

@@ -51,9 +51,6 @@ CREATE TABLE ohlc_S5_BTC
     num_trades UInt64,
     price_stddev Float64,
     roc Float64
-    dist_10_100 Float64
-    dist_100_1000 Float64
-    ...
 ) 
 ENGINE = MergeTree()
 ORDER BY timestamp;
