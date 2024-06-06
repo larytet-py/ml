@@ -100,6 +100,7 @@ Performnace test
 CREATE TABLE ohlcv_M1_BTC
 (
     time UInt64,
+    timestamp DateTime64(3),
     open Float64,
     high Float64,
     low Float64,
