@@ -14,35 +14,31 @@ def get_low_volatility_areas(table_name, start_date, end_date, max_roc):
                 toUnixTimestamp64Milli(timestamp) AS time,
                 open_price,
                 close_price,
-                (close_price - open_price) / open_price AS roc
+                toFloat64((close_price - open_price) / open_price) AS roc
             FROM {table_name}
             WHERE timestamp BETWEEN '{start_date}' AND '{end_date}'
         )
     SELECT
         time,
         roc,
-        open_price,
-        close_price
+        toFloat64(open_price) AS open_price,
+        toFloat64(close_price) AS close_price
     FROM candles
     WHERE roc < {max_roc}
     ORDER BY time ASC
     """
     logger.debug(query)
     result_df = client.query_df(query)
-    
-    result = []
-    for _, row in result_df.iterrows():
-        # Convert Unix timestamp in milliseconds to a datetime object with millisecond precision
-        timestamp = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=row['time'])
-        result.append((timestamp, row['open_price'], row['close_price'], row['roc']))
 
-    return result
+    return result_df
 
-def sum_consolidation_durations(low_volatility_list, price_diff_threshold):
+def sum_consolidation_durations(df, price_diff_threshold):
     consolidations = {}
 
-    for time, open_price, close_price, _ in low_volatility_list:
-        rounded_price = round(open_price/(10*price_diff_threshold))*(10*price_diff_threshold)
+    for _, row in df.iterrows():
+        time = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=row['time'])
+        open_price = row['open_price']
+        rounded_price = round(open_price / (10 * price_diff_threshold)) * (10 * price_diff_threshold)
 
         stored_value = consolidations.get(rounded_price, (0, None))
         consolidation_start = time if stored_value[1] is None else stored_value[1]
@@ -90,10 +86,10 @@ def main():
     logger.setLevel(args.log_level.upper())
 
     logger.info("Collect")
-    low_volatility_areas = get_low_volatility_areas(f"ohlc_S5_{args.symbol}", args.start_date, args.end_date, args.max_roc)
+    low_volatility_df = get_low_volatility_areas(f"ohlc_S5_{args.symbol}", args.start_date, args.end_date, args.max_roc)
 
     logger.info("Get durations")
-    consolidations = sum_consolidation_durations(low_volatility_areas, args.price_diff_threshold)
+    consolidations = sum_consolidation_durations(low_volatility_df, args.price_diff_threshold)
 
     logger.info("Filter")
     consolidations = filter_consolidations(consolidations, args.price_diff_threshold)
