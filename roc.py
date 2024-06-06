@@ -14,7 +14,7 @@ def get_low_volatility_areas(table_name, start_date, end_date, max_roc):
                 toUnixTimestamp64Milli(timestamp) AS time,
                 open_price,
                 close_price,
-                toFloat64((close_price - open_price) / open_price) AS roc
+                (toFloat64(close_price) - toFloat64(open_price)) / toFloat64(open_price) AS roc
             FROM {table_name}
             WHERE timestamp BETWEEN '{start_date}' AND '{end_date}'
         )
@@ -86,9 +86,9 @@ def main():
     logger.setLevel(args.log_level.upper())
 
     logger.info("Collect")
-    low_volatility_df = get_low_volatility_areas(f"ohlc_S5_{args.symbol}", args.start_date, args.end_date, args.max_roc)
+    low_volatility_df = get_low_volatility_areas(f"ohlc_M1_{args.symbol}", args.start_date, args.end_date, args.max_roc)
 
-    logger.info("Get durations")
+    logger.info(f"Get durations for {len(low_volatility_df)} periods")
     consolidations = sum_consolidation_durations(low_volatility_df, args.price_diff_threshold)
 
     logger.info("Filter")
