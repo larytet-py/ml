@@ -69,6 +69,36 @@ FROM trades_BTC
 GROUP BY timestamp
 ORDER BY timestamp;
 
+
+CREATE TABLE ohlc_S2_BTC
+(
+    timestamp DateTime64(3),
+    open_price Decimal(18, 8),
+    high_price Decimal(18, 8),
+    low_price Decimal(18, 8),
+    close_price Decimal(18, 8),
+    num_trades UInt64,
+    price_stddev Float64,
+    roc Float64
+) 
+ENGINE = MergeTree()
+ORDER BY timestamp;
+
+INSERT INTO ohlc_S2_BTC
+SELECT
+    toStartOfInterval(timestamp, INTERVAL 2 SECOND) AS timestamp,
+    any(price) AS open_price,
+    max(price) AS high_price,
+    min(price) AS low_price,
+    anyLast(price) AS close_price,
+    count() AS num_trades,
+    stddevPop(toFloat64(price))/toFloat64(any(price)) AS price_stddev,
+    (toFloat64(anyLast(price))-toFloat64(any(price)))/toFloat64(any(price)) as roc
+FROM trades_BTC
+GROUP BY timestamp
+ORDER BY timestamp;
+
+
 SELECT min(num_trades) AS min_num_trades
 FROM ohlc_S30_BTC;
 ```
