@@ -38,6 +38,7 @@ def sum_consolidation_durations(df, price_diff_threshold):
     for _, row in df.iterrows():
         time = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(milliseconds=row['time'])
         open_price = row['open_price']
+        # The end result here is that the RS lines will have roud prices
         rounded_price = round(open_price / (10 * price_diff_threshold)) * (10 * price_diff_threshold)
 
         stored_value = consolidations.get(rounded_price, (0, None))
