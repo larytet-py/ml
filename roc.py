@@ -95,6 +95,7 @@ def main():
     consolidations = filter_consolidations(consolidations, args.price_diff_threshold)
     current_date = datetime.now(timezone.utc).isoformat()
     consolidations.sort(key=lambda x: x[0])
+    logger.info(f"Got {len(consolidations)}")
     for price, duration, time in consolidations:
         logger.info(f"{time.isoformat()},{current_date},{price:.2f},{duration:.0f}")
 
