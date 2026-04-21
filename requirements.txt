@@ -1,3 +1,8 @@
 clickhouse-connect
 flask
 python-dateutil
+pandas
+numpy
+requests
+scikit-learn
+xgboost

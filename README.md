@@ -15,7 +15,12 @@ docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 -
 
 Run the WEB server http://127.0.0.1:8080
 
+## Python Virtual Environment and Server
+
 ```sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 python3 web/web.py --debug_level=DEBUG
 ```
 
@@ -74,4 +79,3 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 * Introduction to Linear Algebra: https://amzn.to/3qXc47m
 * Advances in Active Portfolio Management: https://amzn.to/3xwSfpX
 * Technical Analysis is Mostly Bullshit: https://amzn.to/2TU3M41
-
