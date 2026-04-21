@@ -1,22 +1,41 @@
-[
-    {
-        "symbol": "GOOGL",
-        "title": "GOOGL 1min",
-        "endpoints": [
-            {
-                "url": "/price_data",
-                "type": "scatter"
+{
+    "settings": {
+        "day_markers": {
+            "time_zone": "UTC",
+            "end_of_day": {
+                "enabled": true,
+                "utc_time": "21:00",
+                "color": "#90EE90",
+                "width": 3
+            },
+            "begin_of_day": {
+                "enabled": false,
+                "utc_time": "13:30",
+                "color": "#006400",
+                "width": 2
             }
-        ]
+        }
     },
-    {
-        "symbol": "GOOGL",
-        "title": "StdDev",
-        "endpoints": [
-            {
-                "url": "/price_sd_1min",
-                "type": "line"
-            }
-        ]
-    }
-]
+    "panels": [
+        {
+            "symbol": "GOOGL",
+            "title": "GOOGL 1min",
+            "endpoints": [
+                {
+                    "url": "/price_data",
+                    "type": "scatter"
+                }
+            ]
+        },
+        {
+            "symbol": "GOOGL",
+            "title": "StdDev",
+            "endpoints": [
+                {
+                    "url": "/price_sd_1min",
+                    "type": "line"
+                }
+            ]
+        }
+    ]
+}

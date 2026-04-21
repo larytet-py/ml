@@ -38,29 +38,48 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 # Configuration 
 
 ```json
-[
-    {
-        "symbol": "BTC",
-        "title": "BTC 5s",
-        "endpoints": [
-            {
-                "url": "/ohlc_data",
-                "type": "line"
+{
+    "settings": {
+        "day_markers": {
+            "time_zone": "UTC",
+            "end_of_day": {
+                "enabled": true,
+                "utc_time": "21:00",
+                "color": "#90EE90",
+                "width": 3
+            },
+            "begin_of_day": {
+                "enabled": false,
+                "utc_time": "13:30",
+                "color": "#006400",
+                "width": 2
             }
-        ]
+        }
     },
-    {
-        "symbol": "BTC",
-        "title": "Autocorrelation",
-        "endpoints": [
-            {
-                "url": "/autocorrelation",
-                "type": "line",
-                "parameters": {"window_size": 300}
-            }
-        ]
-    }
-]
+    "panels": [
+        {
+            "symbol": "BTC",
+            "title": "BTC 5s",
+            "endpoints": [
+                {
+                    "url": "/ohlc_data",
+                    "type": "line"
+                }
+            ]
+        },
+        {
+            "symbol": "BTC",
+            "title": "Autocorrelation",
+            "endpoints": [
+                {
+                    "url": "/autocorrelation",
+                    "type": "line",
+                    "parameters": {"window_size": 300}
+                }
+            ]
+        }
+    ]
+}
 ```
 
 # Links

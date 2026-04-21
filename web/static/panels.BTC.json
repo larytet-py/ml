@@ -1,23 +1,44 @@
-[
-    {
-        "symbol": "BTC",
-        "title": "BTC trades",
-        "endpoints": [
-            {
-                "url": "/price_data",
-                "type": "scatter"
+{
+    "settings": {
+        "day_markers": {
+            "time_zone": "UTC",
+            "end_of_day": {
+                "enabled": true,
+                "utc_time": "21:00",
+                "color": "#90EE90",
+                "width": 3
+            },
+            "begin_of_day": {
+                "enabled": false,
+                "utc_time": "00:00",
+                "color": "#006400",
+                "width": 2
             }
-        ]
+        }
     },
-    {
-        "symbol": "BTC",
-        "title": "trades StdDev",
-        "endpoints": [
-            {
-                "url": "/trades_sd",
-                "type": "line",
-                "parameters": {"period": 100}
-            }
-        ]
-    }
-]
+    "panels": [
+        {
+            "symbol": "BTC",
+            "title": "BTC trades",
+            "endpoints": [
+                {
+                    "url": "/price_data",
+                    "type": "scatter"
+                }
+            ]
+        },
+        {
+            "symbol": "BTC",
+            "title": "trades StdDev",
+            "endpoints": [
+                {
+                    "url": "/trades_sd",
+                    "type": "line",
+                    "parameters": {
+                        "period": 100
+                    }
+                }
+            ]
+        }
+    ]
+}

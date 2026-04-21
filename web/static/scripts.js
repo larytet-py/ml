@@ -35,8 +35,8 @@ $(function() {
         .then(function() {
             return synchronizeUiSettingsWithSelectedConfiguration();
         })
-        .then(function(panels) {
-            loadConfigAndData(panels);
+        .then(function(configuration) {
+            loadConfigAndData(configuration);
         })
         .catch(function(error) {
             console.error('Error loading available configurations:', error);
@@ -55,8 +55,8 @@ $(function() {
     $('#configSelector').on('change', function() {
         Cookies.set('panelConfiguration', $(this).val());
         synchronizeUiSettingsWithSelectedConfiguration()
-            .then(function(panels) {
-                loadConfigAndData(panels);
+            .then(function(configuration) {
+                loadConfigAndData(configuration);
             })
             .catch(function(error) {
                 console.error('Error loading panel config while synchronizing settings:', error);
@@ -146,18 +146,21 @@ function fetchPanelConfiguration(configurationName) {
                 throw new Error('Failed to fetch panel configuration: ' + configurationName);
             }
             return response.json();
+        })
+        .then(function(rawConfiguration) {
+            return normalizePanelConfiguration(rawConfiguration);
         });
 }
 
 function synchronizeUiSettingsWithSelectedConfiguration() {
     var selectedConfiguration = $('#configSelector').val();
     if (!selectedConfiguration) {
-        return Promise.resolve([]);
+        return Promise.resolve({ panels: [], settings: {} });
     }
-    return fetchPanelConfiguration(selectedConfiguration).then(function(panels) {
-        currentConfigurationSymbol = getCurrentSymbolFromPanels(panels);
+    return fetchPanelConfiguration(selectedConfiguration).then(function(configuration) {
+        currentConfigurationSymbol = getCurrentSymbolFromPanels(configuration.panels);
         applyUiSettingsForSymbol(currentConfigurationSymbol);
-        return panels;
+        return configuration;
     });
 }
 
@@ -272,7 +275,7 @@ function addResizerHandle(containerId) {
 }
 
 
-function loadConfigAndData(preloadedPanels) {
+function loadConfigAndData(preloadedConfiguration) {
     var selectedConfiguration = $('#configSelector').val();
     if (!selectedConfiguration) {
         console.error('No panel configuration selected');
@@ -280,14 +283,16 @@ function loadConfigAndData(preloadedPanels) {
     }
 
     clearCharts();
-    var panelPromise = preloadedPanels ? Promise.resolve(preloadedPanels) : fetchPanelConfiguration(selectedConfiguration);
+    var panelPromise = preloadedConfiguration ? Promise.resolve(preloadedConfiguration) : fetchPanelConfiguration(selectedConfiguration);
     panelPromise
-        .then(panels => {
+        .then(configuration => {
+            var panels = configuration.panels || [];
+            var settings = configuration.settings || {};
             currentConfigurationSymbol = getCurrentSymbolFromPanels(panels);
             panels.forEach(panel => {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
                 createPanel(containerId);
-                loadData(panel, containerId);
+                loadData(panel, containerId, settings);
             });
         })
         .catch(error => {
@@ -296,11 +301,14 @@ function loadConfigAndData(preloadedPanels) {
 }
 
 // Defines a function to load data for a specific panel.
-function loadData(panel, containerId) {
+function loadData(panel, containerId, settings) {
     var startTime = moment.utc($('#startTimePicker').val());
-        var intervalInSeconds = intervalToSeconds($('#interval').val());
+    var intervalInSeconds = intervalToSeconds($('#interval').val());
     var duration = intervalInSeconds * parseInt($('#duration').val());
     var endTime = moment(startTime).add(duration, 'seconds');
+    var dayMarkerSettings = resolveDayMarkerSettings(settings);
+    var startMs = startTime.valueOf();
+    var endMs = endTime.valueOf();
 
     panel.endpoints.forEach(endpoint => {
         fetchData(panel.symbol, 
@@ -311,12 +319,15 @@ function loadData(panel, containerId) {
             intervalInSeconds, 
             containerId, 
             panel.title,
-            endpoint.parameters || {}
+            endpoint.parameters || {},
+            dayMarkerSettings,
+            startMs,
+            endMs
         );
     });
 }
 
-function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, parameters) {
+function fetchData(symbol, startDate, endDate, type, url, interval, containerId, title, parameters, dayMarkerSettings, startMs, endMs) {
     console.log(`Fetching data: ${symbol} from ${url}, Start: ${startDate}, End: ${endDate}, Interval: ${interval} seconds`);
 
     let queryParams = createQueryParams(symbol, startDate, endDate, interval, parameters);
@@ -334,7 +345,7 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
             if (chart) {
                 //addSeriesToChart(chart, type, title, seriesData);
             } else {
-                createNewChart(containerId, type, title, seriesData);
+                createNewChart(containerId, type, title, seriesData, dayMarkerSettings, startMs, endMs);
                 addResizerHandle(containerId);
             }
         })
@@ -343,7 +354,107 @@ function fetchData(symbol, startDate, endDate, type, url, interval, containerId,
         });
 }
 
-function createNewChart(containerId, type, title, seriesData) {
+function normalizePanelConfiguration(rawConfiguration) {
+    if (Array.isArray(rawConfiguration)) {
+        return {
+            panels: rawConfiguration,
+            settings: {}
+        };
+    }
+
+    var configObject = rawConfiguration && typeof rawConfiguration === 'object' ? rawConfiguration : {};
+    return {
+        panels: Array.isArray(configObject.panels) ? configObject.panels : [],
+        settings: configObject.settings && typeof configObject.settings === 'object' ? configObject.settings : {}
+    };
+}
+
+function parseUtcMarkerTime(rawTime) {
+    var timeString = typeof rawTime === 'string' ? rawTime : '';
+    var match = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(timeString);
+    if (!match) {
+        return null;
+    }
+    var hours = parseInt(match[1], 10);
+    var minutes = parseInt(match[2], 10);
+    var seconds = parseInt(match[3] || '0', 10);
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+        return null;
+    }
+    return { hours: hours, minutes: minutes, seconds: seconds };
+}
+
+function buildDailyMarkerLines(startMs, endMs, markerDefinition) {
+    if (!markerDefinition || !markerDefinition.enabled) {
+        return [];
+    }
+
+    var parsedTime = parseUtcMarkerTime(markerDefinition.utcTime);
+    if (!parsedTime) {
+        console.warn('Invalid UTC marker time:', markerDefinition.utcTime);
+        return [];
+    }
+
+    var markerLines = [];
+    var dayCursor = moment.utc(startMs).startOf('day');
+    var endBoundary = moment.utc(endMs).endOf('day');
+
+    while (dayCursor.valueOf() <= endBoundary.valueOf()) {
+        var markerTs = dayCursor.clone()
+            .hour(parsedTime.hours)
+            .minute(parsedTime.minutes)
+            .second(parsedTime.seconds)
+            .millisecond(0)
+            .valueOf();
+
+        if (markerTs >= startMs && markerTs <= endMs) {
+            markerLines.push({
+                color: markerDefinition.color,
+                width: markerDefinition.width,
+                dashStyle: 'Solid',
+                value: markerTs,
+                zIndex: 5
+            });
+        }
+        dayCursor.add(1, 'day');
+    }
+
+    return markerLines;
+}
+
+function resolveDayMarkerSettings(settings) {
+    var rawSettings = settings && typeof settings === 'object' ? settings : {};
+    var dayMarkers = rawSettings.day_markers || rawSettings.dayMarkers || {};
+    var configuredTimeZone = String(dayMarkers.time_zone || dayMarkers.timeZone || 'UTC').toUpperCase();
+    if (configuredTimeZone !== 'UTC') {
+        console.warn('Only UTC day markers are supported. Falling back to UTC for:', configuredTimeZone);
+    }
+
+    var endOfDay = dayMarkers.end_of_day || dayMarkers.endOfDay || {};
+    var beginOfDay = dayMarkers.begin_of_day || dayMarkers.beginOfDay || {};
+
+    return {
+        endOfDay: {
+            enabled: endOfDay.enabled !== false,
+            utcTime: endOfDay.utc_time || endOfDay.utcTime || '21:00',
+            color: endOfDay.color || '#90EE90',
+            width: Number(endOfDay.width || 3)
+        },
+        beginOfDay: {
+            enabled: beginOfDay.enabled === true,
+            utcTime: beginOfDay.utc_time || beginOfDay.utcTime || '13:30',
+            color: beginOfDay.color || '#006400',
+            width: Number(beginOfDay.width || 2)
+        }
+    };
+}
+
+function createNewChart(containerId, type, title, seriesData, dayMarkerSettings, startMs, endMs) {
+    var markerSettings = dayMarkerSettings || resolveDayMarkerSettings({});
+    var dayMarkerLines = []
+        .concat(buildDailyMarkerLines(startMs, endMs, markerSettings.endOfDay))
+        .concat(buildDailyMarkerLines(startMs, endMs, markerSettings.beginOfDay));
+
     Highcharts.stockChart(containerId, {
         rangeSelector: {
             buttons: getRangeSelectorButtons(),
@@ -357,6 +468,7 @@ function createNewChart(containerId, type, title, seriesData) {
             crosshair: true,
             type: 'datetime',
             tickInterval: 1,
+            plotLines: dayMarkerLines,
             events: {
                 setExtremes: syncExtremes
             }
