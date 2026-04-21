@@ -17,12 +17,21 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --vol-window 20 \
   --put-roc-threshold -0.005000 \
   --downside-vol-threshold 0.094507
+
+MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
+  --config option_signal_configs.txt
+
+Example option_signal_configs.txt rows:
+--symbol SPY --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005000 --downside-vol-threshold 0.094507
+--symbol SPY --side call --roc-lookback 20 --vol-window 17 --call-roc-threshold 0.052641 --upside-vol-threshold 0.085369
 """
 import argparse
 import math
 import os
+import shlex
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 import requests
@@ -33,6 +42,18 @@ from option_pricing import black_scholes_call_price, black_scholes_put_price
 TRADING_DAYS_PER_YEAR = 252
 DEFAULT_CACHE_CSV = "data/etfs.csv"
 CACHE_RECENT_DAYS = 3
+
+
+@dataclass
+class SignalConfig:
+    symbol: str
+    side: str
+    roc_lookback: int
+    vol_window: int
+    put_roc_threshold: float
+    call_roc_threshold: float
+    downside_vol_threshold: float
+    upside_vol_threshold: float
 
 
 def downside_std(x) -> float:
@@ -236,6 +257,7 @@ def _load_or_refresh_cached_data(
 
 
 def load_symbol_data(symbol: str, start_date: Optional[str], end_date: Optional[str], csv_path: Optional[str]) -> pd.DataFrame:
+    symbol = symbol.upper()
     if csv_path:
         return load_symbol_data_from_csv(csv_path, symbol, start_date, end_date)
 
@@ -277,12 +299,170 @@ def _days_to_next_friday(ts: pd.Timestamp) -> int:
     return 7 if days == 0 else days
 
 
+def _make_config_row_parser() -> argparse.ArgumentParser:
+    row_parser = argparse.ArgumentParser(add_help=False)
+    row_parser.add_argument("--symbol", required=True)
+    row_parser.add_argument("--side", choices=["put", "call", "both"], default="both")
+    row_parser.add_argument("--roc-lookback", type=int, default=5)
+    row_parser.add_argument("--vol-window", type=int, default=20)
+    row_parser.add_argument("--put-roc-threshold", type=float, default=-0.03)
+    row_parser.add_argument("--call-roc-threshold", type=float, default=0.03)
+    row_parser.add_argument("--downside-vol-threshold", type=float, default=0.20)
+    row_parser.add_argument("--upside-vol-threshold", type=float, default=0.20)
+    return row_parser
+
+
+def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
+    if not args.config:
+        return [
+            SignalConfig(
+                symbol=args.symbol.upper(),
+                side=args.side,
+                roc_lookback=args.roc_lookback,
+                vol_window=args.vol_window,
+                put_roc_threshold=args.put_roc_threshold,
+                call_roc_threshold=args.call_roc_threshold,
+                downside_vol_threshold=args.downside_vol_threshold,
+                upside_vol_threshold=args.upside_vol_threshold,
+            )
+        ]
+
+    path = Path(args.config)
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {args.config}")
+
+    row_parser = _make_config_row_parser()
+    configs: List[SignalConfig] = []
+    for line_no, raw_line in enumerate(path.read_text().splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = shlex.split(line)
+        try:
+            row = row_parser.parse_args(parts)
+        except SystemExit as exc:
+            raise ValueError(f"Invalid config row at line {line_no}: {raw_line}") from exc
+
+        configs.append(
+            SignalConfig(
+                symbol=row.symbol.upper(),
+                side=row.side,
+                roc_lookback=row.roc_lookback,
+                vol_window=row.vol_window,
+                put_roc_threshold=row.put_roc_threshold,
+                call_roc_threshold=row.call_roc_threshold,
+                downside_vol_threshold=row.downside_vol_threshold,
+                upside_vol_threshold=row.upside_vol_threshold,
+            )
+        )
+
+    if not configs:
+        raise ValueError(f"No usable config rows in {args.config}")
+    return configs
+
+
+def _required_history(cfg: SignalConfig) -> int:
+    return max(cfg.roc_lookback + 1, cfg.vol_window + 1)
+
+
+def _evaluate_config(
+    cfg: SignalConfig,
+    symbol_df: pd.DataFrame,
+    risk_free_rate: float,
+    min_pricing_vol: float,
+    contract_size: int,
+) -> List[str]:
+    signal_df = build_signal_frame(symbol_df, cfg.roc_lookback, cfg.vol_window)
+    latest = signal_df.iloc[-1]
+
+    if pd.isna(latest["roc"]) or pd.isna(latest["pricing_vol_annualized"]):
+        needed = _required_history(cfg)
+        raise ValueError(
+            f"Insufficient history for {cfg.symbol} {cfg.side} with lookback/window "
+            f"({cfg.roc_lookback}/{cfg.vol_window}). Need at least {needed} rows, got {len(signal_df)} rows."
+        )
+
+    put_trigger = (
+        bool(latest["roc"] <= cfg.put_roc_threshold)
+        and not pd.isna(latest["downside_vol_annualized"])
+        and bool(latest["downside_vol_annualized"] >= cfg.downside_vol_threshold)
+    )
+    call_trigger = (
+        bool(latest["roc"] >= cfg.call_roc_threshold)
+        and not pd.isna(latest["upside_vol_annualized"])
+        and bool(latest["upside_vol_annualized"] >= cfg.upside_vol_threshold)
+    )
+
+    if cfg.side == "put":
+        selected_sides: List[str] = ["put"]
+    elif cfg.side == "call":
+        selected_sides = ["call"]
+    else:
+        selected_sides = ["put", "call"]
+
+    spot = float(latest["close"])
+    latest_date = pd.Timestamp(latest["date"])
+    days_to_expiry = _days_to_next_friday(latest_date)
+    time_to_expiry_years = days_to_expiry / 365.25
+    pricing_vol = max(float(latest["pricing_vol_annualized"]), min_pricing_vol)
+
+    header = (
+        f"Config | {cfg.symbol} {cfg.side.upper()} | ROC({cfg.roc_lookback})={float(latest['roc']):.4%} | "
+        f"downside_vol={float(latest['downside_vol_annualized']):.4%} | "
+        f"upside_vol={float(latest['upside_vol_annualized']):.4%} | "
+        f"pricing_vol={pricing_vol:.4%} | date={latest_date.date()} close={spot:.2f}"
+    )
+
+    messages = [header]
+    fired = False
+    for side in selected_sides:
+        is_triggered = put_trigger if side == "put" else call_trigger
+        if not is_triggered:
+            continue
+
+        if side == "put":
+            premium = black_scholes_put_price(
+                spot=spot,
+                strike=spot,
+                time_to_expiry_years=time_to_expiry_years,
+                risk_free_rate=risk_free_rate,
+                sigma=pricing_vol,
+            )
+        else:
+            premium = black_scholes_call_price(
+                spot=spot,
+                strike=spot,
+                time_to_expiry_years=time_to_expiry_years,
+                risk_free_rate=risk_free_rate,
+                sigma=pricing_vol,
+            )
+
+        fired = True
+        messages.append(
+            f"NOTIFICATION: ENTER {side.upper()} POSITION | {cfg.symbol} | expiry(next Friday in {days_to_expiry} days) | "
+            f"estimated ATM premium={premium:.4f} per share ({premium * contract_size:.2f} per contract)"
+        )
+
+    if not fired:
+        messages.append("NOTIFICATION: No entry signal for this config on latest daily bar.")
+
+    return messages
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Daily signal notifier: checks weekly reversal signal and prints put/call entry notification with estimated ATM premium."
     )
-    parser.add_argument("--symbol", required=True, help="Ticker symbol, e.g. SPY")
+    parser.add_argument("--symbol", default="SPY", help="Ticker symbol, e.g. SPY (used when --config is not set).")
     parser.add_argument("--side", choices=["put", "call", "both"], default="both", help="Which side(s) to evaluate.")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help=(
+            "Optional config text file. One non-empty, non-comment line per setup using CLI-style flags, "
+            "for example: --symbol SPY --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005 --downside-vol-threshold 0.094507"
+        ),
+    )
     parser.add_argument(
         "--csv",
         default=None,
@@ -306,94 +486,44 @@ def main() -> None:
         "--print-trades",
         type=int,
         default=0,
-        help="Print recent rows with computed signals. Use -1 for all rows, 0 to disable.",
+        help="Print recent rows with computed signals in single-config mode. Use -1 for all rows, 0 to disable.",
     )
     args = parser.parse_args()
 
-    df = load_symbol_data(args.symbol, args.start_date, args.end_date, args.csv)
-    signal_df = build_signal_frame(df, args.roc_lookback, args.vol_window)
-    latest = signal_df.iloc[-1]
+    configs = _load_configs(args)
 
-    if pd.isna(latest["roc"]) or pd.isna(latest["pricing_vol_annualized"]):
-        needed = max(args.roc_lookback + 1, args.vol_window + 1)
-        raise ValueError(
-            "Insufficient history to compute latest signal values with current lookback/window. "
-            f"Need at least {needed} rows, got {len(signal_df)} rows."
+    # Load each symbol once so we refresh cache and fetch API data minimally.
+    symbol_data: Dict[str, pd.DataFrame] = {}
+    for symbol in sorted({cfg.symbol for cfg in configs}):
+        symbol_data[symbol] = load_symbol_data(symbol, args.start_date, args.end_date, args.csv)
+
+    all_messages: List[str] = []
+    for idx, cfg in enumerate(configs, start=1):
+        df = symbol_data[cfg.symbol]
+        all_messages.append(f"\n=== Config #{idx} ===")
+        all_messages.extend(
+            _evaluate_config(
+                cfg=cfg,
+                symbol_df=df,
+                risk_free_rate=args.risk_free_rate,
+                min_pricing_vol=args.min_pricing_vol,
+                contract_size=args.contract_size,
+            )
         )
 
-    put_trigger = (
-        bool(latest["roc"] <= args.put_roc_threshold)
-        and not pd.isna(latest["downside_vol_annualized"])
-        and bool(latest["downside_vol_annualized"] >= args.downside_vol_threshold)
-    )
-    call_trigger = (
-        bool(latest["roc"] >= args.call_roc_threshold)
-        and not pd.isna(latest["upside_vol_annualized"])
-        and bool(latest["upside_vol_annualized"] >= args.upside_vol_threshold)
-    )
+    print("\n".join(all_messages).lstrip())
 
-    if args.side == "put":
-        selected_sides: List[str] = ["put"]
-    elif args.side == "call":
-        selected_sides = ["call"]
-    else:
-        selected_sides = ["put", "call"]
-
-    spot = float(latest["close"])
-    latest_date = pd.Timestamp(latest["date"])
-    days_to_expiry = _days_to_next_friday(latest_date)
-    time_to_expiry_years = days_to_expiry / 365.25
-    pricing_vol = max(float(latest["pricing_vol_annualized"]), args.min_pricing_vol)
-
-    print(
-        f"Latest bar: {latest_date.date()} | {args.symbol.upper()} close={spot:.2f} | "
-        f"ROC({args.roc_lookback})={float(latest['roc']):.4%} | "
-        f"downside_vol={float(latest['downside_vol_annualized']):.4%} | "
-        f"upside_vol={float(latest['upside_vol_annualized']):.4%} | "
-        f"pricing_vol={pricing_vol:.4%}"
-    )
-
-    messages = []
-    for side in selected_sides:
-        is_triggered = put_trigger if side == "put" else call_trigger
-        if not is_triggered:
-            continue
-        if side == "put":
-            premium = black_scholes_put_price(
-                spot=spot,
-                strike=spot,
-                time_to_expiry_years=time_to_expiry_years,
-                risk_free_rate=args.risk_free_rate,
-                sigma=pricing_vol,
-            )
-        else:
-            premium = black_scholes_call_price(
-                spot=spot,
-                strike=spot,
-                time_to_expiry_years=time_to_expiry_years,
-                risk_free_rate=args.risk_free_rate,
-                sigma=pricing_vol,
-            )
-        messages.append(
-            f"NOTIFICATION: ENTER {side.upper()} POSITION | expiry(next Friday in {days_to_expiry} days) | "
-            f"estimated ATM premium={premium:.4f} per share ({premium * args.contract_size:.2f} per contract)"
-        )
-
-    if not messages:
-        print("NOTIFICATION: No entry signal for selected side(s) on latest daily bar.")
-    else:
-        for msg in messages:
-            print(msg)
-
-    if args.print_trades != 0:
+    if args.print_trades != 0 and len(configs) == 1:
+        cfg = configs[0]
+        signal_df = build_signal_frame(symbol_data[cfg.symbol], cfg.roc_lookback, cfg.vol_window)
         printable = signal_df.copy()
         printable["put_signal"] = (
-            (printable["roc"] <= args.put_roc_threshold)
-            & (printable["downside_vol_annualized"] >= args.downside_vol_threshold)
+            (printable["roc"] <= cfg.put_roc_threshold)
+            & (printable["downside_vol_annualized"] >= cfg.downside_vol_threshold)
         )
         printable["call_signal"] = (
-            (printable["roc"] >= args.call_roc_threshold)
-            & (printable["upside_vol_annualized"] >= args.upside_vol_threshold)
+            (printable["roc"] >= cfg.call_roc_threshold)
+            & (printable["upside_vol_annualized"] >= cfg.upside_vol_threshold)
         )
         cols = [
             "date",
@@ -408,6 +538,8 @@ def main() -> None:
         to_show = printable[cols] if args.print_trades < 0 else printable[cols].tail(args.print_trades)
         print("\nSignal history:")
         print(to_show.to_string(index=False, justify="center"))
+    elif args.print_trades != 0:
+        print("\n--print-trades is supported only with a single config row. Ignored for multi-config runs.")
 
 
 if __name__ == "__main__":
