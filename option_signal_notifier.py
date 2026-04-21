@@ -457,7 +457,7 @@ def main() -> None:
     parser.add_argument("--side", choices=["put", "call", "both"], default="both", help="Which side(s) to evaluate.")
     parser.add_argument(
         "--config",
-        default=None,
+        default="option_signal_notifier.config",
         help=(
             "Optional config text file. One non-empty, non-comment line per setup using CLI-style flags, "
             "for example: --symbol SPY --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005 --downside-vol-threshold 0.094507"
