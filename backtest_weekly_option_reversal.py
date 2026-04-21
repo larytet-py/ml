@@ -28,6 +28,7 @@ def _format_best_backtest_command(
     allow_overlap: bool,
 ) -> str:
     cmd = [
+        "./",
         script_path,
         "--symbol",
         symbol,
