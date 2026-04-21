@@ -1,6 +1,7 @@
 import argparse
 import math
 import random
+import shlex
 import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -9,6 +10,63 @@ import pandas as pd
 
 
 TRADING_DAYS_PER_YEAR = 252
+
+
+def _shell_join(parts: List[str]) -> str:
+    return " ".join(shlex.quote(p) for p in parts)
+
+
+def _format_best_backtest_command(
+    script_path: str,
+    symbol: str,
+    side: str,
+    params: Dict[str, float],
+    csv_path: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    allow_overlap: bool,
+) -> str:
+    cmd = [
+        "python3",
+        script_path,
+        "--symbol",
+        symbol,
+        "--side",
+        side,
+        "--roc-lookback",
+        str(int(params["roc_lookback"])),
+        "--vol-window",
+        str(int(params["vol_window"])),
+        "--print-trades",
+        "-1",
+    ]
+    if side == "put":
+        cmd.extend(
+            [
+                "--put-roc-threshold",
+                f"{params['put_roc_threshold']:.6f}",
+                "--downside-vol-threshold",
+                f"{params['downside_vol_threshold_annualized']:.6f}",
+            ]
+        )
+    else:
+        cmd.extend(
+            [
+                "--call-roc-threshold",
+                f"{params['call_roc_threshold']:.6f}",
+                "--upside-vol-threshold",
+                f"{params['upside_vol_threshold_annualized']:.6f}",
+            ]
+        )
+    if csv_path != "data/etfs.csv":
+        cmd.extend(["--csv", csv_path])
+    if start_date:
+        cmd.extend(["--start-date", start_date])
+    if end_date:
+        cmd.extend(["--end-date", end_date])
+    if allow_overlap:
+        cmd.append("--allow-overlap")
+    return _shell_join(cmd)
 
 
 @dataclass
@@ -324,6 +382,11 @@ def _build_params_from_vector(
 def optimize_parameters(
     df: pd.DataFrame,
     side: str,
+    symbol: str,
+    script_path: str,
+    csv_path: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
     initial_vector: List[float],
     bounds: List[Tuple[float, float]],
     iterations: int,
@@ -440,16 +503,23 @@ def optimize_parameters(
         if best_metrics is None:
             print(f"[opt] t+{elapsed:.1f}s evals={eval_count} best_avg_pnl=n/a trades=0")
         else:
+            best_cmd = _format_best_backtest_command(
+                script_path=script_path,
+                symbol=symbol,
+                side=side,
+                params=best_params,
+                csv_path=csv_path,
+                start_date=start_date,
+                end_date=end_date,
+                allow_overlap=allow_overlap,
+            )
             print(
                 "[opt] "
                 f"t+{elapsed:.1f}s "
                 f"evals={eval_count} "
                 f"best_avg_pnl={best_metrics['avg_pnl']:.2f} "
                 f"trades={int(best_metrics['total'])} "
-                f"roc_lookback={int(best_params['roc_lookback'])} "
-                f"roc_threshold={best_params['call_roc_threshold'] if side == 'call' else best_params['put_roc_threshold']:.6f} "
-                f"vol_window={int(best_params['vol_window'])} "
-                f"vol_threshold={best_params['upside_vol_threshold_annualized'] if side == 'call' else best_params['downside_vol_threshold_annualized']:.6f}",
+                f"cmd={best_cmd}",
                 flush=True,
             )
         last_report_time = now
@@ -630,6 +700,11 @@ def main() -> None:
         result = optimize_parameters(
             df=df,
             side=args.side,
+            symbol=args.symbol,
+            script_path="backtest_weekly_option_reversal.py",
+            csv_path=args.csv,
+            start_date=args.start_date,
+            end_date=args.end_date,
             initial_vector=initial_vector,
             bounds=bounds,
             iterations=args.opt_iters,
