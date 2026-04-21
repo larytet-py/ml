@@ -120,8 +120,6 @@ def run_backtest(
     vol_window: int,
     downside_vol_threshold_annualized: float,
     upside_vol_threshold_annualized: float,
-    holding_days: int,
-    expiry_mode: str,
     risk_free_rate: float,
     min_pricing_vol_annualized: float,
     contract_size: int,
@@ -142,13 +140,10 @@ def run_backtest(
     trades = []
     next_entry_idx = 0
 
-    if expiry_mode == "this-week":
-        # Use the last trading row within the same ISO week as this-week expiry.
-        iso = df["date"].dt.isocalendar()
-        week_key = iso["year"].astype(int) * 100 + iso["week"].astype(int)
-        week_last_idx = pd.Series(df.index, index=df.index).groupby(week_key).transform("max").astype(int)
-    elif expiry_mode != "fixed":
-        raise ValueError(f"Unsupported expiry_mode: {expiry_mode}")
+    # Use the last trading row within the same ISO week as expiry.
+    iso = df["date"].dt.isocalendar()
+    week_key = iso["year"].astype(int) * 100 + iso["week"].astype(int)
+    week_last_idx = pd.Series(df.index, index=df.index).groupby(week_key).transform("max").astype(int)
 
     for i in range(len(df)):
         if i < next_entry_idx:
@@ -181,19 +176,12 @@ def run_backtest(
         entry_close = float(row["close"])
         entry_date = pd.Timestamp(row["date"])
         strike = entry_close
-        if expiry_mode == "this-week":
-            exit_idx = int(week_last_idx.iloc[i])
-            days_to_friday = 4 - entry_date.weekday()
-            if days_to_friday <= 0:
-                continue
-            scheduled_expiry_date = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
-            time_to_expiry = days_to_friday / 365.25
-        else:
-            exit_idx = i + holding_days
-            time_to_expiry = holding_days / TRADING_DAYS_PER_YEAR
-            if exit_idx >= len(df):
-                continue
-            scheduled_expiry_date = pd.Timestamp(df.iloc[exit_idx]["date"]).normalize()
+        exit_idx = int(week_last_idx.iloc[i])
+        days_to_friday = 4 - entry_date.weekday()
+        if days_to_friday <= 0:
+            continue
+        scheduled_expiry_date = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
+        time_to_expiry = days_to_friday / 365.25
 
         if exit_idx >= len(df):
             continue
@@ -305,8 +293,6 @@ def _clip(x: float, lo: float, hi: float) -> float:
 def _build_params_from_vector(
     x: List[float],
     side: str,
-    expiry_mode: str,
-    fixed_holding_days: int,
     fixed_put_roc_threshold: float,
     fixed_call_roc_threshold: float,
     fixed_downside_vol_threshold: float,
@@ -316,7 +302,6 @@ def _build_params_from_vector(
     roc_threshold = float(x[1])
     vol_window = int(round(x[2]))
     vol_threshold = float(x[3])
-    holding_days = int(round(x[4])) if len(x) > 4 else int(fixed_holding_days)
 
     params = {
         "roc_lookback": roc_lookback,
@@ -325,7 +310,6 @@ def _build_params_from_vector(
         "vol_window": vol_window,
         "downside_vol_threshold_annualized": fixed_downside_vol_threshold,
         "upside_vol_threshold_annualized": fixed_upside_vol_threshold,
-        "holding_days": holding_days,
     }
     if side == "put":
         params["put_roc_threshold"] = roc_threshold
@@ -352,8 +336,6 @@ def optimize_parameters(
     min_pricing_vol_annualized: float,
     contract_size: int,
     allow_overlap: bool,
-    expiry_mode: str,
-    fixed_holding_days: int,
     fixed_put_roc_threshold: float,
     fixed_call_roc_threshold: float,
     fixed_downside_vol_threshold: float,
@@ -366,8 +348,6 @@ def optimize_parameters(
     rng = random.Random(seed)
     vector_len = len(initial_vector)
     int_dims = {0, 2}
-    if vector_len > 4:
-        int_dims.add(4)
 
     def project(x: List[float]) -> List[float]:
         return [_clip(v, lo, hi) for v, (lo, hi) in zip(x, bounds)]
@@ -376,8 +356,6 @@ def optimize_parameters(
         params = _build_params_from_vector(
             x=project(x),
             side=side,
-            expiry_mode=expiry_mode,
-            fixed_holding_days=fixed_holding_days,
             fixed_put_roc_threshold=fixed_put_roc_threshold,
             fixed_call_roc_threshold=fixed_call_roc_threshold,
             fixed_downside_vol_threshold=fixed_downside_vol_threshold,
@@ -392,8 +370,6 @@ def optimize_parameters(
             vol_window=int(params["vol_window"]),
             downside_vol_threshold_annualized=float(params["downside_vol_threshold_annualized"]),
             upside_vol_threshold_annualized=float(params["upside_vol_threshold_annualized"]),
-            holding_days=int(params["holding_days"]),
-            expiry_mode=expiry_mode,
             risk_free_rate=risk_free_rate,
             min_pricing_vol_annualized=min_pricing_vol_annualized,
             contract_size=contract_size,
@@ -459,9 +435,9 @@ def optimize_parameters(
                 f"best_avg_pnl={best_metrics['avg_pnl']:.2f} "
                 f"trades={int(best_metrics['total'])} "
                 f"roc_lookback={int(best_params['roc_lookback'])} "
+                f"roc_threshold={best_params['call_roc_threshold'] if side == 'call' else best_params['put_roc_threshold']:.6f} "
                 f"vol_window={int(best_params['vol_window'])} "
-                f"holding_days={int(best_params['holding_days'])} "
-                f"expiry={expiry_mode}",
+                f"vol_threshold={best_params['upside_vol_threshold_annualized'] if side == 'call' else best_params['downside_vol_threshold_annualized']:.6f}",
                 flush=True,
             )
         last_report_time = now
