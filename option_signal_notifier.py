@@ -1,4 +1,23 @@
 #!/usr/bin/env python3
+"""
+Usage:
+
+python3 option_signal_notifier.py \   
+  --symbol SPY \
+  --side call \
+  --roc-lookback 20 \
+  --vol-window 17 \
+  --call-roc-threshold 0.052641 \
+  --upside-vol-threshold 0.085369
+
+python3 option_signal_notifier.py \
+  --symbol SPY \
+  --side put \
+  --roc-lookback 18 \
+  --vol-window 20 \
+  --put-roc-threshold -0.005000 \
+  --downside-vol-threshold 0.094507
+"""
 import argparse
 import io
 import math
