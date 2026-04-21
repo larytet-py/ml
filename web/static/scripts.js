@@ -90,7 +90,7 @@ function setSymbolSettingsCookie(allSettings) {
 }
 
 function getDefaultIntervalForSymbol(symbol) {
-    return symbol === 'BTC' ? '1s' : '5min';
+    return symbol === 'BTC' ? '1s' : '1min';
 }
 
 function getDefaultDurationForSymbol() {
@@ -485,8 +485,9 @@ function createNewChart(containerId, type, title, seriesData, dayMarkerSettings,
             tooltip: {
                 valueDecimals: 2
             },
+            // Backend already returns data at the requested interval, so keep raw points.
             dataGrouping: {
-                enabled: true
+                enabled: false
             },
             color: type === 'line' ? undefined : 'red',
             upColor: type === 'candlestick' ? 'green' : undefined,
@@ -534,8 +535,9 @@ function addSeriesToChart(chart, type, title, seriesData) {
         tooltip: {
             valueDecimals: 2
         },
+        // Backend already returns data at the requested interval, so keep raw points.
         dataGrouping: {
-            enabled: true
+            enabled: false
         },
         color: type === 'line' ? 'lightblue' : 'red',
         upColor: type === 'candlestick' ? 'green' : undefined,
