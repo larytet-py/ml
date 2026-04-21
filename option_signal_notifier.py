@@ -25,6 +25,7 @@ from typing import List, Optional
 
 import pandas as pd
 import requests
+from pandas.errors import ParserError
 
 from option_pricing import black_scholes_call_price, black_scholes_put_price
 
@@ -78,6 +79,14 @@ def load_symbol_data_from_csv(csv_path: str, symbol: str, start_date: Optional[s
 
 
 def _fetch_stooq_daily(symbol: str) -> pd.DataFrame:
+    def _extract_csv_payload(text: str) -> Optional[str]:
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        for idx, line in enumerate(lines):
+            header = line.lower().replace(" ", "")
+            if header.startswith("date,") and "close" in header:
+                return "\n".join(lines[idx:])
+        return None
+
     symbol_lower = symbol.lower()
     candidates = [f"{symbol_lower}.us", symbol_lower]
     last_error = None
@@ -89,7 +98,14 @@ def _fetch_stooq_daily(symbol: str) -> pd.DataFrame:
             text = response.text.strip()
             if not text or "No data" in text:
                 continue
-            df = pd.read_csv(io.StringIO(text))
+            csv_payload = _extract_csv_payload(text)
+            if not csv_payload:
+                continue
+            try:
+                df = pd.read_csv(io.StringIO(csv_payload))
+            except ParserError as exc:
+                last_error = exc
+                continue
             if df.empty or "Close" not in df.columns:
                 continue
             df = df.rename(
@@ -268,4 +284,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
