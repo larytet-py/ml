@@ -379,8 +379,19 @@ def optimize_parameters(
         metrics = summarize_trades(trades_df)
         if metrics is None:
             return -1_000_000_000.0, trades_df, metrics, params
-        shortfall = max(0, min_trades - int(metrics["total"]))
-        score = float(metrics["avg_pnl"]) - trade_penalty * float(shortfall)
+        total_trades = int(metrics["total"])
+        shortfall = max(0, min_trades - total_trades)
+        if shortfall > 0:
+            # Hard feasibility gate: do not let sparse, high-PnL outliers win optimization.
+            # Keep a tiny tie-breaker so if no feasible point exists we still prefer more trades.
+            infeasible_score = (
+                -1_000_000.0
+                - trade_penalty * float(shortfall)
+                + 0.01 * float(total_trades)
+                + 0.001 * float(metrics["avg_pnl"])
+            )
+            return infeasible_score, trades_df, metrics, params
+        score = float(metrics["avg_pnl"])
         return score, trades_df, metrics, params
 
     def finite_difference_gradient(x: List[float]) -> List[float]:
