@@ -6,7 +6,7 @@ class ClickhouseClient:
         self,
         username: str = "default",
         password: str = "password",
-        host: str | None = None,
+        host: str | None = "localhost",
     ):
         self.username = username
         self.password = password
@@ -21,3 +21,6 @@ class ClickhouseClient:
         if self.host is not None:
             connection_args["host"] = self.host
         return clickhouse_connect.get_client(**connection_args)
+
+
+CLICKHOUSE_CLIENT: ClickhouseClient | None = None
