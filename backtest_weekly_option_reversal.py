@@ -219,10 +219,9 @@ def run_backtest(
     return pd.DataFrame([t.__dict__ for t in trades])
 
 
-def print_summary(trades_df: pd.DataFrame) -> None:
+def summarize_trades(trades_df: pd.DataFrame) -> Optional[Dict[str, float]]:
     if trades_df.empty:
-        print("No trades generated with current settings.")
-        return
+        return None
 
     total = len(trades_df)
     wins = int((trades_df["pnl_per_share"] > 0).sum())
@@ -235,13 +234,203 @@ def print_summary(trades_df: pd.DataFrame) -> None:
     running_peak = equity.cummax()
     max_drawdown = (equity - running_peak).min()
 
-    print(f"Trades: {total}")
-    print(f"Win rate: {wins / total:.2%}")
-    print(f"Total PnL (per 1 contract): {total_pnl:.2f}")
-    print(f"Average PnL/trade (per 1 contract): {avg_pnl:.2f}")
-    print(f"Median PnL/trade (per 1 contract): {median_pnl:.2f}")
-    print(f"Average return on spot notional: {avg_return_on_spot:.4%}")
-    print(f"Max drawdown (per 1 contract, cumulative): {max_drawdown:.2f}")
+    return {
+        "total": float(total),
+        "wins": float(wins),
+        "win_rate": float(wins / total),
+        "total_pnl": float(total_pnl),
+        "avg_pnl": float(avg_pnl),
+        "median_pnl": float(median_pnl),
+        "avg_return_on_spot": float(avg_return_on_spot),
+        "max_drawdown": float(max_drawdown),
+    }
+
+
+def print_summary(trades_df: pd.DataFrame) -> None:
+    metrics = summarize_trades(trades_df)
+    if metrics is None:
+        print("No trades generated with current settings.")
+        return
+
+    print(f"Trades: {int(metrics['total'])}")
+    print(f"Win rate: {metrics['win_rate']:.2%}")
+    print(f"Total PnL (per 1 contract): {metrics['total_pnl']:.2f}")
+    print(f"Average PnL/trade (per 1 contract): {metrics['avg_pnl']:.2f}")
+    print(f"Median PnL/trade (per 1 contract): {metrics['median_pnl']:.2f}")
+    print(f"Average return on spot notional: {metrics['avg_return_on_spot']:.4%}")
+    print(f"Max drawdown (per 1 contract, cumulative): {metrics['max_drawdown']:.2f}")
+
+
+def _clip(x: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, x))
+
+
+def _build_params_from_vector(
+    x: List[float],
+    side: str,
+    fixed_put_roc_threshold: float,
+    fixed_call_roc_threshold: float,
+    fixed_downside_vol_threshold: float,
+    fixed_upside_vol_threshold: float,
+) -> Dict[str, float]:
+    roc_lookback = int(round(x[0]))
+    roc_threshold = float(x[1])
+    vol_window = int(round(x[2]))
+    vol_threshold = float(x[3])
+    holding_days = int(round(x[4]))
+
+    params = {
+        "roc_lookback": roc_lookback,
+        "put_roc_threshold": fixed_put_roc_threshold,
+        "call_roc_threshold": fixed_call_roc_threshold,
+        "vol_window": vol_window,
+        "downside_vol_threshold_annualized": fixed_downside_vol_threshold,
+        "upside_vol_threshold_annualized": fixed_upside_vol_threshold,
+        "holding_days": holding_days,
+    }
+    if side == "put":
+        params["put_roc_threshold"] = roc_threshold
+        params["downside_vol_threshold_annualized"] = vol_threshold
+    else:
+        params["call_roc_threshold"] = roc_threshold
+        params["upside_vol_threshold_annualized"] = vol_threshold
+    return params
+
+
+def optimize_parameters(
+    df: pd.DataFrame,
+    side: str,
+    initial_vector: List[float],
+    bounds: List[Tuple[float, float]],
+    iterations: int,
+    restarts: int,
+    learning_rate: float,
+    finite_diff_eps: float,
+    min_trades: int,
+    trade_penalty: float,
+    seed: int,
+    risk_free_rate: float,
+    min_pricing_vol_annualized: float,
+    contract_size: int,
+    allow_overlap: bool,
+    fixed_put_roc_threshold: float,
+    fixed_call_roc_threshold: float,
+    fixed_downside_vol_threshold: float,
+    fixed_upside_vol_threshold: float,
+) -> OptimizationResult:
+    if any(lo >= hi for lo, hi in bounds):
+        raise ValueError("Invalid optimization bounds: each min value must be less than max.")
+
+    rng = random.Random(seed)
+    vector_len = len(initial_vector)
+    int_dims = {0, 2, 4}
+
+    def project(x: List[float]) -> List[float]:
+        return [_clip(v, lo, hi) for v, (lo, hi) in zip(x, bounds)]
+
+    def evaluate(x: List[float]) -> Tuple[float, pd.DataFrame, Optional[Dict[str, float]], Dict[str, float]]:
+        params = _build_params_from_vector(
+            x=project(x),
+            side=side,
+            fixed_put_roc_threshold=fixed_put_roc_threshold,
+            fixed_call_roc_threshold=fixed_call_roc_threshold,
+            fixed_downside_vol_threshold=fixed_downside_vol_threshold,
+            fixed_upside_vol_threshold=fixed_upside_vol_threshold,
+        )
+        trades_df = run_backtest(
+            df=df,
+            side=side,
+            roc_lookback=int(params["roc_lookback"]),
+            put_roc_threshold=float(params["put_roc_threshold"]),
+            call_roc_threshold=float(params["call_roc_threshold"]),
+            vol_window=int(params["vol_window"]),
+            downside_vol_threshold_annualized=float(params["downside_vol_threshold_annualized"]),
+            upside_vol_threshold_annualized=float(params["upside_vol_threshold_annualized"]),
+            holding_days=int(params["holding_days"]),
+            risk_free_rate=risk_free_rate,
+            min_pricing_vol_annualized=min_pricing_vol_annualized,
+            contract_size=contract_size,
+            allow_overlap=allow_overlap,
+        )
+        metrics = summarize_trades(trades_df)
+        if metrics is None:
+            return -1_000_000_000.0, trades_df, metrics, params
+        shortfall = max(0, min_trades - int(metrics["total"]))
+        score = float(metrics["avg_pnl"]) - trade_penalty * float(shortfall)
+        return score, trades_df, metrics, params
+
+    def finite_difference_gradient(x: List[float]) -> List[float]:
+        grad = []
+        for j in range(vector_len):
+            lo, hi = bounds[j]
+            width = hi - lo
+            if j in int_dims:
+                step = 1.0
+            else:
+                step = max(width * finite_diff_eps, 1e-6)
+            x_hi = x.copy()
+            x_lo = x.copy()
+            x_hi[j] = _clip(x_hi[j] + step, lo, hi)
+            x_lo[j] = _clip(x_lo[j] - step, lo, hi)
+
+            if abs(x_hi[j] - x_lo[j]) < 1e-12:
+                grad.append(0.0)
+                continue
+
+            s_hi, _, _, _ = evaluate(x_hi)
+            s_lo, _, _, _ = evaluate(x_lo)
+            grad.append((s_hi - s_lo) / (x_hi[j] - x_lo[j]))
+        return grad
+
+    best_score = -1_000_000_000.0
+    best_df = pd.DataFrame()
+    best_metrics: Optional[Dict[str, float]] = None
+    best_params: Dict[str, float] = {}
+
+    starts: List[List[float]] = [project(initial_vector)]
+    for _ in range(max(0, restarts - 1)):
+        starts.append([rng.uniform(lo, hi) for lo, hi in bounds])
+
+    for start in starts:
+        x = start.copy()
+        score, trades_df, metrics, params = evaluate(x)
+        if score > best_score:
+            best_score, best_df, best_metrics, best_params = score, trades_df, metrics, params
+
+        for _ in range(iterations):
+            grad = finite_difference_gradient(x)
+            norm = math.sqrt(sum(g * g for g in grad))
+            if norm <= 1e-12:
+                break
+
+            alpha = learning_rate
+            accepted = False
+            while alpha >= 1e-3:
+                candidate = []
+                for j in range(vector_len):
+                    lo, hi = bounds[j]
+                    span = hi - lo
+                    delta = alpha * (grad[j] / norm) * span
+                    candidate.append(_clip(x[j] + delta, lo, hi))
+
+                candidate_score, candidate_df, candidate_metrics, candidate_params = evaluate(candidate)
+                if candidate_score >= score:
+                    x = candidate
+                    score = candidate_score
+                    trades_df = candidate_df
+                    metrics = candidate_metrics
+                    params = candidate_params
+                    accepted = True
+                    break
+                alpha *= 0.5
+
+            if not accepted:
+                break
+
+            if score > best_score:
+                best_score, best_df, best_metrics, best_params = score, trades_df, metrics, params
+
+    return OptimizationResult(params=best_params, score=best_score, trades_df=best_df, metrics=best_metrics)
 
 
 def main() -> None:
