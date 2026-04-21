@@ -7,18 +7,11 @@ import sys
 from datetime import datetime, timedelta
 import csv
 from concurrent.futures import ProcessPoolExecutor
-from clickhouse_connect import get_client
 import logging
+from web.clickhouse_client import ClickhouseClient
 
 # Setup the logging configuration
 logging.basicConfig(level=logging.ERROR, format='%(levelname)s - %(message)s')
-
-class ClickhouseClient():
-    def __init__(self, username: str = "default", password: str = "password"):
-        self.username, self.password = username, password
-    
-    def get_client(self, settings={}):
-        return get_client(settings=settings, username=self.username, password=self.password)
 
 CLICKHOUSE_CLIENT: ClickhouseClient = None
 

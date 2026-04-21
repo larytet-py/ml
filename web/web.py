@@ -4,16 +4,9 @@ import pandas as pd
 import numpy as np
 
 from flask import Flask, request, jsonify, send_from_directory
-import clickhouse_connect
 import dateutil
 import logging
-
-class ClickhouseClient():
-    def __init__(self, username: str = "default", password: str = "password"):
-        self.username, self.password = username, password
-    
-    def get_client(self, settings={}):
-        return clickhouse_connect.get_client(settings=settings, username=self.username, password=self.password)
+from clickhouse_client import ClickhouseClient
 
 CLICKHOUSE_CLIENT: ClickhouseClient = None
 
@@ -29,7 +22,7 @@ def index():
     return send_from_directory(app.static_folder, 'index.html')
 
 def get_client():
-    return CLICKHOUSE_CLIENT.get_client(host='localhost')
+    return CLICKHOUSE_CLIENT.get_client()
 
 def validate_and_parse_args():
     symbol = request.args.get('symbol', default='BTC', type=str)
