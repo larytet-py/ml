@@ -1,0 +1,89 @@
+name: Option Signal Notifier
+
+on:
+  schedule:
+    # Weekdays at 22:15 UTC (adjust as needed).
+    - cron: '15 22 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  run-notifier:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run notifier
+        id: notifier
+        env:
+          MARKET_STACK_API_KEY: ${{ secrets.MARKET_STACK_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          python option_signal_notifier.py --config option_signal_notifier.config | tee notifier_output.txt
+
+          if grep -q "NOTIFICATION: ENTER" notifier_output.txt; then
+            echo "has_signal=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_signal=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated ETF cache
+        id: commit_cache
+        run: |
+          set -euo pipefail
+          git lfs install
+
+          if [ ! -f data/etfs.csv ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --quiet -- data/etfs.csv; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/etfs.csv
+          git commit -m "chore: update data/etfs.csv [skip ci]"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Send signal email
+        if: steps.notifier.outputs.has_signal == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Option signal fired: ${{ github.repository }}"
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM }}
+          secure: true
+          body: |
+            One or more option entry signals fired.
+
+            Repository: ${{ github.repository }}
+            Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Output excerpt:
+            ----------------------------------------
+            ${{ steps.notifier.outcome }}

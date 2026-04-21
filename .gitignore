@@ -1,3 +1,5 @@
 clickhouse/*
 data/*
+!data/
+!data/etfs.csv
 __pycache__/*
