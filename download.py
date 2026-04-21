@@ -9,6 +9,7 @@ import csv
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import logging
 import web.clickhouse_client as clickhouse_client_module
+import re
 
 # Setup the logging configuration
 logging.basicConfig(level=logging.ERROR, format='%(levelname)s - %(message)s')
@@ -185,9 +186,94 @@ def insert_data(client, df, table_name):
     readable_time = df['time_end'].iloc[-1].strftime('%Y-%m-%d %H:%M:%S')    
     logging.info(f"Data inserted successfully into {table_name} {readable_time}")
 
+
+def normalize_symbol(symbol):
+    clean_symbol = re.sub(r'[^A-Za-z0-9_]', '', symbol.upper())
+    if not clean_symbol:
+        raise ValueError("Symbol must contain at least one alphanumeric character.")
+    return clean_symbol
+
+
+def fetch_twelvedata_1min(symbol, start_date, end_date, api_key):
+    url = "https://api.twelvedata.com/time_series"
+    params = {
+        "symbol": symbol,
+        "interval": "1min",
+        "start_date": start_date.strftime("%Y-%m-%d %H:%M:%S"),
+        "end_date": end_date.strftime("%Y-%m-%d %H:%M:%S"),
+        "timezone": "UTC",
+        "order": "ASC",
+        "format": "JSON",
+        "apikey": api_key,
+    }
+    response = requests.get(url, params=params, timeout=30)
+    response.raise_for_status()
+    payload = response.json()
+
+    if payload.get("status") == "error":
+        raise RuntimeError(f"TwelveData API error: {payload.get('message', 'unknown error')}")
+
+    values = payload.get("values", [])
+    if not values:
+        logging.warning("TwelveData returned no rows for %s in requested range.", symbol)
+        return pd.DataFrame()
+
+    records = []
+    for idx, value in enumerate(values):
+        ts = pd.Timestamp(value["datetime"], tz="UTC")
+        ts_naive = ts.tz_localize(None)
+        epoch_ms = int(ts.timestamp() * 1000)
+        close_price = float(value["close"])
+        volume = float(value.get("volume", 0.0))
+        records.append(
+            {
+                "id": idx,
+                "price": close_price,
+                "qty": 0.0,
+                "base_qty": volume,
+                "time": epoch_ms,
+                "is_buyer_maker": False,
+                "unknown_flag": True,
+                "timestamp": ts_naive,
+            }
+        )
+
+    return pd.DataFrame.from_records(records)
+
+
+def insert_twelvedata_rows(table_name, df):
+    if df.empty:
+        return
+
+    client = clickhouse_client_module.CLICKHOUSE_CLIENT.get_client(settings={"insert_deduplicate": "1"})
+    min_time = df["timestamp"].min().strftime("%Y-%m-%d %H:%M:%S")
+    max_time = df["timestamp"].max().strftime("%Y-%m-%d %H:%M:%S")
+    existing_query = f"""
+    SELECT timestamp
+    FROM {table_name}
+    WHERE timestamp BETWEEN toDateTime('{min_time}') AND toDateTime('{max_time}')
+    """
+    existing_rows = client.query(existing_query).result_rows
+    existing_timestamps = {row[0] for row in existing_rows}
+    df_to_insert = df[~df["timestamp"].isin(existing_timestamps)]
+
+    if df_to_insert.empty:
+        logging.info("No new TwelveData rows to insert for %s.", table_name)
+        client.close()
+        return
+
+    result = client.insert_df(table=table_name, df=df_to_insert)
+    written = result.written_rows
+    expected = len(df_to_insert)
+    log_fn = logging.info if written == expected else logging.warning
+    log_fn("Inserted %s/%s TwelveData rows into %s", written, expected, table_name)
+    client.close()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process trade data files.")
     parser.add_argument('--symbol', type=str, default='BTC', help='Symbol to process, e.g., BTC')
+    parser.add_argument('--download-twelvedata-1min', action='store_true', help='Download 1-minute OHLCV from TwelveData.')
+    parser.add_argument('--twelvedata-symbol', type=str, default='GOOGL', help='TwelveData symbol to process (default: GOOGL).')
     parser.add_argument('--start_date', default=datetime.now() - timedelta(days=7), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
@@ -207,7 +293,25 @@ if __name__ == "__main__":
         username=args.clickhouse_username,
         password=args.clickhouse_password,
     )
-    table_name = f"trades_{args.symbol}"
+    target_symbol = normalize_symbol(args.twelvedata_symbol if args.download_twelvedata_1min else args.symbol)
+    table_name = f"trades_{target_symbol}"
     create_table_trades(table_name)
-    if not args.disable_download:
-        download_files_process(symbol=args.symbol, start_date=args.start_date, end_date=args.end_date, num_workers=args.num_workers, table_name=table_name)  
+    if args.download_twelvedata_1min:
+        api_key = os.environ.get("TWELVEDATA_API_KEY")
+        if not api_key:
+            raise EnvironmentError("TWELVEDATA_API_KEY env var is required for TwelveData download mode.")
+        data = fetch_twelvedata_1min(
+            symbol=args.twelvedata_symbol,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            api_key=api_key,
+        )
+        insert_twelvedata_rows(table_name=table_name, df=data)
+    elif not args.disable_download:
+        download_files_process(
+            symbol=target_symbol,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            num_workers=args.num_workers,
+            table_name=table_name,
+        )

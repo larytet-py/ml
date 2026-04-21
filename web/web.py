@@ -2,6 +2,7 @@ import argparse
 
 import pandas as pd
 import numpy as np
+import re
 
 from flask import Flask, request, jsonify, send_from_directory
 import dateutil
@@ -15,9 +16,6 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-# Define allowed symbols to prevent SQL injection via table names
-TRADES_TABLES = {'BTC': 'trades_BTC', 'ETH': 'trades_ETH'}
-
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
@@ -25,10 +23,24 @@ def index():
 def get_client():
     return clickhouse_client_module.CLICKHOUSE_CLIENT.get_client()
 
+def symbol_to_table(symbol):
+    candidate = symbol.upper()
+    if not re.fullmatch(r'[A-Z0-9_]{1,20}', candidate):
+        return None
+    return f"trades_{candidate}"
+
+def table_exists(table_name):
+    query = f"EXISTS TABLE {table_name}"
+    result = get_client().query(query)
+    return bool(result.result_rows and result.result_rows[0][0] > 0)
+
 def validate_and_parse_args():
     symbol = request.args.get('symbol', default='BTC', type=str)
-    if symbol not in TRADES_TABLES:
+    table_name = symbol_to_table(symbol)
+    if table_name is None:
         return None, jsonify({'error': 'Invalid symbol'}), 400
+    if not table_exists(table_name):
+        return None, jsonify({'error': f'No data table found for symbol {symbol.upper()}'}), 404
 
     start_iso = request.args.get('start', default='2024-02-01T00:00:00Z', type=str)
     end_iso = request.args.get('end', default='2024-02-01T01:00:00Z', type=str)
@@ -40,8 +52,6 @@ def validate_and_parse_args():
     end_str = end_date.strftime('%Y-%m-%d %H:%M:%S')
 
     interval_duration = request.args.get('interval', default=60, type=int)
-
-    table_name = TRADES_TABLES[symbol]
 
     return { 
         'start_date': start_str,
