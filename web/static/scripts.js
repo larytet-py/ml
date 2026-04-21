@@ -3,10 +3,15 @@
 // Everything inside $(function() {...}) will run once the document is fully loaded.
 $(function() {
     var timeFormat = 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'
+    // Backward-compatible fallback from old global cookies.
+    var legacyStartTime = Cookies.get('startTimePicker');
+    var legacyInterval = Cookies.get('interval');
+    var legacyDuration = Cookies.get('duration');
+
     // Default starting date is 24 days before the current day.
-    var startTimePickerVal = Cookies.get('startTimePicker') || moment().subtract(24, 'days').format(timeFormat);
-    var intervalVal = Cookies.get('interval') || '1s';
-    var durationVal = Cookies.get('duration') || 2000;
+    var startTimePickerVal = legacyStartTime || moment().subtract(24, 'days').format(timeFormat);
+    var intervalVal = legacyInterval || '1s';
+    var durationVal = legacyDuration || 2000;
 
     // Selects the HTML element with the ID 'startTimePicker' and applies a date range picker plugin.
     // This plugin provides a user-friendly interface for date picking in web forms.
@@ -28,31 +33,125 @@ $(function() {
 
     initializeConfigurationSelector()
         .then(function() {
-            loadConfigAndData();
+            return synchronizeUiSettingsWithSelectedConfiguration();
+        })
+        .then(function(panels) {
+            loadConfigAndData(panels);
         })
         .catch(function(error) {
             console.error('Error loading available configurations:', error);
         });
 
-    // Save settings to cookies when they change
+    // Save settings by symbol when they change.
     $('#startTimePicker').on('apply.daterangepicker', function(ev, picker) {
-        Cookies.set('startTimePicker', picker.startDate.format(timeFormat));
+        saveUiSettingsForCurrentSymbol();
     });
     $('#interval').on('change', function() {
-        Cookies.set('interval', $(this).val());
+        saveUiSettingsForCurrentSymbol();
     });
     $('#duration').on('change', function() {
-        Cookies.set('duration', $(this).val());
+        saveUiSettingsForCurrentSymbol();
     });
     $('#configSelector').on('change', function() {
         Cookies.set('panelConfiguration', $(this).val());
-        loadConfigAndData();
+        synchronizeUiSettingsWithSelectedConfiguration()
+            .then(function(panels) {
+                loadConfigAndData(panels);
+            })
+            .catch(function(error) {
+                console.error('Error loading panel config while synchronizing settings:', error);
+            });
     });
 
     $('#loadButton').on('click', function() {
+        saveUiSettingsForCurrentSymbol();
         loadConfigAndData();
     });
 });
+
+var currentConfigurationSymbol = null;
+
+function getSymbolSettingsCookie() {
+    var rawValue = Cookies.get('symbolUiSettings');
+    if (!rawValue) {
+        return {};
+    }
+    try {
+        var parsed = JSON.parse(rawValue);
+        return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    } catch (error) {
+        console.warn('Could not parse symbolUiSettings cookie, resetting.', error);
+        return {};
+    }
+}
+
+function setSymbolSettingsCookie(allSettings) {
+    Cookies.set('symbolUiSettings', JSON.stringify(allSettings));
+}
+
+function getDefaultIntervalForSymbol(symbol) {
+    return symbol === 'BTC' ? '1s' : '5min';
+}
+
+function getDefaultDurationForSymbol() {
+    return 2000;
+}
+
+function getCurrentSymbolFromPanels(panels) {
+    if (!Array.isArray(panels) || panels.length === 0) {
+        return 'DEFAULT';
+    }
+    return (panels[0].symbol || 'DEFAULT').toUpperCase();
+}
+
+function applyUiSettingsForSymbol(symbol) {
+    var allSettings = getSymbolSettingsCookie();
+    var symbolSettings = allSettings[symbol] || {};
+    var timeFormat = 'YYYY-MM-DDTHH:mm:ss.SSS[Z]';
+    var startDate = symbolSettings.startTimePicker || moment().subtract(24, 'days').format(timeFormat);
+    var interval = symbolSettings.interval || getDefaultIntervalForSymbol(symbol);
+    var duration = symbolSettings.duration || getDefaultDurationForSymbol();
+
+    $('#startTimePicker').data('daterangepicker').setStartDate(startDate);
+    $('#startTimePicker').val(startDate);
+    $('#interval').val(interval);
+    $('#duration').val(duration);
+}
+
+function saveUiSettingsForCurrentSymbol() {
+    if (!currentConfigurationSymbol) {
+        return;
+    }
+    var allSettings = getSymbolSettingsCookie();
+    allSettings[currentConfigurationSymbol] = {
+        startTimePicker: moment.utc($('#startTimePicker').val()).format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+        interval: $('#interval').val(),
+        duration: $('#duration').val()
+    };
+    setSymbolSettingsCookie(allSettings);
+}
+
+function fetchPanelConfiguration(configurationName) {
+    return fetch('/panel_configuration?name=' + encodeURIComponent(configurationName))
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Failed to fetch panel configuration: ' + configurationName);
+            }
+            return response.json();
+        });
+}
+
+function synchronizeUiSettingsWithSelectedConfiguration() {
+    var selectedConfiguration = $('#configSelector').val();
+    if (!selectedConfiguration) {
+        return Promise.resolve([]);
+    }
+    return fetchPanelConfiguration(selectedConfiguration).then(function(panels) {
+        currentConfigurationSymbol = getCurrentSymbolFromPanels(panels);
+        applyUiSettingsForSymbol(currentConfigurationSymbol);
+        return panels;
+    });
+}
 
 function initializeConfigurationSelector() {
     return fetch('/panel_configurations')
@@ -165,7 +264,7 @@ function addResizerHandle(containerId) {
 }
 
 
-function loadConfigAndData() {
+function loadConfigAndData(preloadedPanels) {
     var selectedConfiguration = $('#configSelector').val();
     if (!selectedConfiguration) {
         console.error('No panel configuration selected');
@@ -173,14 +272,10 @@ function loadConfigAndData() {
     }
 
     clearCharts();
-    fetch('/panel_configuration?name=' + encodeURIComponent(selectedConfiguration))
-        .then(function(response) {
-            if (!response.ok) {
-                throw new Error('Failed to fetch panel configuration: ' + selectedConfiguration);
-            }
-            return response.json();
-        })
+    var panelPromise = preloadedPanels ? Promise.resolve(preloadedPanels) : fetchPanelConfiguration(selectedConfiguration);
+    panelPromise
         .then(panels => {
+            currentConfigurationSymbol = getCurrentSymbolFromPanels(panels);
             panels.forEach(panel => {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
                 createPanel(containerId);
