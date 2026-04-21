@@ -528,7 +528,12 @@ def main() -> None:
     parser.add_argument("--contract-size", type=int, default=100, help="Shares per option contract.")
     parser.add_argument("--allow-overlap", action="store_true", help="Allow overlapping weekly positions.")
     parser.add_argument("--trades-out", default=None, help="Optional CSV path for trade log.")
-    parser.add_argument("--print-trades", type=int, default=10, help="How many recent trades to print.")
+    parser.add_argument(
+        "--print-trades",
+        type=int,
+        default=10,
+        help="How many recent trades to print. Use -1 to print all trades.",
+    )
     parser.add_argument("--optimize", action="store_true", help="Run gradient-based optimization for strategy parameters.")
     parser.add_argument("--opt-iters", type=int, default=40, help="Iterations per optimization restart.")
     parser.add_argument("--opt-restarts", type=int, default=12, help="Number of optimization restarts.")
@@ -663,7 +668,7 @@ def main() -> None:
 
     print_summary(trades_df)
 
-    if not trades_df.empty and args.print_trades > 0:
+    if not trades_df.empty and args.print_trades != 0:
         print("\nRecent trades:")
         cols = [
             "side",
@@ -680,7 +685,8 @@ def main() -> None:
             "roc_signal",
             "trend_vol_signal",
         ]
-        print(trades_df[cols].tail(args.print_trades).to_string(index=False, justify="center"))
+        trades_to_show = trades_df[cols] if args.print_trades < 0 else trades_df[cols].tail(args.print_trades)
+        print(trades_to_show.to_string(index=False, justify="center"))
 
     if args.trades_out:
         trades_df.to_csv(args.trades_out, index=False)
