@@ -36,58 +36,7 @@ jobs:
           set -euo pipefail
           mkdir -p data
           python option_signal_notifier.py --config option_signal_notifier.config --summary-json notifier_summary.json | tee notifier_output.txt
-
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          summary_path = Path("notifier_summary.json")
-          data = json.loads(summary_path.read_text())
-          has_signal = bool(data.get("signals_fired"))
-
-          lines = [
-              "Structured signal summary",
-              f"generated_at_utc={data.get('generated_at_utc')}",
-              f"config_count={data.get('config_count')}",
-              f"signal_count={data.get('signal_count')}",
-              "",
-          ]
-          for cfg in data.get("configs", []):
-              lines.append(
-                  "Config #{idx} | {sym} {side} | date={date} close={close:.2f} | "
-                  "roc={roc:.4%} | downside_vol={dvol:.4%} | upside_vol={uvol:.4%} | pricing_vol={pvol:.4%}".format(
-                      idx=cfg.get("config_index"),
-                      sym=cfg.get("symbol"),
-                      side=str(cfg.get("configured_side", "")).upper(),
-                      date=cfg.get("date"),
-                      close=float(cfg.get("close", 0.0)),
-                      roc=float(cfg.get("roc", 0.0)),
-                      dvol=float(cfg.get("downside_vol_annualized", 0.0)),
-                      uvol=float(cfg.get("upside_vol_annualized", 0.0)),
-                      pvol=float(cfg.get("pricing_vol_annualized", 0.0)),
-                  )
-              )
-              for sig in cfg.get("fired_signals", []):
-                  lines.append(
-                      "SIGNAL: ENTER {side} POSITION | {sym} | expiry(next Friday in {dte} days) | "
-                      "estimated ATM premium={pps:.4f} per share ({ppc:.2f} per contract)".format(
-                          side=str(sig.get("side", "")).upper(),
-                          sym=cfg.get("symbol"),
-                          dte=int(sig.get("days_to_expiry", 0)),
-                          pps=float(sig.get("estimated_atm_premium_per_share", 0.0)),
-                          ppc=float(sig.get("estimated_atm_premium_per_contract", 0.0)),
-                      )
-                  )
-              lines.append("")
-
-          excerpt = "\n".join(lines).rstrip()
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"has_signal={'true' if has_signal else 'false'}\n")
-              fh.write("excerpt<<EOF\n")
-              fh.write(excerpt + "\n")
-              fh.write("EOF\n")
-          PY
+          python .github/scripts/build_notifier_excerpt.py --summary-json notifier_summary.json
 
       - name: Commit updated ETF cache
         id: commit_cache
@@ -123,52 +72,4 @@ jobs:
           EXCERPT: ${{ steps.notifier.outputs.excerpt }}
         run: |
           set -euo pipefail
-
-          python - <<'PY'
-          import json
-          import os
-          import urllib.error
-          import urllib.request
-
-          api_key = os.environ["RESEND_API_KEY"]
-          to_email = os.environ["EMAIL_TO"]
-          from_email = os.environ["EMAIL_FROM"]
-          repository = os.environ["REPOSITORY"]
-          run_url = os.environ["RUN_URL"]
-          excerpt = os.environ.get("EXCERPT", "")
-
-          subject = f"Option signal fired: {repository}"
-          body = (
-              "One or more option entry signals fired.\n\n"
-              f"Repository: {repository}\n"
-              f"Run URL: {run_url}\n\n"
-              "Output excerpt:\n"
-              "----------------------------------------\n"
-              f"{excerpt}\n"
-          )
-
-          payload = {
-              "from": from_email,
-              "to": [to_email],
-              "subject": subject,
-              "text": body,
-          }
-
-          req = urllib.request.Request(
-              "https://api.resend.com/emails",
-              data=json.dumps(payload).encode("utf-8"),
-              headers={
-                  "Authorization": f"Bearer {api_key}",
-                  "Content-Type": "application/json",
-                  "User-Agent": "option-signal-notifier/1.0",
-              },
-              method="POST",
-          )
-
-          try:
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  print(f"Resend accepted email request (HTTP {response.status}).")
-          except urllib.error.HTTPError as exc:
-              error_body = exc.read().decode("utf-8", errors="replace")
-              raise RuntimeError(f"Resend API failed (HTTP {exc.code}): {error_body}") from exc
-          PY
+          python .github/scripts/send_signal_email.py

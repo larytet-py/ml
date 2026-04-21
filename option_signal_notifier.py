@@ -411,13 +411,18 @@ def _evaluate_config(
     latest_date = pd.Timestamp(latest["date"])
     days_to_expiry = _days_to_next_friday(latest_date)
     time_to_expiry_years = days_to_expiry / 365.25
-    pricing_vol = max(float(latest["pricing_vol_annualized"]), min_pricing_vol)
+    latest_roc = float(latest["roc"])
+    latest_downside_vol = float(latest["downside_vol_annualized"])
+    latest_upside_vol = float(latest["upside_vol_annualized"])
+    latest_pricing_vol = float(latest["pricing_vol_annualized"])
+    pricing_vol = max(latest_pricing_vol, min_pricing_vol)
 
     header = (
-        f"Config | {cfg.symbol} {cfg.side.upper()} | ROC({cfg.roc_lookback})={float(latest['roc']):.4%} | "
-        f"downside_vol={float(latest['downside_vol_annualized']):.4%} | "
-        f"upside_vol={float(latest['upside_vol_annualized']):.4%} | "
-        f"pricing_vol={pricing_vol:.4%} | date={latest_date.date()} close={spot:.2f}"
+        f"Config | {cfg.symbol} {cfg.side.upper()} | ROC({cfg.roc_lookback})={latest_roc:.4%} | "
+        f"downside_vol={latest_downside_vol:.4%} | "
+        f"upside_vol={latest_upside_vol:.4%} | "
+        f"pricing_vol_latest={latest_pricing_vol:.4%} | pricing_vol_used={pricing_vol:.4%} | "
+        f"date={latest_date.date()} close={spot:.2f}"
     )
 
     messages = [header]
@@ -478,10 +483,16 @@ def _evaluate_config(
         "upside_vol_threshold": cfg.upside_vol_threshold,
         "date": latest_date.date().isoformat(),
         "close": spot,
-        "roc": float(latest["roc"]),
-        "downside_vol_annualized": float(latest["downside_vol_annualized"]),
-        "upside_vol_annualized": float(latest["upside_vol_annualized"]),
+        "roc": latest_roc,
+        "downside_vol_annualized": latest_downside_vol,
+        "upside_vol_annualized": latest_upside_vol,
+        # Backward-compatible field: pricing vol actually used for premium estimation (after floor).
         "pricing_vol_annualized": pricing_vol,
+        # Explicit raw/latest calculated values from the latest bar.
+        "latest_roc": latest_roc,
+        "latest_downside_vol_annualized": latest_downside_vol,
+        "latest_upside_vol_annualized": latest_upside_vol,
+        "latest_pricing_vol_annualized": latest_pricing_vol,
         "put_trigger": put_trigger,
         "call_trigger": call_trigger,
         "fired_signals": fired_signals,
