@@ -8,6 +8,15 @@ import clickhouse_connect
 import dateutil
 import logging
 
+class ClickhouseClient():
+    def __init__(self, username: str = "default", password: str = "password"):
+        self.username, self.password = username, password
+    
+    def get_client(self, settings={}):
+        return clickhouse_connect.get_client(settings=settings, username=self.username, password=self.password)
+
+CLICKHOUSE_CLIENT: ClickhouseClient = None
+
 app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -20,7 +29,7 @@ def index():
     return send_from_directory(app.static_folder, 'index.html')
 
 def get_client():
-    return clickhouse_connect.get_client(host='localhost')
+    return CLICKHOUSE_CLIENT.get_client(host='localhost')
 
 def validate_and_parse_args():
     symbol = request.args.get('symbol', default='BTC', type=str)
@@ -347,7 +356,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug_level', default='INFO', help='Set the debug level')
     parser.add_argument('--port', default=8080, help='HTTP port to bind')
+    parser.add_argument('--clickhouse-username', type=str, default='default', help='Set Clickhouse user')
+    parser.add_argument('--clickhouse-password', type=str, default='password', help='Set Clickhouse password')
+
     args = parser.parse_args()
+
+    CLICKHOUSE_CLIENT = ClickhouseClient(username=args.clickhouse_username, password=args.clickhouse_password)
 
     numeric_level = getattr(logging, args.debug_level.upper(), None)
     if not isinstance(numeric_level, int):
