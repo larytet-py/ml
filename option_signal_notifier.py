@@ -417,15 +417,7 @@ def _evaluate_config(
     latest_pricing_vol = float(latest["pricing_vol_annualized"])
     pricing_vol = max(latest_pricing_vol, min_pricing_vol)
 
-    header = (
-        f"Config | {cfg.symbol} {cfg.side.upper()} | ROC({cfg.roc_lookback})={latest_roc:.4%} | "
-        f"downside_vol={latest_downside_vol:.4%} | "
-        f"upside_vol={latest_upside_vol:.4%} | "
-        f"pricing_vol_latest={latest_pricing_vol:.4%} | pricing_vol_used={pricing_vol:.4%} | "
-        f"date={latest_date.date()} close={spot:.2f}"
-    )
-
-    messages = [header]
+    messages: List[str] = []
     fired_signals: List[Dict[str, Any]] = []
     fired = False
     for side in selected_sides:
@@ -453,8 +445,8 @@ def _evaluate_config(
         fired = True
         premium_per_contract = premium * contract_size
         messages.append(
-            f"NOTIFICATION: ENTER {side.upper()} POSITION | {cfg.symbol} | expiry(next Friday in {days_to_expiry} days) | "
-            f"estimated ATM premium={premium:.4f} per share ({premium_per_contract:.2f} per contract)"
+            f"ENTER {side.upper()} POSITION | {cfg.symbol} | next Friday in {days_to_expiry} days | "
+            f"estimated ATM premium={premium:.4f} per share"
         )
         fired_signals.append(
             {
@@ -467,36 +459,45 @@ def _evaluate_config(
         )
 
     if not fired:
-        # messages.append("NOTIFICATION: No entry signal for this config on latest daily bar.")
         pass
 
-    return {
+    result: Dict[str, Any] = {
         "messages": messages,
         "symbol": cfg.symbol,
         "configured_side": cfg.side,
         "selected_sides": selected_sides,
         "roc_lookback": cfg.roc_lookback,
         "vol_window": cfg.vol_window,
-        "put_roc_threshold": cfg.put_roc_threshold,
-        "call_roc_threshold": cfg.call_roc_threshold,
-        "downside_vol_threshold": cfg.downside_vol_threshold,
-        "upside_vol_threshold": cfg.upside_vol_threshold,
         "date": latest_date.date().isoformat(),
         "close": spot,
         "roc": latest_roc,
-        "downside_vol_annualized": latest_downside_vol,
-        "upside_vol_annualized": latest_upside_vol,
         # Backward-compatible field: pricing vol actually used for premium estimation (after floor).
         "pricing_vol_annualized": pricing_vol,
         # Explicit raw/latest calculated values from the latest bar.
         "latest_roc": latest_roc,
-        "latest_downside_vol_annualized": latest_downside_vol,
-        "latest_upside_vol_annualized": latest_upside_vol,
         "latest_pricing_vol_annualized": latest_pricing_vol,
-        "put_trigger": put_trigger,
-        "call_trigger": call_trigger,
         "fired_signals": fired_signals,
     }
+
+    if "put" in selected_sides:
+        result.update(
+            {
+                "put_roc_threshold": cfg.put_roc_threshold,
+                "downside_vol_threshold": cfg.downside_vol_threshold,
+                "downside_vol_annualized": latest_downside_vol,
+                "put_trigger": put_trigger,
+            }
+        )
+    if "call" in selected_sides:
+        result.update(
+            {
+                "call_roc_threshold": cfg.call_roc_threshold,
+                "upside_vol_threshold": cfg.upside_vol_threshold,
+                "upside_vol_annualized": latest_upside_vol,
+                "call_trigger": call_trigger,
+            }
+        )
+    return result
 
 
 def main() -> None:
