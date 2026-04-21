@@ -1,6 +1,7 @@
 import argparse
 import math
 import random
+import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -317,6 +318,7 @@ def optimize_parameters(
     fixed_call_roc_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
+    progress_interval_seconds: float,
 ) -> OptimizationResult:
     if any(lo >= hi for lo, hi in bounds):
         raise ValueError("Invalid optimization bounds: each min value must be less than max.")
@@ -386,16 +388,45 @@ def optimize_parameters(
     best_df = pd.DataFrame()
     best_metrics: Optional[Dict[str, float]] = None
     best_params: Dict[str, float] = {}
+    eval_count = 0
+    start_time = time.monotonic()
+    last_report_time = start_time
 
     starts: List[List[float]] = [project(initial_vector)]
     for _ in range(max(0, restarts - 1)):
         starts.append([rng.uniform(lo, hi) for lo, hi in bounds])
 
+    def maybe_report_progress() -> None:
+        nonlocal last_report_time
+        if progress_interval_seconds <= 0:
+            return
+        now = time.monotonic()
+        if now - last_report_time < progress_interval_seconds:
+            return
+        elapsed = now - start_time
+        if best_metrics is None:
+            print(f"[opt] t+{elapsed:.1f}s evals={eval_count} best_avg_pnl=n/a trades=0")
+        else:
+            print(
+                "[opt] "
+                f"t+{elapsed:.1f}s "
+                f"evals={eval_count} "
+                f"best_avg_pnl={best_metrics['avg_pnl']:.2f} "
+                f"trades={int(best_metrics['total'])} "
+                f"roc_lookback={int(best_params['roc_lookback'])} "
+                f"vol_window={int(best_params['vol_window'])} "
+                f"holding_days={int(best_params['holding_days'])}",
+                flush=True,
+            )
+        last_report_time = now
+
     for start in starts:
         x = start.copy()
         score, trades_df, metrics, params = evaluate(x)
+        eval_count += 1
         if score > best_score:
             best_score, best_df, best_metrics, best_params = score, trades_df, metrics, params
+        maybe_report_progress()
 
         for _ in range(iterations):
             grad = finite_difference_gradient(x)
@@ -414,6 +445,7 @@ def optimize_parameters(
                     candidate.append(_clip(x[j] + delta, lo, hi))
 
                 candidate_score, candidate_df, candidate_metrics, candidate_params = evaluate(candidate)
+                eval_count += 1
                 if candidate_score >= score:
                     x = candidate
                     score = candidate_score
@@ -429,6 +461,7 @@ def optimize_parameters(
 
             if score > best_score:
                 best_score, best_df, best_metrics, best_params = score, trades_df, metrics, params
+            maybe_report_progress()
 
     return OptimizationResult(params=best_params, score=best_score, trades_df=best_df, metrics=best_metrics)
 
@@ -493,6 +526,12 @@ def main() -> None:
         help="Penalty points per missing trade below --opt-min-trades.",
     )
     parser.add_argument("--opt-seed", type=int, default=7, help="Random seed for optimizer restarts.")
+    parser.add_argument(
+        "--opt-progress-seconds",
+        type=float,
+        default=1.0,
+        help="How often to print optimization progress. Set <=0 to disable.",
+    )
     parser.add_argument("--roc-lookback-min", type=int, default=2, help="Lower bound for roc-lookback in optimization.")
     parser.add_argument("--roc-lookback-max", type=int, default=20, help="Upper bound for roc-lookback in optimization.")
     parser.add_argument("--vol-window-min", type=int, default=5, help="Lower bound for vol-window in optimization.")
@@ -574,6 +613,7 @@ def main() -> None:
             fixed_call_roc_threshold=args.call_roc_threshold,
             fixed_downside_vol_threshold=args.downside_vol_threshold,
             fixed_upside_vol_threshold=args.upside_vol_threshold,
+            progress_interval_seconds=args.opt_progress_seconds,
         )
 
         trades_df = result.trades_df
