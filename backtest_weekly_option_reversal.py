@@ -475,24 +475,135 @@ def main() -> None:
     parser.add_argument("--allow-overlap", action="store_true", help="Allow overlapping weekly positions.")
     parser.add_argument("--trades-out", default=None, help="Optional CSV path for trade log.")
     parser.add_argument("--print-trades", type=int, default=10, help="How many recent trades to print.")
+    parser.add_argument("--optimize", action="store_true", help="Run gradient-based optimization for strategy parameters.")
+    parser.add_argument("--opt-iters", type=int, default=40, help="Iterations per optimization restart.")
+    parser.add_argument("--opt-restarts", type=int, default=12, help="Number of optimization restarts.")
+    parser.add_argument("--opt-learning-rate", type=float, default=0.25, help="Projected gradient ascent step size.")
+    parser.add_argument("--opt-fd-eps", type=float, default=0.03, help="Finite-difference relative step for continuous params.")
+    parser.add_argument(
+        "--opt-min-trades",
+        type=int,
+        default=5,
+        help="Minimum trades target used in objective penalty.",
+    )
+    parser.add_argument(
+        "--opt-trade-penalty",
+        type=float,
+        default=75.0,
+        help="Penalty points per missing trade below --opt-min-trades.",
+    )
+    parser.add_argument("--opt-seed", type=int, default=7, help="Random seed for optimizer restarts.")
+    parser.add_argument("--roc-lookback-min", type=int, default=2, help="Lower bound for roc-lookback in optimization.")
+    parser.add_argument("--roc-lookback-max", type=int, default=20, help="Upper bound for roc-lookback in optimization.")
+    parser.add_argument("--vol-window-min", type=int, default=5, help="Lower bound for vol-window in optimization.")
+    parser.add_argument("--vol-window-max", type=int, default=40, help="Upper bound for vol-window in optimization.")
+    parser.add_argument("--holding-days-min", type=int, default=2, help="Lower bound for holding-days in optimization.")
+    parser.add_argument("--holding-days-max", type=int, default=10, help="Upper bound for holding-days in optimization.")
+    parser.add_argument(
+        "--roc-threshold-min",
+        type=float,
+        default=None,
+        help="Lower bound for side-specific ROC threshold in optimization.",
+    )
+    parser.add_argument(
+        "--roc-threshold-max",
+        type=float,
+        default=None,
+        help="Upper bound for side-specific ROC threshold in optimization.",
+    )
+    parser.add_argument(
+        "--vol-threshold-min",
+        type=float,
+        default=0.01,
+        help="Lower bound for side-specific vol threshold in optimization.",
+    )
+    parser.add_argument(
+        "--vol-threshold-max",
+        type=float,
+        default=0.30,
+        help="Upper bound for side-specific vol threshold in optimization.",
+    )
     args = parser.parse_args()
 
     df = load_symbol_data(args.csv, args.symbol, args.start_date, args.end_date)
-    trades_df = run_backtest(
-        df=df,
-        side=args.side,
-        roc_lookback=args.roc_lookback,
-        put_roc_threshold=args.put_roc_threshold,
-        call_roc_threshold=args.call_roc_threshold,
-        vol_window=args.vol_window,
-        downside_vol_threshold_annualized=args.downside_vol_threshold,
-        upside_vol_threshold_annualized=args.upside_vol_threshold,
-        holding_days=args.holding_days,
-        risk_free_rate=args.risk_free_rate,
-        min_pricing_vol_annualized=args.min_pricing_vol,
-        contract_size=args.contract_size,
-        allow_overlap=args.allow_overlap,
-    )
+
+    if args.optimize:
+        if args.side == "call":
+            roc_threshold_min = args.roc_threshold_min if args.roc_threshold_min is not None else 0.005
+            roc_threshold_max = args.roc_threshold_max if args.roc_threshold_max is not None else 0.10
+            initial_roc_threshold = args.call_roc_threshold
+            initial_vol_threshold = args.upside_vol_threshold
+        else:
+            roc_threshold_min = args.roc_threshold_min if args.roc_threshold_min is not None else -0.10
+            roc_threshold_max = args.roc_threshold_max if args.roc_threshold_max is not None else -0.005
+            initial_roc_threshold = args.put_roc_threshold
+            initial_vol_threshold = args.downside_vol_threshold
+
+        initial_vector = [
+            float(args.roc_lookback),
+            float(initial_roc_threshold),
+            float(args.vol_window),
+            float(initial_vol_threshold),
+            float(args.holding_days),
+        ]
+        bounds = [
+            (float(args.roc_lookback_min), float(args.roc_lookback_max)),
+            (float(roc_threshold_min), float(roc_threshold_max)),
+            (float(args.vol_window_min), float(args.vol_window_max)),
+            (float(args.vol_threshold_min), float(args.vol_threshold_max)),
+            (float(args.holding_days_min), float(args.holding_days_max)),
+        ]
+
+        result = optimize_parameters(
+            df=df,
+            side=args.side,
+            initial_vector=initial_vector,
+            bounds=bounds,
+            iterations=args.opt_iters,
+            restarts=args.opt_restarts,
+            learning_rate=args.opt_learning_rate,
+            finite_diff_eps=args.opt_fd_eps,
+            min_trades=args.opt_min_trades,
+            trade_penalty=args.opt_trade_penalty,
+            seed=args.opt_seed,
+            risk_free_rate=args.risk_free_rate,
+            min_pricing_vol_annualized=args.min_pricing_vol,
+            contract_size=args.contract_size,
+            allow_overlap=args.allow_overlap,
+            fixed_put_roc_threshold=args.put_roc_threshold,
+            fixed_call_roc_threshold=args.call_roc_threshold,
+            fixed_downside_vol_threshold=args.downside_vol_threshold,
+            fixed_upside_vol_threshold=args.upside_vol_threshold,
+        )
+
+        trades_df = result.trades_df
+        print("Optimization complete. Best parameters:")
+        print(f"  roc_lookback={int(result.params['roc_lookback'])}")
+        if args.side == "call":
+            print(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
+            print(f"  upside_vol_threshold={result.params['upside_vol_threshold_annualized']:.6f}")
+        else:
+            print(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
+            print(f"  downside_vol_threshold={result.params['downside_vol_threshold_annualized']:.6f}")
+        print(f"  vol_window={int(result.params['vol_window'])}")
+        print(f"  holding_days={int(result.params['holding_days'])}")
+        print(f"  objective_score={result.score:.2f}")
+    else:
+        trades_df = run_backtest(
+            df=df,
+            side=args.side,
+            roc_lookback=args.roc_lookback,
+            put_roc_threshold=args.put_roc_threshold,
+            call_roc_threshold=args.call_roc_threshold,
+            vol_window=args.vol_window,
+            downside_vol_threshold_annualized=args.downside_vol_threshold,
+            upside_vol_threshold_annualized=args.upside_vol_threshold,
+            holding_days=args.holding_days,
+            risk_free_rate=args.risk_free_rate,
+            min_pricing_vol_annualized=args.min_pricing_vol,
+            contract_size=args.contract_size,
+            allow_overlap=args.allow_overlap,
+        )
 
     print_summary(trades_df)
 
