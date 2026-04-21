@@ -6,7 +6,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 import csv
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import logging
 import web.clickhouse_client as clickhouse_client_module
 
@@ -26,10 +26,16 @@ def check_and_insert_data(csv_name, table_name):
 
     column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag', 'timestamp']
     df = pd.read_csv(csv_name, header=None, names=column_names)
+    df['time'] = pd.to_numeric(df['time'], errors='coerce')
+    df = df.dropna(subset=['time'])
+    if df.empty:
+        logging.warning(f"No valid rows in {csv_name}. Skipping.")
+        return
+    df['time'] = df['time'].astype('int64')
 
     # Query to check the existence of all timestamps in the table
     first_timestamp, last_timestamp = df['time'].min(), df['time'].max()
-    query = f"SELECT count(*) FROM {table_name} WHERE time BETWEEN '{first_timestamp}' AND '{last_timestamp}'"
+    query = f"SELECT count(*) FROM {table_name} WHERE time BETWEEN {first_timestamp} AND {last_timestamp}"
     result = client.query(query)
     count_result = result.result_rows[0][0] if result.result_rows else 0
     if count_result >= 2:
@@ -38,8 +44,10 @@ def check_and_insert_data(csv_name, table_name):
 
     logging.info(f"One or both timestamps ({first_timestamp}, {last_timestamp}) are missing in {table_name} for {csv_name}. Inserting data.")
 
-    # Prepare data for insertion
-    df['timestamp'] = pd.to_datetime(df['time'], unit='ms')
+    # Binance changed trade time precision from milliseconds to microseconds.
+    # Infer unit from numeric width to keep ingestion backward-compatible.
+    time_unit = 'us' if len(str(int(first_timestamp))) >= 16 else 'ms'
+    df['timestamp'] = pd.to_datetime(df['time'], unit=time_unit, utc=True).dt.tz_localize(None)
 
     # Inserting data from dataframe
     result = client.insert_df(table=table_name, df=df)
@@ -97,6 +105,8 @@ def download_files_process(symbol, start_date, end_date, num_workers, table_name
             file_name = f"{symbol}USDT-trades-{date_str}.zip"
             csv_name = f"{symbol}USDT-trades-{date_str}.csv"
             futures.append(executor.submit(download_and_unpack, url, file_name, csv_name, table_name))
+        for future in as_completed(futures):
+            future.result()
 
 
 
@@ -112,10 +122,10 @@ def create_table_trades(table_name):
         time UInt64,
         is_buyer_maker Boolean,
         unknown_flag Boolean DEFAULT True,
-        timestamp DateTime64(3) -- Millisecond precision
+        timestamp DateTime64(6) -- Microsecond precision
     )
     ENGINE = MergeTree
-    PARTITION BY toDate(toDateTime(time / 1000))
+    PARTITION BY toDate(timestamp)
     ORDER BY (timestamp)
     SETTINGS index_granularity = 8192;
     """
