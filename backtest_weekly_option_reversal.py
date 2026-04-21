@@ -28,7 +28,7 @@ class Trade:
     trend_vol_signal: float
     pricing_vol: float
     scheduled_expiry_date: pd.Timestamp
-    time_to_expiry_years: float
+    time_to_expiry_days: int
 
 
 @dataclass
@@ -181,7 +181,8 @@ def run_backtest(
         if days_to_friday <= 0:
             continue
         scheduled_expiry_date = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
-        time_to_expiry = days_to_friday / 365.25
+        time_to_expiry_days = days_to_friday
+        time_to_expiry_years = time_to_expiry_days / 365.25
 
         if exit_idx >= len(df):
             continue
@@ -194,7 +195,7 @@ def run_backtest(
             premium = black_scholes_put_price(
                 spot=entry_close,
                 strike=strike,
-                time_to_expiry_years=time_to_expiry,
+                time_to_expiry_years=time_to_expiry_years,
                 risk_free_rate=risk_free_rate,
                 sigma=pricing_vol,
             )
@@ -202,7 +203,7 @@ def run_backtest(
             premium = black_scholes_call_price(
                 spot=entry_close,
                 strike=strike,
-                time_to_expiry_years=time_to_expiry,
+                time_to_expiry_years=time_to_expiry_years,
                 risk_free_rate=risk_free_rate,
                 sigma=pricing_vol,
             )
@@ -230,7 +231,7 @@ def run_backtest(
                 trend_vol_signal=trend_vol_signal,
                 pricing_vol=pricing_vol,
                 scheduled_expiry_date=scheduled_expiry_date,
-                time_to_expiry_years=time_to_expiry,
+                time_to_expiry_days=time_to_expiry_days,
             )
         )
 
@@ -681,7 +682,7 @@ def main() -> None:
             "intrinsic_at_expiry",
             "expired_itm",
             "pnl_per_contract",
-            "time_to_expiry_years",
+            "time_to_expiry_days",
             "roc_signal",
             "trend_vol_signal",
         ]
