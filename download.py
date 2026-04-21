@@ -195,6 +195,7 @@ def normalize_symbol(symbol):
 
 
 def fetch_twelvedata_1min(symbol, start_date, end_date, api_key):
+    columns = ["id", "price", "qty", "base_qty", "time", "is_buyer_maker", "unknown_flag", "timestamp"]
     url = "https://api.twelvedata.com/time_series"
     params = {
         "symbol": symbol,
@@ -216,7 +217,7 @@ def fetch_twelvedata_1min(symbol, start_date, end_date, api_key):
     values = payload.get("values", [])
     if not values:
         logging.warning("TwelveData returned no rows for %s in requested range.", symbol)
-        return pd.DataFrame()
+        return pd.DataFrame(columns=columns)
 
     records = []
     for idx, value in enumerate(values):
@@ -238,7 +239,32 @@ def fetch_twelvedata_1min(symbol, start_date, end_date, api_key):
             }
         )
 
-    return pd.DataFrame.from_records(records)
+    return pd.DataFrame.from_records(records, columns=columns)
+
+
+def get_twelvedata_cache_path(symbol, start_date, end_date):
+    safe_symbol = normalize_symbol(symbol)
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+    return f"./data/{safe_symbol}-1min-{start_str}-to-{end_str}.csv"
+
+
+def load_or_fetch_twelvedata_1min(symbol, start_date, end_date, api_key):
+    cache_path = get_twelvedata_cache_path(symbol, start_date, end_date)
+    if os.path.exists(cache_path):
+        logging.info("Using cached TwelveData CSV: %s", cache_path)
+        df = pd.read_csv(cache_path, parse_dates=["timestamp"])
+        return df, cache_path
+
+    df = fetch_twelvedata_1min(
+        symbol=symbol,
+        start_date=start_date,
+        end_date=end_date,
+        api_key=api_key,
+    )
+    df.to_csv(cache_path, index=False)
+    logging.info("Saved TwelveData cache CSV: %s", cache_path)
+    return df, cache_path
 
 
 def insert_twelvedata_rows(table_name, df):
@@ -300,7 +326,7 @@ if __name__ == "__main__":
         api_key = os.environ.get("TWELVEDATA_API_KEY")
         if not api_key:
             raise EnvironmentError("TWELVEDATA_API_KEY env var is required for TwelveData download mode.")
-        data = fetch_twelvedata_1min(
+        data, _cache_path = load_or_fetch_twelvedata_1min(
             symbol=args.twelvedata_symbol,
             start_date=args.start_date,
             end_date=args.end_date,
