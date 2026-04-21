@@ -6,7 +6,10 @@ import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 import dateutil
 import logging
-import web.clickhouse_client as clickhouse_client_module
+try:
+    import clickhouse_client as clickhouse_client_module
+except ModuleNotFoundError:
+    from web import clickhouse_client as clickhouse_client_module
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
