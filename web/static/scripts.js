@@ -108,9 +108,9 @@ function applyUiSettingsForSymbol(symbol) {
     var allSettings = getSymbolSettingsCookie();
     var symbolSettings = allSettings[symbol] || {};
     var timeFormat = 'YYYY-MM-DDTHH:mm:ss.SSS[Z]';
-    var startDate = symbolSettings.startTimePicker || moment().subtract(24, 'days').format(timeFormat);
-    var interval = symbolSettings.interval || getDefaultIntervalForSymbol(symbol);
-    var duration = symbolSettings.duration || getDefaultDurationForSymbol();
+    var startDate = symbolSettings.date || symbolSettings.startTimePicker || moment().subtract(24, 'days').format(timeFormat);
+    var interval = symbolSettings.resolution || symbolSettings.interval || getDefaultIntervalForSymbol(symbol);
+    var duration = symbolSettings.intervalSize || symbolSettings.duration || getDefaultDurationForSymbol();
 
     $('#startTimePicker').data('daterangepicker').setStartDate(startDate);
     $('#startTimePicker').val(startDate);
@@ -123,10 +123,18 @@ function saveUiSettingsForCurrentSymbol() {
         return;
     }
     var allSettings = getSymbolSettingsCookie();
+    var startDate = moment.utc($('#startTimePicker').val()).format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+    var interval = $('#interval').val();
+    var duration = $('#duration').val();
     allSettings[currentConfigurationSymbol] = {
-        startTimePicker: moment.utc($('#startTimePicker').val()).format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
-        interval: $('#interval').val(),
-        duration: $('#duration').val()
+        // Preferred keys.
+        date: startDate,
+        resolution: interval,
+        intervalSize: duration,
+        // Backward-compatible keys.
+        startTimePicker: startDate,
+        interval: interval,
+        duration: duration
     };
     setSymbolSettingsCookie(allSettings);
 }
