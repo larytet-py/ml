@@ -2,6 +2,26 @@
 """
 Usage:
 
+SELECT
+    api_security.symbol,
+    api_securitydailydata.date,
+    api_securitydailydata.open,
+    api_securitydailydata.close,
+    api_securitydailydata.high,
+    api_securitydailydata.low,
+    api_securitydailydata.volume,
+    api_securitydailydata.dividend_rate
+FROM api_securitydailydata
+INNER JOIN api_security
+    ON api_securitydailydata.security_id = api_security.id
+WHERE api_security.active = TRUE
+  AND (
+        api_security.etf = TRUE
+        OR api_security.symbol = 'VXX'
+      )
+  AND api_securitydailydata.date >= CURRENT_DATE - INTERVAL '12 months'
+ORDER BY api_security.symbol, api_securitydailydata.date;
+
 python3 backtest_weekly_option_reversal.py \
   --symbol SPY \
   --side put \
