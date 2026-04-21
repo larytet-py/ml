@@ -2,7 +2,7 @@
 """
 Usage:
 
-python3 option_signal_notifier.py \
+MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
   --side call \
   --roc-lookback 20 \
@@ -10,7 +10,7 @@ python3 option_signal_notifier.py \
   --call-roc-threshold 0.052641 \
   --upside-vol-threshold 0.085369
 
-python3 option_signal_notifier.py \
+MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
   --side put \
   --roc-lookback 18 \
