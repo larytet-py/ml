@@ -444,7 +444,8 @@ def _evaluate_config(
         )
 
     if not fired:
-        messages.append("NOTIFICATION: No entry signal for this config on latest daily bar.")
+        # messages.append("NOTIFICATION: No entry signal for this config on latest daily bar.")
+        pass
 
     return messages
 
