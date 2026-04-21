@@ -26,12 +26,13 @@ Example option_signal_configs.txt rows:
 --symbol SPY --side call --roc-lookback 20 --vol-window 17 --call-roc-threshold 0.052641 --upside-vol-threshold 0.085369
 """
 import argparse
+import json
 import math
 import os
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import requests
@@ -377,7 +378,7 @@ def _evaluate_config(
     risk_free_rate: float,
     min_pricing_vol: float,
     contract_size: int,
-) -> List[str]:
+) -> Dict[str, Any]:
     signal_df = build_signal_frame(symbol_df, cfg.roc_lookback, cfg.vol_window)
     latest = signal_df.iloc[-1]
 
@@ -420,6 +421,7 @@ def _evaluate_config(
     )
 
     messages = [header]
+    fired_signals: List[Dict[str, Any]] = []
     fired = False
     for side in selected_sides:
         is_triggered = put_trigger if side == "put" else call_trigger
@@ -444,16 +446,46 @@ def _evaluate_config(
             )
 
         fired = True
+        premium_per_contract = premium * contract_size
         messages.append(
             f"NOTIFICATION: ENTER {side.upper()} POSITION | {cfg.symbol} | expiry(next Friday in {days_to_expiry} days) | "
-            f"estimated ATM premium={premium:.4f} per share ({premium * contract_size:.2f} per contract)"
+            f"estimated ATM premium={premium:.4f} per share ({premium_per_contract:.2f} per contract)"
+        )
+        fired_signals.append(
+            {
+                "side": side,
+                "action": f"enter_{side}",
+                "days_to_expiry": days_to_expiry,
+                "estimated_atm_premium_per_share": premium,
+                "estimated_atm_premium_per_contract": premium_per_contract,
+            }
         )
 
     if not fired:
         # messages.append("NOTIFICATION: No entry signal for this config on latest daily bar.")
         pass
 
-    return messages
+    return {
+        "messages": messages,
+        "symbol": cfg.symbol,
+        "configured_side": cfg.side,
+        "selected_sides": selected_sides,
+        "roc_lookback": cfg.roc_lookback,
+        "vol_window": cfg.vol_window,
+        "put_roc_threshold": cfg.put_roc_threshold,
+        "call_roc_threshold": cfg.call_roc_threshold,
+        "downside_vol_threshold": cfg.downside_vol_threshold,
+        "upside_vol_threshold": cfg.upside_vol_threshold,
+        "date": latest_date.date().isoformat(),
+        "close": spot,
+        "roc": float(latest["roc"]),
+        "downside_vol_annualized": float(latest["downside_vol_annualized"]),
+        "upside_vol_annualized": float(latest["upside_vol_annualized"]),
+        "pricing_vol_annualized": pricing_vol,
+        "put_trigger": put_trigger,
+        "call_trigger": call_trigger,
+        "fired_signals": fired_signals,
+    }
 
 
 def main() -> None:
@@ -490,6 +522,11 @@ def main() -> None:
     parser.add_argument("--min-pricing-vol", type=float, default=0.10, help="Vol floor (annualized) used in option pricing.")
     parser.add_argument("--contract-size", type=int, default=100, help="Shares per option contract.")
     parser.add_argument(
+        "--summary-json",
+        default=None,
+        help="Optional path to write machine-readable run summary JSON (keeps stdout logs unchanged).",
+    )
+    parser.add_argument(
         "--print-trades",
         type=int,
         default=0,
@@ -505,20 +542,35 @@ def main() -> None:
         symbol_data[symbol] = load_symbol_data(symbol, args.start_date, args.end_date, args.csv)
 
     all_messages: List[str] = []
+    config_summaries: List[Dict[str, Any]] = []
     for idx, cfg in enumerate(configs, start=1):
         df = symbol_data[cfg.symbol]
         all_messages.append(f"\n=== Config #{idx} ===")
-        all_messages.extend(
-            _evaluate_config(
-                cfg=cfg,
-                symbol_df=df,
-                risk_free_rate=args.risk_free_rate,
-                min_pricing_vol=args.min_pricing_vol,
-                contract_size=args.contract_size,
-            )
+        evaluation = _evaluate_config(
+            cfg=cfg,
+            symbol_df=df,
+            risk_free_rate=args.risk_free_rate,
+            min_pricing_vol=args.min_pricing_vol,
+            contract_size=args.contract_size,
         )
+        all_messages.extend(evaluation["messages"])
+        config_summaries.append({"config_index": idx, **evaluation})
 
     print("\n".join(all_messages).lstrip())
+
+    if args.summary_json:
+        total_signals = sum(len(cfg["fired_signals"]) for cfg in config_summaries)
+        summary_payload = {
+            "generated_at_utc": pd.Timestamp.utcnow().isoformat(),
+            "config_count": len(config_summaries),
+            "signals_fired": total_signals > 0,
+            "signal_count": total_signals,
+            "configs": config_summaries,
+        }
+        summary_path = Path(args.summary_json)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(json.dumps(summary_payload, indent=2))
+        print(f"Wrote structured signal summary to {summary_path}.")
 
     if args.print_trades != 0 and len(configs) == 1:
         cfg = configs[0]
