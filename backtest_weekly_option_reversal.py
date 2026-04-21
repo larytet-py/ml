@@ -518,13 +518,6 @@ def main() -> None:
         default=0.20,
         help="Annualized upside vol threshold for call signal.",
     )
-    parser.add_argument(
-        "--expiry",
-        choices=["this-week", "fixed"],
-        default="this-week",
-        help="`this-week`: exit on the final trading day of the same week. `fixed`: use --holding-days.",
-    )
-    parser.add_argument("--holding-days", type=int, default=5, help="Used only when --expiry fixed.")
     parser.add_argument("--risk-free-rate", type=float, default=0.04, help="Risk-free rate for Black-Scholes.")
     parser.add_argument(
         "--min-pricing-vol",
@@ -564,8 +557,6 @@ def main() -> None:
     parser.add_argument("--roc-lookback-max", type=int, default=20, help="Upper bound for roc-lookback in optimization.")
     parser.add_argument("--vol-window-min", type=int, default=5, help="Lower bound for vol-window in optimization.")
     parser.add_argument("--vol-window-max", type=int, default=40, help="Upper bound for vol-window in optimization.")
-    parser.add_argument("--holding-days-min", type=int, default=2, help="Lower bound for holding-days in optimization.")
-    parser.add_argument("--holding-days-max", type=int, default=10, help="Upper bound for holding-days in optimization.")
     parser.add_argument(
         "--roc-threshold-min",
         type=float,
@@ -618,9 +609,6 @@ def main() -> None:
             (float(args.vol_window_min), float(args.vol_window_max)),
             (float(args.vol_threshold_min), float(args.vol_threshold_max)),
         ]
-        if args.expiry == "fixed":
-            initial_vector.append(float(args.holding_days))
-            bounds.append((float(args.holding_days_min), float(args.holding_days_max)))
 
         result = optimize_parameters(
             df=df,
@@ -638,8 +626,6 @@ def main() -> None:
             min_pricing_vol_annualized=args.min_pricing_vol,
             contract_size=args.contract_size,
             allow_overlap=args.allow_overlap,
-            expiry_mode=args.expiry,
-            fixed_holding_days=args.holding_days,
             fixed_put_roc_threshold=args.put_roc_threshold,
             fixed_call_roc_threshold=args.call_roc_threshold,
             fixed_downside_vol_threshold=args.downside_vol_threshold,
@@ -657,9 +643,7 @@ def main() -> None:
             print(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
             print(f"  downside_vol_threshold={result.params['downside_vol_threshold_annualized']:.6f}")
         print(f"  vol_window={int(result.params['vol_window'])}")
-        print(f"  expiry={args.expiry}")
-        if args.expiry == "fixed":
-            print(f"  holding_days={int(result.params['holding_days'])}")
+        print("  expiry=this-week")
         print(f"  objective_score={result.score:.2f}")
     else:
         trades_df = run_backtest(
@@ -671,8 +655,6 @@ def main() -> None:
             vol_window=args.vol_window,
             downside_vol_threshold_annualized=args.downside_vol_threshold,
             upside_vol_threshold_annualized=args.upside_vol_threshold,
-            holding_days=args.holding_days,
-            expiry_mode=args.expiry,
             risk_free_rate=args.risk_free_rate,
             min_pricing_vol_annualized=args.min_pricing_vol,
             contract_size=args.contract_size,
