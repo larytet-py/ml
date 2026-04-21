@@ -95,9 +95,12 @@ def load_symbol_data_from_csv(csv_path: str, symbol: str, start_date: Optional[s
 
     if "close" not in df.columns:
         raise ValueError("Input data must contain a 'close' column.")
+    # Filter out invalid placeholder rows (for example close=0) that break return/volatility math.
+    df = df.dropna(subset=["date", "close"])
+    df = df[df["close"] > 0]
     df = df.sort_values("date").reset_index(drop=True)
     if df.empty:
-        raise ValueError("No rows left after date filters.")
+        raise ValueError("No valid rows left after date/price filters.")
     return df
 
 
@@ -161,6 +164,7 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.tz_localize(None)
     df = df.dropna(subset=["date", "close"])
+    df = df[df["close"] > 0]
     df = df.sort_values("date").reset_index(drop=True)
     return df
 
@@ -192,6 +196,7 @@ def _persist_symbol_rows(cache_csv_path: str, symbol: str, fresh_rows: pd.DataFr
     symbol_df["symbol"] = symbol.upper()
     symbol_df["date"] = pd.to_datetime(symbol_df["date"], errors="coerce").dt.tz_localize(None)
     symbol_df = symbol_df.dropna(subset=["date", "close"])
+    symbol_df = symbol_df[symbol_df["close"] > 0]
     symbol_df = symbol_df.drop_duplicates(subset=["date"], keep="last")
     symbol_df = symbol_df.sort_values("date")
 
@@ -248,6 +253,7 @@ def _load_or_refresh_cached_data(
     combined = pd.concat([cached, fresh], ignore_index=True)
     combined["date"] = pd.to_datetime(combined["date"], errors="coerce").dt.tz_localize(None)
     combined = combined.dropna(subset=["date", "close"])
+    combined = combined[combined["close"] > 0]
     combined = combined.drop_duplicates(subset=["date"], keep="last").sort_values("date").reset_index(drop=True)
     _persist_symbol_rows(cache_csv_path, symbol, combined)
 
