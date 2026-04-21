@@ -202,9 +202,7 @@ function createNewChart(containerId, type, title, seriesData) {
             type: 'datetime',
             tickInterval: 1,
             events: {
-                setExtremes: function(e) {
-                    syncExtremes(e);
-                }
+                setExtremes: syncExtremes
             }
         },
         yAxis: {
@@ -311,11 +309,12 @@ function formatTooltip(point) {
 function syncExtremes(e) {
     var thisChart = this.chart;
     if (e.trigger !== 'syncExtremes') {
-        Highcharts.each(Highcharts.charts, function(chart) {
-            if (chart !== thisChart) {
-                if (chart.xAxis[0].setExtremes) {
-                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
-                }
+        Highcharts.charts.forEach(function(chart) {
+            if (!chart || chart === thisChart || !chart.xAxis || !chart.xAxis[0]) {
+                return;
+            }
+            if (chart.xAxis[0].setExtremes) {
+                chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
             }
         });
     }
