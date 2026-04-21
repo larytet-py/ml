@@ -21,6 +21,7 @@ python3 option_signal_notifier.py \
 import argparse
 import math
 import os
+from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
@@ -30,6 +31,8 @@ from option_pricing import black_scholes_call_price, black_scholes_put_price
 
 
 TRADING_DAYS_PER_YEAR = 252
+DEFAULT_CACHE_CSV = "data/etfs.csv"
+CACHE_RECENT_DAYS = 3
 
 
 def downside_std(x) -> float:
@@ -141,9 +144,105 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
     return df
 
 
+def _is_recent_enough(latest_date: pd.Timestamp) -> bool:
+    # A 3-day tolerance avoids unnecessary API calls across weekends/holidays.
+    today = pd.Timestamp.today().normalize()
+    age_days = int((today - latest_date.normalize()).days)
+    return age_days <= CACHE_RECENT_DAYS
+
+
+def _persist_symbol_rows(cache_csv_path: str, symbol: str, fresh_rows: pd.DataFrame) -> None:
+    cache_path = Path(cache_csv_path)
+    if cache_path.exists():
+        full_df = pd.read_csv(cache_csv_path)
+    else:
+        full_df = pd.DataFrame(columns=["symbol", "date", "open", "close", "high", "low", "volume"])
+
+    if "date" in full_df.columns:
+        full_df["date"] = pd.to_datetime(full_df["date"], errors="coerce")
+
+    if "symbol" not in full_df.columns:
+        full_df["symbol"] = symbol.upper()
+
+    keep_mask = full_df["symbol"].astype(str).str.upper() != symbol.upper()
+    other_symbols = full_df[keep_mask].copy()
+
+    symbol_df = fresh_rows.copy()
+    symbol_df["symbol"] = symbol.upper()
+    symbol_df["date"] = pd.to_datetime(symbol_df["date"], errors="coerce").dt.tz_localize(None)
+    symbol_df = symbol_df.dropna(subset=["date", "close"])
+    symbol_df = symbol_df.drop_duplicates(subset=["date"], keep="last")
+    symbol_df = symbol_df.sort_values("date")
+
+    merged = pd.concat([other_symbols, symbol_df], ignore_index=True)
+    merged = merged.sort_values(["symbol", "date"]).reset_index(drop=True)
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    merged.to_csv(cache_csv_path, index=False)
+
+
+def _load_or_refresh_cached_data(
+    symbol: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    cache_csv_path: str,
+) -> Optional[pd.DataFrame]:
+    cache_path = Path(cache_csv_path)
+    if not cache_path.exists():
+        return None
+
+    try:
+        cached = load_symbol_data_from_csv(cache_csv_path, symbol, None, None)
+    except ValueError:
+        return None
+
+    if cached.empty:
+        return None
+
+    latest_cached_date = pd.Timestamp(cached["date"].max()).tz_localize(None)
+    if _is_recent_enough(latest_cached_date):
+        print(f"Using cached data from {cache_csv_path} (latest {latest_cached_date.date()}); skipping marketstack API.")
+        return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
+
+    api_key = os.getenv("MARKET_STACK_API_KEY")
+    if not api_key:
+        print(
+            f"Cached data in {cache_csv_path} for {symbol.upper()} is stale (latest {latest_cached_date.date()}) and "
+            "MARKET_STACK_API_KEY is not set; using cache without refresh."
+        )
+        return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
+
+    missing_from = (latest_cached_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    target_to = end_date or pd.Timestamp.today().strftime("%Y-%m-%d")
+
+    try:
+        fresh = _fetch_marketstack_daily(symbol, start_date=missing_from, end_date=target_to)
+    except RuntimeError as exc:
+        print(f"Cache refresh failed ({exc}); using existing cached data.")
+        return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
+
+    if fresh.empty:
+        return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
+
+    combined = pd.concat([cached, fresh], ignore_index=True)
+    combined["date"] = pd.to_datetime(combined["date"], errors="coerce").dt.tz_localize(None)
+    combined = combined.dropna(subset=["date", "close"])
+    combined = combined.drop_duplicates(subset=["date"], keep="last").sort_values("date").reset_index(drop=True)
+    _persist_symbol_rows(cache_csv_path, symbol, combined)
+
+    updated_last = pd.Timestamp(combined["date"].max()).date()
+    print(f"Updated {cache_csv_path} for {symbol.upper()} through {updated_last}.")
+    return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
+
+
 def load_symbol_data(symbol: str, start_date: Optional[str], end_date: Optional[str], csv_path: Optional[str]) -> pd.DataFrame:
     if csv_path:
         return load_symbol_data_from_csv(csv_path, symbol, start_date, end_date)
+
+    cached = _load_or_refresh_cached_data(symbol, start_date, end_date, DEFAULT_CACHE_CSV)
+    if cached is not None and not cached.empty:
+        return cached.reset_index(drop=True)
+
     df = _fetch_marketstack_daily(symbol, start_date, end_date)
     if start_date:
         df = df[df["date"] >= pd.to_datetime(start_date)]
@@ -151,6 +250,14 @@ def load_symbol_data(symbol: str, start_date: Optional[str], end_date: Optional[
         df = df[df["date"] <= pd.to_datetime(end_date)]
     if df.empty:
         raise ValueError("No rows left after date filters.")
+
+    # Seed local cache for future runs when it is absent.
+    try:
+        _persist_symbol_rows(DEFAULT_CACHE_CSV, symbol, df)
+        print(f"Saved {len(df)} rows to {DEFAULT_CACHE_CSV} for future runs.")
+    except Exception as exc:  # pragma: no cover - non-fatal cache write path
+        print(f"Warning: failed to persist cache to {DEFAULT_CACHE_CSV}: {exc}")
+
     return df.reset_index(drop=True)
 
 
@@ -179,7 +286,10 @@ def main() -> None:
     parser.add_argument(
         "--csv",
         default=None,
-        help="Optional local CSV path; if omitted script downloads daily bars from marketstack (env: MARKET_STACK_API_KEY).",
+        help=(
+            "Optional local CSV path. If omitted, the script prefers data/etfs.csv cache and refreshes only missing rows "
+            "from marketstack when cache is stale."
+        ),
     )
     parser.add_argument("--start-date", default=None, help="Optional date filter, YYYY-MM-DD.")
     parser.add_argument("--end-date", default=None, help="Optional date filter, YYYY-MM-DD.")
@@ -205,7 +315,11 @@ def main() -> None:
     latest = signal_df.iloc[-1]
 
     if pd.isna(latest["roc"]) or pd.isna(latest["pricing_vol_annualized"]):
-        raise ValueError("Insufficient history to compute latest signal values with current lookback/window.")
+        needed = max(args.roc_lookback + 1, args.vol_window + 1)
+        raise ValueError(
+            "Insufficient history to compute latest signal values with current lookback/window. "
+            f"Need at least {needed} rows, got {len(signal_df)} rows."
+        )
 
     put_trigger = (
         bool(latest["roc"] <= args.put_roc_threshold)
