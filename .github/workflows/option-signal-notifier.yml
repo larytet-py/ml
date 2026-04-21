@@ -37,6 +37,12 @@ jobs:
           mkdir -p data
           python option_signal_notifier.py --config option_signal_notifier.config | tee notifier_output.txt
 
+          {
+            echo "excerpt<<EOF"
+            tail -n 25 notifier_output.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
           if grep -q "NOTIFICATION: ENTER" notifier_output.txt; then
             echo "has_signal=true" >> "$GITHUB_OUTPUT"
           else
@@ -66,24 +72,62 @@ jobs:
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Send signal email
+      - name: Send signal email (Resend API)
         if: steps.notifier.outputs.has_signal == 'true'
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: ${{ secrets.SMTP_SERVER }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "Option signal fired: ${{ github.repository }}"
-          to: ${{ secrets.EMAIL_TO }}
-          from: ${{ secrets.EMAIL_FROM }}
-          secure: true
-          body: |
-            One or more option entry signals fired.
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EXCERPT: ${{ steps.notifier.outputs.excerpt }}
+        run: |
+          set -euo pipefail
 
-            Repository: ${{ github.repository }}
-            Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
 
-            Output excerpt:
-            ----------------------------------------
-            ${{ steps.notifier.outcome }}
+          api_key = os.environ["RESEND_API_KEY"]
+          to_email = os.environ["EMAIL_TO"]
+          from_email = os.environ["EMAIL_FROM"]
+          repository = os.environ["REPOSITORY"]
+          run_url = os.environ["RUN_URL"]
+          excerpt = os.environ.get("EXCERPT", "")
+
+          subject = f"Option signal fired: {repository}"
+          body = (
+              "One or more option entry signals fired.\n\n"
+              f"Repository: {repository}\n"
+              f"Run URL: {run_url}\n\n"
+              "Output excerpt:\n"
+              "----------------------------------------\n"
+              f"{excerpt}\n"
+          )
+
+          payload = {
+              "from": from_email,
+              "to": [to_email],
+              "subject": subject,
+              "text": body,
+          }
+
+          req = urllib.request.Request(
+              "https://api.resend.com/emails",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Authorization": f"Bearer {api_key}",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  print(f"Resend accepted email request (HTTP {response.status}).")
+          except urllib.error.HTTPError as exc:
+              error_body = exc.read().decode("utf-8", errors="replace")
+              raise RuntimeError(f"Resend API failed (HTTP {exc.code}): {error_body}") from exc
+          PY
