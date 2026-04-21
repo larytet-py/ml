@@ -571,13 +571,20 @@ def main() -> None:
     print("\n".join(all_messages).lstrip())
 
     if args.summary_json:
+        ordered_config_summaries = sorted(
+            config_summaries,
+            key=lambda cfg: (
+                not bool(cfg.get("call_trigger", False)),
+                int(cfg.get("config_index", 0)),
+            ),
+        )
         total_signals = sum(len(cfg["fired_signals"]) for cfg in config_summaries)
         summary_payload = {
             "generated_at_utc": pd.Timestamp.utcnow().isoformat(),
             "config_count": len(config_summaries),
             "signals_fired": total_signals > 0,
             "signal_count": total_signals,
-            "configs": config_summaries,
+            "configs": ordered_config_summaries,
         }
         summary_path = Path(args.summary_json)
         summary_path.parent.mkdir(parents=True, exist_ok=True)
