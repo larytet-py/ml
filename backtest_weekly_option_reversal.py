@@ -102,7 +102,7 @@ def _format_best_backtest_command(
                 f"{params['upside_vol_threshold_annualized']:.6f}",
             ]
         )
-    if csv_path != "data/etfs.csv":
+    if csv_path != "data/etfs-all.csv":
         cmd.extend(["--csv", csv_path])
     if start_date:
         cmd.extend(["--start-date", start_date])
@@ -582,7 +582,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Backtest: sell ATM weekly puts/calls after trend shock (ROC + directional stddev trigger)."
     )
-    parser.add_argument("--csv", default="data/etfs.csv", help="Path to input CSV.")
+    parser.add_argument("--csv", default="data/etfs-all.csv", help="Path to input CSV.")
     parser.add_argument("--symbol", required=True, help="Ticker to backtest, e.g. SPY.")
     parser.add_argument(
         "--side",
