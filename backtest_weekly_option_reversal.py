@@ -1,7 +1,8 @@
 import argparse
 import math
+import random
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -24,6 +25,14 @@ class Trade:
     roc_signal: float
     trend_vol_signal: float
     pricing_vol: float
+
+
+@dataclass
+class OptimizationResult:
+    params: Dict[str, float]
+    score: float
+    trades_df: pd.DataFrame
+    metrics: Optional[Dict[str, float]]
 
 
 def norm_cdf(x: float) -> float:
