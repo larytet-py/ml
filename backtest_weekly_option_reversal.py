@@ -21,11 +21,14 @@ class Trade:
     strike: float
     premium: float
     intrinsic_at_expiry: float
+    expired_itm: bool
     pnl_per_share: float
     pnl_per_contract: float
     roc_signal: float
     trend_vol_signal: float
     pricing_vol: float
+    scheduled_expiry_date: pd.Timestamp
+    time_to_expiry_years: float
 
 
 @dataclass
@@ -176,11 +179,21 @@ def run_backtest(
             continue
 
         entry_close = float(row["close"])
+        entry_date = pd.Timestamp(row["date"])
         strike = entry_close
         if expiry_mode == "this-week":
             exit_idx = int(week_last_idx.iloc[i])
+            days_to_friday = 4 - entry_date.weekday()
+            if days_to_friday <= 0:
+                continue
+            scheduled_expiry_date = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
+            time_to_expiry = days_to_friday / 365.25
         else:
             exit_idx = i + holding_days
+            time_to_expiry = holding_days / TRADING_DAYS_PER_YEAR
+            if exit_idx >= len(df):
+                continue
+            scheduled_expiry_date = pd.Timestamp(df.iloc[exit_idx]["date"]).normalize()
 
         if exit_idx >= len(df):
             continue
@@ -188,7 +201,6 @@ def run_backtest(
             # Skip same-day expiry signals (e.g., Friday close) in this EOD model.
             continue
 
-        time_to_expiry = (exit_idx - i) / TRADING_DAYS_PER_YEAR
         pricing_vol = max(float(row["pricing_vol_annualized"]), min_pricing_vol_annualized)
         if side == "put":
             premium = black_scholes_put_price(
@@ -210,6 +222,7 @@ def run_backtest(
         exit_row = df.iloc[exit_idx]
         exit_close = float(exit_row["close"])
         intrinsic = max(strike - exit_close, 0.0) if side == "put" else max(exit_close - strike, 0.0)
+        expired_itm = intrinsic > 0.0
         pnl_per_share = premium - intrinsic
 
         trades.append(
@@ -222,11 +235,14 @@ def run_backtest(
                 strike=strike,
                 premium=premium,
                 intrinsic_at_expiry=intrinsic,
+                expired_itm=expired_itm,
                 pnl_per_share=pnl_per_share,
                 pnl_per_contract=pnl_per_share * contract_size,
                 roc_signal=float(row["roc"]),
                 trend_vol_signal=trend_vol_signal,
                 pricing_vol=pricing_vol,
+                scheduled_expiry_date=scheduled_expiry_date,
+                time_to_expiry_years=time_to_expiry,
             )
         )
 
@@ -242,6 +258,7 @@ def summarize_trades(trades_df: pd.DataFrame) -> Optional[Dict[str, float]]:
 
     total = len(trades_df)
     wins = int((trades_df["pnl_per_share"] > 0).sum())
+    itm_expiries = int(trades_df["expired_itm"].sum())
     total_pnl = trades_df["pnl_per_contract"].sum()
     avg_pnl = trades_df["pnl_per_contract"].mean()
     median_pnl = trades_df["pnl_per_contract"].median()
@@ -255,6 +272,8 @@ def summarize_trades(trades_df: pd.DataFrame) -> Optional[Dict[str, float]]:
         "total": float(total),
         "wins": float(wins),
         "win_rate": float(wins / total),
+        "itm_expiries": float(itm_expiries),
+        "itm_rate": float(itm_expiries / total),
         "total_pnl": float(total_pnl),
         "avg_pnl": float(avg_pnl),
         "median_pnl": float(median_pnl),
@@ -271,6 +290,7 @@ def print_summary(trades_df: pd.DataFrame) -> None:
 
     print(f"Trades: {int(metrics['total'])}")
     print(f"Win rate: {metrics['win_rate']:.2%}")
+    print(f"Expired ITM: {int(metrics['itm_expiries'])} ({metrics['itm_rate']:.2%})")
     print(f"Total PnL (per 1 contract): {metrics['total_pnl']:.2f}")
     print(f"Average PnL/trade (per 1 contract): {metrics['avg_pnl']:.2f}")
     print(f"Median PnL/trade (per 1 contract): {metrics['median_pnl']:.2f}")
@@ -691,11 +711,14 @@ def main() -> None:
             "side",
             "entry_date",
             "exit_date",
+            "scheduled_expiry_date",
             "entry_close",
             "exit_close",
             "premium",
             "intrinsic_at_expiry",
+            "expired_itm",
             "pnl_per_contract",
+            "time_to_expiry_years",
             "roc_signal",
             "trend_vol_signal",
         ]
