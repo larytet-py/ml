@@ -1,0 +1,22 @@
+[
+    {
+        "symbol": "GOOGL",
+        "title": "GOOGL 1min",
+        "endpoints": [
+            {
+                "url": "/price_data",
+                "type": "scatter"
+            }
+        ]
+    },
+    {
+        "symbol": "GOOGL",
+        "title": "StdDev",
+        "endpoints": [
+            {
+                "url": "/price_sd_1min",
+                "type": "line"
+            }
+        ]
+    }
+]

@@ -316,6 +316,43 @@ def get_trades_sd():
     data = execute_query(query, parameters)
     return getJSON(data)
 
+@app.route('/price_sd_1min')
+def get_price_sd_1min():
+    parameters, error_response, status = validate_and_parse_args()
+    if error_response:
+        return error_response, status
+
+    query = """
+    WITH
+        minute_prices AS (
+            SELECT
+                toUnixTimestamp64Milli(
+                    CAST(toStartOfInterval(timestamp, INTERVAL 1 MINUTE) AS DateTime64)
+                ) AS time_bucket,
+                avg(price) AS avg_price
+            FROM %(table_name)s
+            WHERE timestamp BETWEEN %(start_date)s AND %(end_date)s
+            GROUP BY time_bucket
+        ),
+        rolling_metrics AS (
+            SELECT
+                time_bucket,
+                stddevPop(avg_price) OVER (
+                    ORDER BY time_bucket
+                    ROWS BETWEEN 9 PRECEDING AND CURRENT ROW -- 10 one-minute points
+                ) AS rolling_stddev_price
+            FROM minute_prices
+        )
+    SELECT
+        time_bucket AS time,
+        rolling_stddev_price AS rolling_stddev
+    FROM rolling_metrics
+    ORDER BY time ASC
+    """
+
+    data = execute_query(query, parameters)
+    return getJSON(data)
+
 @app.route('/autocorrelation')
 def get_autocorrelation():
     parameters, error_response, status = validate_and_parse_args()
