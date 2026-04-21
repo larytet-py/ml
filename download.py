@@ -13,6 +13,15 @@ import logging
 # Setup the logging configuration
 logging.basicConfig(level=logging.ERROR, format='%(levelname)s - %(message)s')
 
+class ClickhouseClient():
+    def __init__(self, username: str = "default", password: str = "password"):
+        self.username, self.password = username, password
+    
+    def get_client(self, settings={}):
+        return get_client(settings=settings, username=self.username, password=self.password)
+
+CLICKHOUSE_CLIENT: ClickhouseClient = None
+
 def get_first_and_last_timestamp_with_pandas(csv_name):
     df = pd.read_csv(csv_name, usecols=[4])  # 'time' is in the 5th column (index 4)
     if df.empty:
@@ -22,7 +31,7 @@ def get_first_and_last_timestamp_with_pandas(csv_name):
     return first_timestamp, last_timestamp
 
 def check_and_insert_data(csv_name, table_name):
-    client = get_client(settings={'insert_deduplicate': '1'})
+    client = CLICKHOUSE_CLIENT.get_client(settings={'insert_deduplicate': '1'})
 
     column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag', 'timestamp']
     df = pd.read_csv(csv_name, header=None, names=column_names)
@@ -120,7 +129,7 @@ def create_table_trades(table_name):
     SETTINGS index_granularity = 8192;
     """
 
-    client = get_client()
+    client = CLICKHOUSE_CLIENT.get_client()
     result = client.query(check_table_exists_query)
     count_result = result.result_rows[0][0] if result.result_rows else 0
     if count_result > 0:
@@ -134,7 +143,7 @@ def create_table_trades(table_name):
 def optimize(table_name):
     logging.info(f"Optimize '{table_name}'.")
     create_table_query = f"""OPTIMIZE {table_name} FINAL"""
-    client = get_client()
+    client = CLICKHOUSE_CLIENT.get_client()
     client.query(create_table_query)
     client.close()
 
@@ -182,6 +191,8 @@ if __name__ == "__main__":
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
     parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
     parser.add_argument('--disable-download', action='store_true', help='Disable the download functionality.')
+    parser.add_argument('--clickhouse-username', type=str, default='default', help='Set Clickhouse user')
+    parser.add_argument('--clickhouse-password', type=str, default='password', help='Set Clickhouse password')
     parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default='INFO', help='Set the logging level')
     
     args = parser.parse_args()
@@ -191,6 +202,7 @@ if __name__ == "__main__":
     if not os.path.exists("./data/"):
         os.makedirs("./data/")
 
+    CLICKHOUSE_CLIENT = ClickhouseClient(username=args.clickhouse_username, password=args.clickhouse_password)
     table_name = f"trades_{args.symbol}"
     create_table_trades(table_name)
     if not args.disable_download:

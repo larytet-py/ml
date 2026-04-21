@@ -4,16 +4,18 @@
 docker run -d \
   --name ml-clickhouse-server \
   --ulimit nofile=262144:262144 \
+  -e CLICKHOUSE_USER=default \
+  -e CLICKHOUSE_PASSWORD=password \
+  -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
   -p 8123:8123 \
   -p 9000:9000 \
-  -v $PWD/clickhouse:/var/lib/clickhouse \
+  -v "$PWD/clickhouse:/var/lib/clickhouse" \
   clickhouse/clickhouse-server
 
 docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 --send_timeout=600 --multiquery
 ```
 
 
-Run the WEB server http://127.0.0.1:8080
 
 ## Python Virtual Environment and Server
 
@@ -24,6 +26,7 @@ pip install -r requirements.txt
 python3 web/web.py --debug_level=DEBUG
 ```
 
+Run the WEB server http://127.0.0.1:8080
 
 # Logs
 
