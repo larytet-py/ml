@@ -2,7 +2,7 @@
 """
 Usage:
 
-python3 option_signal_notifier.py \   
+python3 option_signal_notifier.py \
   --symbol SPY \
   --side call \
   --roc-lookback 20 \
