@@ -19,13 +19,12 @@ python3 option_signal_notifier.py \
   --downside-vol-threshold 0.094507
 """
 import argparse
-import io
 import math
+import os
 from typing import List, Optional
 
 import pandas as pd
 import requests
-from pandas.errors import ParserError
 
 from option_pricing import black_scholes_call_price, black_scholes_put_price
 
@@ -78,63 +77,74 @@ def load_symbol_data_from_csv(csv_path: str, symbol: str, start_date: Optional[s
     return df
 
 
-def _fetch_stooq_daily(symbol: str) -> pd.DataFrame:
-    def _extract_csv_payload(text: str) -> Optional[str]:
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        for idx, line in enumerate(lines):
-            header = line.lower().replace(" ", "")
-            if header.startswith("date,") and "close" in header:
-                return "\n".join(lines[idx:])
-        return None
+def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
+    api_key = os.getenv("MARKET_STACK_API_KEY")
+    if not api_key:
+        raise RuntimeError("Missing MARKET_STACK_API_KEY environment variable.")
 
-    symbol_lower = symbol.lower()
-    candidates = [f"{symbol_lower}.us", symbol_lower]
-    last_error = None
-    for candidate in candidates:
-        url = f"https://stooq.com/q/d/l/?s={candidate}&i=d"
+    base_url = "http://api.marketstack.com/v1/eod"
+    limit = 1000
+    offset = 0
+    rows = []
+
+    while True:
+        params = {
+            "access_key": api_key,
+            "symbols": symbol.upper(),
+            "limit": limit,
+            "offset": offset,
+            "sort": "ASC",
+        }
+        if start_date:
+            params["date_from"] = start_date
+        if end_date:
+            params["date_to"] = end_date
+
         try:
-            response = requests.get(url, timeout=20)
+            response = requests.get(base_url, params=params, timeout=20)
             response.raise_for_status()
-            text = response.text.strip()
-            if not text or "No data" in text:
-                continue
-            csv_payload = _extract_csv_payload(text)
-            if not csv_payload:
-                continue
-            try:
-                df = pd.read_csv(io.StringIO(csv_payload))
-            except ParserError as exc:
-                last_error = exc
-                continue
-            if df.empty or "Close" not in df.columns:
-                continue
-            df = df.rename(
-                columns={
-                    "Date": "date",
-                    "Open": "open",
-                    "High": "high",
-                    "Low": "low",
-                    "Close": "close",
-                    "Volume": "volume",
-                }
-            )
-            df["date"] = pd.to_datetime(df["date"])
-            for col in ["open", "close", "high", "low", "volume"]:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-            df = df.sort_values("date").reset_index(drop=True)
-            return df
         except requests.RequestException as exc:
-            last_error = exc
-            continue
-    if last_error is not None:
-        raise RuntimeError(f"Failed to download daily data for {symbol}: {last_error}")
-    raise RuntimeError(f"No data returned for symbol {symbol} from stooq.")
+            raise RuntimeError(f"Failed to download daily data for {symbol} from marketstack: {exc}") from exc
+
+        payload = response.json()
+        if "error" in payload:
+            message = payload["error"].get("message", "Unknown marketstack error")
+            raise RuntimeError(f"marketstack API error for {symbol}: {message}")
+
+        batch = payload.get("data", [])
+        if not batch:
+            break
+        rows.extend(batch)
+
+        pagination = payload.get("pagination", {})
+        count = int(pagination.get("count", len(batch)))
+        total = int(pagination.get("total", len(rows)))
+        if count == 0 or offset + count >= total:
+            break
+        offset += count
+
+    if not rows:
+        raise RuntimeError(f"No data returned for symbol {symbol} from marketstack.")
+
+    df = pd.DataFrame(rows)
+    for col in ["open", "close", "high", "low", "volume"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    if "date" not in df.columns:
+        raise RuntimeError(f"marketstack response for {symbol} did not include 'date'.")
+    if "close" not in df.columns:
+        raise RuntimeError(f"marketstack response for {symbol} did not include 'close'.")
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.tz_localize(None)
+    df = df.dropna(subset=["date", "close"])
+    df = df.sort_values("date").reset_index(drop=True)
+    return df
 
 
 def load_symbol_data(symbol: str, start_date: Optional[str], end_date: Optional[str], csv_path: Optional[str]) -> pd.DataFrame:
     if csv_path:
         return load_symbol_data_from_csv(csv_path, symbol, start_date, end_date)
-    df = _fetch_stooq_daily(symbol)
+    df = _fetch_marketstack_daily(symbol, start_date, end_date)
     if start_date:
         df = df[df["date"] >= pd.to_datetime(start_date)]
     if end_date:
@@ -166,7 +176,11 @@ def main() -> None:
     )
     parser.add_argument("--symbol", required=True, help="Ticker symbol, e.g. SPY")
     parser.add_argument("--side", choices=["put", "call", "both"], default="both", help="Which side(s) to evaluate.")
-    parser.add_argument("--csv", default=None, help="Optional local CSV path; if omitted script downloads daily bars from stooq.")
+    parser.add_argument(
+        "--csv",
+        default=None,
+        help="Optional local CSV path; if omitted script downloads daily bars from marketstack (env: MARKET_STACK_API_KEY).",
+    )
     parser.add_argument("--start-date", default=None, help="Optional date filter, YYYY-MM-DD.")
     parser.add_argument("--end-date", default=None, help="Optional date filter, YYYY-MM-DD.")
     parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
