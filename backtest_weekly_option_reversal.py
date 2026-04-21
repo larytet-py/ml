@@ -1,4 +1,47 @@
 #!/usr/bin/env python3
+"""
+Usage:
+
+python3 backtest_weekly_option_reversal.py \
+  --symbol SPY \
+  --side put \
+  --roc-lookback 5 \
+  --put-roc-threshold -0.025 \
+  --vol-window 10 \
+  --downside-vol-threshold 0.05 \
+  --optimize \
+  --opt-iters 50 \
+  --opt-restarts 16 \
+  --opt-min-trades 5 \
+  --roc-threshold-min -0.08 \
+  --roc-threshold-max -0.005 \
+  --vol-threshold-min 0.01 \
+  --vol-threshold-max 0.20 \
+  --roc-lookback-min 2 \
+  --roc-lookback-max 20 \
+  --vol-window-min 5 \
+  --vol-window-max 30
+
+python3 backtest_weekly_option_reversal.py \
+  --symbol SPY \
+  --side call \
+  --roc-lookback 5 \
+  --call-roc-threshold 0.025 \
+  --vol-window 10 \
+  --upside-vol-threshold 0.05 \
+  --optimize \
+  --opt-iters 50 \
+  --opt-restarts 16 \
+  --opt-min-trades 5 \
+  --roc-threshold-min 0.005 \
+  --roc-threshold-max 0.08 \
+  --vol-threshold-min 0.01 \
+  --vol-threshold-max 0.20 \
+  --roc-lookback-min 2 \
+  --roc-lookback-max 20 \
+  --vol-window-min 5 \
+  --vol-window-max 30
+"""
 import argparse
 import math
 import random
