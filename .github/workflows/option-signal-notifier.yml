@@ -2,7 +2,7 @@ name: Option Signal Notifier
 
 on:
   schedule:
-    # Weekdays at 22:15 UTC (adjust as needed).
+    # Weekdays at 08:15 UTC (adjust as needed).
     - cron: '15 22 * * 1-5'
   workflow_dispatch:
 
