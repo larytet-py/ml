@@ -39,23 +39,6 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 
 ```json
 {
-    "settings": {
-        "day_markers": {
-            "time_zone": "UTC",
-            "end_of_day": {
-                "enabled": true,
-                "utc_time": "21:00",
-                "color": "#90EE90",
-                "width": 3
-            },
-            "begin_of_day": {
-                "enabled": false,
-                "utc_time": "13:30",
-                "color": "#006400",
-                "width": 2
-            }
-        }
-    },
     "panels": [
         {
             "symbol": "BTC",

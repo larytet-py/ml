@@ -9,7 +9,7 @@
                 "width": 3
             },
             "begin_of_day": {
-                "enabled": false,
+                "enabled": true,
                 "utc_time": "13:30",
                 "color": "#006400",
                 "width": 2
