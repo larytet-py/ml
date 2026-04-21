@@ -1,4 +1,6 @@
 import argparse
+import json
+import os
 
 import pandas as pd
 import numpy as np
@@ -19,6 +21,61 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
+
+def list_panel_configurations():
+    static_dir = app.static_folder
+    config_files = []
+    for filename in sorted(os.listdir(static_dir)):
+        if not filename.startswith('panels.') or not filename.endswith('.json'):
+            continue
+        config_name = filename[len('panels.'):-len('.json')]
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,50}', config_name):
+            continue
+        config_files.append({'name': config_name, 'filename': filename})
+    return config_files
+
+def get_panel_configuration_filename(config_name):
+    if not config_name:
+        return None
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,50}', config_name):
+        return None
+    return f'panels.{config_name}.json'
+
+@app.route('/panel_configurations')
+def get_panel_configurations():
+    configs = list_panel_configurations()
+    default_name = configs[0]['name'] if configs else None
+    return jsonify({
+        'configurations': [config['name'] for config in configs],
+        'default': default_name
+    })
+
+@app.route('/panel_configuration')
+def get_panel_configuration():
+    configs = list_panel_configurations()
+    config_names = {config['name'] for config in configs}
+    if not config_names:
+        return jsonify({'error': 'No panel configuration files found'}), 404
+
+    requested_name = request.args.get('name', default=None, type=str)
+    config_name = requested_name or configs[0]['name']
+    if config_name not in config_names:
+        return jsonify({'error': f'Unknown panel configuration: {config_name}'}), 404
+
+    filename = get_panel_configuration_filename(config_name)
+    if filename is None:
+        return jsonify({'error': 'Invalid panel configuration name'}), 400
+
+    full_path = os.path.join(app.static_folder, filename)
+    try:
+        with open(full_path, 'r', encoding='utf-8') as file:
+            panel_config = json.load(file)
+    except FileNotFoundError:
+        return jsonify({'error': 'Panel configuration file not found'}), 404
+    except json.JSONDecodeError:
+        return jsonify({'error': 'Panel configuration file is not valid JSON'}), 500
+
+    return jsonify(panel_config)
 
 def get_client():
     return clickhouse_client_module.CLICKHOUSE_CLIENT.get_client()

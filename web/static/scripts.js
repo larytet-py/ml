@@ -26,8 +26,13 @@ $(function() {
     $('#interval').val(intervalVal);
     $('#duration').val(durationVal);
 
-    // Calls a function to load configuration and data when the page is ready.
-    loadConfigAndData();
+    initializeConfigurationSelector()
+        .then(function() {
+            loadConfigAndData();
+        })
+        .catch(function(error) {
+            console.error('Error loading available configurations:', error);
+        });
 
     // Save settings to cookies when they change
     $('#startTimePicker').on('apply.daterangepicker', function(ev, picker) {
@@ -39,11 +44,48 @@ $(function() {
     $('#duration').on('change', function() {
         Cookies.set('duration', $(this).val());
     });
+    $('#configSelector').on('change', function() {
+        Cookies.set('panelConfiguration', $(this).val());
+        loadConfigAndData();
+    });
 
     $('#loadButton').on('click', function() {
         loadConfigAndData();
     });
 });
+
+function initializeConfigurationSelector() {
+    return fetch('/panel_configurations')
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Failed to fetch panel configurations');
+            }
+            return response.json();
+        })
+        .then(function(payload) {
+            var configurations = payload.configurations || [];
+            var selector = $('#configSelector');
+            selector.empty();
+
+            configurations.forEach(function(configurationName) {
+                selector.append(
+                    $('<option>').val(configurationName).text(configurationName)
+                );
+            });
+
+            if (configurations.length === 0) {
+                throw new Error('No panel configurations were returned by the server');
+            }
+
+            var savedConfiguration = Cookies.get('panelConfiguration');
+            var selectedConfiguration = savedConfiguration && configurations.includes(savedConfiguration)
+                ? savedConfiguration
+                : (payload.default || configurations[0]);
+
+            selector.val(selectedConfiguration);
+            Cookies.set('panelConfiguration', selectedConfiguration);
+        });
+}
 
 function intervalToSeconds(interval) {
     switch (interval) {
@@ -124,9 +166,20 @@ function addResizerHandle(containerId) {
 
 
 function loadConfigAndData() {
-    // Fetch API is used to make an HTTP request to retrieve 'panels.json'.
-    fetch('static/panels.json')
-        .then(response => response.json())
+    var selectedConfiguration = $('#configSelector').val();
+    if (!selectedConfiguration) {
+        console.error('No panel configuration selected');
+        return;
+    }
+
+    clearCharts();
+    fetch('/panel_configuration?name=' + encodeURIComponent(selectedConfiguration))
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Failed to fetch panel configuration: ' + selectedConfiguration);
+            }
+            return response.json();
+        })
         .then(panels => {
             panels.forEach(panel => {
                 var containerId = 'container_' + panel.title.replace(/[^a-zA-Z0-9]/g, '_');
