@@ -8,12 +8,10 @@ from datetime import datetime, timedelta
 import csv
 from concurrent.futures import ProcessPoolExecutor
 import logging
-from web.clickhouse_client import ClickhouseClient
+import web.clickhouse_client as clickhouse_client_module
 
 # Setup the logging configuration
 logging.basicConfig(level=logging.ERROR, format='%(levelname)s - %(message)s')
-
-CLICKHOUSE_CLIENT: ClickhouseClient = None
 
 def get_first_and_last_timestamp_with_pandas(csv_name):
     df = pd.read_csv(csv_name, usecols=[4])  # 'time' is in the 5th column (index 4)
@@ -24,7 +22,7 @@ def get_first_and_last_timestamp_with_pandas(csv_name):
     return first_timestamp, last_timestamp
 
 def check_and_insert_data(csv_name, table_name):
-    client = CLICKHOUSE_CLIENT.get_client(settings={'insert_deduplicate': '1'})
+    client = clickhouse_client_module.CLICKHOUSE_CLIENT.get_client(settings={'insert_deduplicate': '1'})
 
     column_names = ['id', 'price', 'qty', 'base_qty', 'time', 'is_buyer_maker', 'unknown_flag', 'timestamp']
     df = pd.read_csv(csv_name, header=None, names=column_names)
@@ -122,7 +120,7 @@ def create_table_trades(table_name):
     SETTINGS index_granularity = 8192;
     """
 
-    client = CLICKHOUSE_CLIENT.get_client()
+    client = clickhouse_client_module.CLICKHOUSE_CLIENT.get_client()
     result = client.query(check_table_exists_query)
     count_result = result.result_rows[0][0] if result.result_rows else 0
     if count_result > 0:
@@ -136,7 +134,7 @@ def create_table_trades(table_name):
 def optimize(table_name):
     logging.info(f"Optimize '{table_name}'.")
     create_table_query = f"""OPTIMIZE {table_name} FINAL"""
-    client = CLICKHOUSE_CLIENT.get_client()
+    client = clickhouse_client_module.CLICKHOUSE_CLIENT.get_client()
     client.query(create_table_query)
     client.close()
 
@@ -195,7 +193,10 @@ if __name__ == "__main__":
     if not os.path.exists("./data/"):
         os.makedirs("./data/")
 
-    CLICKHOUSE_CLIENT = ClickhouseClient(username=args.clickhouse_username, password=args.clickhouse_password)
+    clickhouse_client_module.CLICKHOUSE_CLIENT = clickhouse_client_module.ClickhouseClient(
+        username=args.clickhouse_username,
+        password=args.clickhouse_password,
+    )
     table_name = f"trades_{args.symbol}"
     create_table_trades(table_name)
     if not args.disable_download:

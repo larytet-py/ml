@@ -6,9 +6,7 @@ import numpy as np
 from flask import Flask, request, jsonify, send_from_directory
 import dateutil
 import logging
-from clickhouse_client import ClickhouseClient
-
-CLICKHOUSE_CLIENT: ClickhouseClient = None
+import web.clickhouse_client as clickhouse_client_module
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,7 +20,7 @@ def index():
     return send_from_directory(app.static_folder, 'index.html')
 
 def get_client():
-    return CLICKHOUSE_CLIENT.get_client()
+    return clickhouse_client_module.CLICKHOUSE_CLIENT.get_client()
 
 def validate_and_parse_args():
     symbol = request.args.get('symbol', default='BTC', type=str)
@@ -354,7 +352,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    CLICKHOUSE_CLIENT = ClickhouseClient(username=args.clickhouse_username, password=args.clickhouse_password)
+    clickhouse_client_module.CLICKHOUSE_CLIENT = clickhouse_client_module.ClickhouseClient(
+        username=args.clickhouse_username,
+        password=args.clickhouse_password,
+    )
 
     numeric_level = getattr(logging, args.debug_level.upper(), None)
     if not isinstance(numeric_level, int):
