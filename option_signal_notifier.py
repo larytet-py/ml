@@ -42,7 +42,6 @@ from option_pricing import black_scholes_call_price, black_scholes_put_price
 
 TRADING_DAYS_PER_YEAR = 252
 DEFAULT_CACHE_CSV = "data/etfs.csv"
-CACHE_RECENT_DAYS = 3
 
 
 @dataclass
@@ -171,10 +170,11 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
 
 
 def _is_recent_enough(latest_date: pd.Timestamp) -> bool:
-    # A 3-day tolerance avoids unnecessary API calls across weekends/holidays.
+    # Require cache to include the latest completed business day.
+    # In practice this means only "today" can be missing.
     today = pd.Timestamp.today().normalize()
-    age_days = int((today - latest_date.normalize()).days)
-    return age_days <= CACHE_RECENT_DAYS
+    latest_expected_trading_day = (today - pd.offsets.BDay(1)).normalize()
+    return latest_date.normalize() >= latest_expected_trading_day
 
 
 def _persist_symbol_rows(cache_csv_path: str, symbol: str, fresh_rows: pd.DataFrame) -> None:
@@ -245,10 +245,20 @@ def _load_or_refresh_cached_data(
     try:
         fresh = _fetch_marketstack_daily(symbol, start_date=missing_from, end_date=target_to)
     except RuntimeError as exc:
-        print(f"Cache refresh failed ({exc}); using existing cached data.")
+        if "No data returned for symbol" in str(exc):
+            print(
+                f"Warning: cache refresh returned no rows for {symbol.upper()} in range "
+                f"{missing_from}..{target_to}; using existing cached data."
+            )
+        else:
+            print(f"Cache refresh failed ({exc}); using existing cached data.")
         return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
 
     if fresh.empty:
+        print(
+            f"Warning: cache refresh returned empty dataframe for {symbol.upper()} in range "
+            f"{missing_from}..{target_to}; using existing cached data."
+        )
         return load_symbol_data_from_csv(cache_csv_path, symbol, start_date, end_date)
 
     combined = pd.concat([cached, fresh], ignore_index=True)
@@ -444,14 +454,16 @@ def _evaluate_config(
 
         fired = True
         premium_per_contract = premium * contract_size
-        messages.append(
+        signal_message = (
             f"ENTER {side.upper()} POSITION | {cfg.symbol} | next Friday in {days_to_expiry} days | "
-            f"estimated ATM premium={premium:.4f} per share"
+            f"estimated ATM premium={premium:.4f} per share, last close {spot:.2f}"
         )
+        messages.append(signal_message)
         fired_signals.append(
             {
                 "side": side,
                 "action": f"enter_{side}",
+                "message": signal_message,
                 "days_to_expiry": days_to_expiry,
                 "estimated_atm_premium_per_share": premium,
                 "estimated_atm_premium_per_contract": premium_per_contract,
