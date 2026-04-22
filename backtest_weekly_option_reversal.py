@@ -38,9 +38,11 @@ python3 backtest_weekly_option_reversal.py \
 """
 import argparse
 import math
+import os
 import random
 import shlex
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -50,6 +52,11 @@ from option_pricing import black_scholes_call_price, black_scholes_put_price
 
 TRADING_DAYS_PER_YEAR = 252
 PRICING_VOL_WINDOW_DAYS = 21
+
+
+def _default_worker_count() -> int:
+    cpu_total = os.cpu_count() or 1
+    return max(1, cpu_total // 2)
 
 
 def _shell_join(parts: List[str]) -> str:
@@ -385,23 +392,16 @@ def _build_params_from_vector(
     return params
 
 
-def optimize_parameters(
+def _optimize_single_start(
     df: pd.DataFrame,
     side: str,
-    symbol: str,
-    script_path: str,
-    csv_path: str,
-    start_date: Optional[str],
-    end_date: Optional[str],
-    initial_vector: List[float],
+    start: List[float],
     bounds: List[Tuple[float, float]],
     iterations: int,
-    restarts: int,
     learning_rate: float,
     finite_diff_eps: float,
     min_trades: int,
     trade_penalty: float,
-    seed: int,
     risk_free_rate: float,
     min_pricing_vol_annualized: float,
     contract_size: int,
@@ -410,13 +410,8 @@ def optimize_parameters(
     fixed_call_roc_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
-    progress_interval_seconds: float,
-) -> OptimizationResult:
-    if any(lo >= hi for lo, hi in bounds):
-        raise ValueError("Invalid optimization bounds: each min value must be less than max.")
-
-    rng = random.Random(seed)
-    vector_len = len(initial_vector)
+) -> Tuple[OptimizationResult, int]:
+    vector_len = len(start)
     int_dims = {0, 2}
 
     def project(x: List[float]) -> List[float]:
@@ -451,8 +446,6 @@ def optimize_parameters(
         total_trades = int(metrics["total"])
         shortfall = max(0, min_trades - total_trades)
         if shortfall > 0:
-            # Hard feasibility gate: do not let sparse, high-PnL outliers win optimization.
-            # Keep a tiny tie-breaker so if no feasible point exists we still prefer more trades.
             infeasible_score = (
                 -1_000_000.0
                 - trade_penalty * float(shortfall)
@@ -486,6 +479,85 @@ def optimize_parameters(
             grad.append((s_hi - s_lo) / (x_hi[j] - x_lo[j]))
         return grad
 
+    x = project(start.copy())
+    score, trades_df, metrics, params = evaluate(x)
+    eval_count = 1
+
+    for _ in range(iterations):
+        grad = finite_difference_gradient(x)
+        norm = math.sqrt(sum(g * g for g in grad))
+        if norm <= 1e-12:
+            break
+
+        alpha = learning_rate
+        accepted = False
+        while alpha >= 1e-3:
+            candidate = []
+            for j in range(vector_len):
+                lo, hi = bounds[j]
+                span = hi - lo
+                delta = alpha * (grad[j] / norm) * span
+                candidate.append(_clip(x[j] + delta, lo, hi))
+
+            candidate_score, candidate_df, candidate_metrics, candidate_params = evaluate(candidate)
+            eval_count += 1
+            if candidate_score >= score:
+                x = candidate
+                score = candidate_score
+                trades_df = candidate_df
+                metrics = candidate_metrics
+                params = candidate_params
+                accepted = True
+                break
+            alpha *= 0.5
+
+        if not accepted:
+            break
+
+    return (
+        OptimizationResult(params=params, score=score, trades_df=trades_df, metrics=metrics),
+        eval_count,
+    )
+
+
+def optimize_parameters(
+    df: pd.DataFrame,
+    side: str,
+    symbol: str,
+    script_path: str,
+    csv_path: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    initial_vector: List[float],
+    bounds: List[Tuple[float, float]],
+    iterations: int,
+    restarts: int,
+    learning_rate: float,
+    finite_diff_eps: float,
+    min_trades: int,
+    trade_penalty: float,
+    seed: int,
+    risk_free_rate: float,
+    min_pricing_vol_annualized: float,
+    contract_size: int,
+    allow_overlap: bool,
+    fixed_put_roc_threshold: float,
+    fixed_call_roc_threshold: float,
+    fixed_downside_vol_threshold: float,
+    fixed_upside_vol_threshold: float,
+    progress_interval_seconds: float,
+    workers: int,
+) -> OptimizationResult:
+    if any(lo >= hi for lo, hi in bounds):
+        raise ValueError("Invalid optimization bounds: each min value must be less than max.")
+    if workers == 0:
+        workers = os.cpu_count() or 1
+    if workers < 0:
+        workers = max(1, (os.cpu_count() or 1) + workers + 1)
+    if workers < 1:
+        raise ValueError("--workers must be >= 1, or 0 to use all CPUs, or negative to reserve cores.")
+
+    rng = random.Random(seed)
     best_score = -1_000_000_000.0
     best_df = pd.DataFrame()
     best_metrics: Optional[Dict[str, float]] = None
@@ -494,7 +566,7 @@ def optimize_parameters(
     start_time = time.monotonic()
     last_report_time = start_time
 
-    starts: List[List[float]] = [project(initial_vector)]
+    starts: List[List[float]] = [[_clip(v, lo, hi) for v, (lo, hi) in zip(initial_vector, bounds)]]
     for _ in range(max(0, restarts - 1)):
         starts.append([rng.uniform(lo, hi) for lo, hi in bounds])
 
@@ -530,48 +602,80 @@ def optimize_parameters(
             )
         last_report_time = now
 
-    for start in starts:
-        x = start.copy()
-        score, trades_df, metrics, params = evaluate(x)
-        eval_count += 1
-        if score > best_score:
-            best_score, best_df, best_metrics, best_params = score, trades_df, metrics, params
-        maybe_report_progress()
-
-        for _ in range(iterations):
-            grad = finite_difference_gradient(x)
-            norm = math.sqrt(sum(g * g for g in grad))
-            if norm <= 1e-12:
-                break
-
-            alpha = learning_rate
-            accepted = False
-            while alpha >= 1e-3:
-                candidate = []
-                for j in range(vector_len):
-                    lo, hi = bounds[j]
-                    span = hi - lo
-                    delta = alpha * (grad[j] / norm) * span
-                    candidate.append(_clip(x[j] + delta, lo, hi))
-
-                candidate_score, candidate_df, candidate_metrics, candidate_params = evaluate(candidate)
-                eval_count += 1
-                if candidate_score >= score:
-                    x = candidate
-                    score = candidate_score
-                    trades_df = candidate_df
-                    metrics = candidate_metrics
-                    params = candidate_params
-                    accepted = True
-                    break
-                alpha *= 0.5
-
-            if not accepted:
-                break
-
-            if score > best_score:
-                best_score, best_df, best_metrics, best_params = score, trades_df, metrics, params
+    if workers == 1 or len(starts) == 1:
+        for start in starts:
+            restart_result, restart_evals = _optimize_single_start(
+                df=df,
+                side=side,
+                start=start,
+                bounds=bounds,
+                iterations=iterations,
+                learning_rate=learning_rate,
+                finite_diff_eps=finite_diff_eps,
+                min_trades=min_trades,
+                trade_penalty=trade_penalty,
+                risk_free_rate=risk_free_rate,
+                min_pricing_vol_annualized=min_pricing_vol_annualized,
+                contract_size=contract_size,
+                allow_overlap=allow_overlap,
+                fixed_put_roc_threshold=fixed_put_roc_threshold,
+                fixed_call_roc_threshold=fixed_call_roc_threshold,
+                fixed_downside_vol_threshold=fixed_downside_vol_threshold,
+                fixed_upside_vol_threshold=fixed_upside_vol_threshold,
+            )
+            eval_count += restart_evals
+            if restart_result.score > best_score:
+                best_score = restart_result.score
+                best_df = restart_result.trades_df
+                best_metrics = restart_result.metrics
+                best_params = restart_result.params
             maybe_report_progress()
+    else:
+        max_workers = min(workers, len(starts))
+        completed = 0
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    _optimize_single_start,
+                    df,
+                    side,
+                    start,
+                    bounds,
+                    iterations,
+                    learning_rate,
+                    finite_diff_eps,
+                    min_trades,
+                    trade_penalty,
+                    risk_free_rate,
+                    min_pricing_vol_annualized,
+                    contract_size,
+                    allow_overlap,
+                    fixed_put_roc_threshold,
+                    fixed_call_roc_threshold,
+                    fixed_downside_vol_threshold,
+                    fixed_upside_vol_threshold,
+                )
+                for start in starts
+            ]
+            for future in as_completed(futures):
+                restart_result, restart_evals = future.result()
+                completed += 1
+                eval_count += restart_evals
+                if restart_result.score > best_score:
+                    best_score = restart_result.score
+                    best_df = restart_result.trades_df
+                    best_metrics = restart_result.metrics
+                    best_params = restart_result.params
+                if progress_interval_seconds > 0:
+                    elapsed = time.monotonic() - start_time
+                    print(
+                        "[opt] "
+                        f"t+{elapsed:.1f}s "
+                        f"restarts={completed}/{len(starts)} "
+                        f"evals={eval_count} "
+                        f"workers={max_workers}",
+                        flush=True,
+                    )
 
     return OptimizationResult(params=best_params, score=best_score, trades_df=best_df, metrics=best_metrics)
 
@@ -629,7 +733,7 @@ def main() -> None:
     )
     parser.add_argument("--optimize", action="store_true", help="Run gradient-based optimization for strategy parameters.")
     parser.add_argument("--opt-iters", type=int, default=50, help="Iterations per optimization restart.")
-    parser.add_argument("--opt-restarts", type=int, default=20, help="Number of optimization restarts.")
+    parser.add_argument("--opt-restarts", type=int, default=50, help="Number of optimization restarts.")
     parser.add_argument("--opt-learning-rate", type=float, default=0.25, help="Projected gradient ascent step size.")
     parser.add_argument("--opt-fd-eps", type=float, default=0.03, help="Finite-difference relative step for continuous params.")
     parser.add_argument(
@@ -645,6 +749,12 @@ def main() -> None:
         help="Penalty points per missing trade below --opt-min-trades.",
     )
     parser.add_argument("--opt-seed", type=int, default=7, help="Random seed for optimizer restarts.")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=_default_worker_count(),
+        help="Optimization worker processes. Default: 50% of cores. 1 disables multiprocessing, 0 uses all cores, negative reserves cores.",
+    )
     parser.add_argument(
         "--opt-progress-seconds",
         type=float,
@@ -734,6 +844,7 @@ def main() -> None:
             fixed_downside_vol_threshold=args.downside_vol_threshold,
             fixed_upside_vol_threshold=args.upside_vol_threshold,
             progress_interval_seconds=args.opt_progress_seconds,
+            workers=args.workers,
         )
 
         trades_df = result.trades_df
