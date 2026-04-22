@@ -83,8 +83,6 @@ def _format_best_backtest_command(
         str(int(params["roc_lookback"])),
         "--vol-window",
         str(int(params["vol_window"])),
-        "--print-trades",
-        "-1",
     ]
     if side == "put":
         cmd.extend(
