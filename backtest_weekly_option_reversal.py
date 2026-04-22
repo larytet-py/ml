@@ -570,6 +570,28 @@ def optimize_parameters(
     for _ in range(max(0, restarts - 1)):
         starts.append([rng.uniform(lo, hi) for lo, hi in bounds])
 
+    def report_best_progress() -> None:
+        elapsed = time.monotonic() - start_time
+        best_cmd = _format_best_backtest_command(
+            script_path=script_path,
+            symbol=symbol,
+            side=side,
+            params=best_params,
+            csv_path=csv_path,
+            start_date=start_date,
+            end_date=end_date,
+            allow_overlap=allow_overlap,
+        )
+        print(
+            "[opt] "
+            f"t+{elapsed:.1f}s "
+            f"evals={eval_count} "
+            f"best_avg_pnl={best_metrics['avg_pnl']:.2f} "
+            f"trades={int(best_metrics['total'])} "
+            f"cmd={best_cmd}",
+            flush=True,
+        )
+
     def maybe_report_progress() -> None:
         nonlocal last_report_time
         if progress_interval_seconds <= 0:
@@ -581,25 +603,7 @@ def optimize_parameters(
         if best_metrics is None:
             print(f"[opt] t+{elapsed:.1f}s evals={eval_count} best_avg_pnl=n/a trades=0")
         else:
-            best_cmd = _format_best_backtest_command(
-                script_path=script_path,
-                symbol=symbol,
-                side=side,
-                params=best_params,
-                csv_path=csv_path,
-                start_date=start_date,
-                end_date=end_date,
-                allow_overlap=allow_overlap,
-            )
-            print(
-                "[opt] "
-                f"t+{elapsed:.1f}s "
-                f"evals={eval_count} "
-                f"best_avg_pnl={best_metrics['avg_pnl']:.2f} "
-                f"trades={int(best_metrics['total'])} "
-                f"cmd={best_cmd}",
-                flush=True,
-            )
+            report_best_progress()
         last_report_time = now
 
     if workers == 1 or len(starts) == 1:
@@ -629,6 +633,7 @@ def optimize_parameters(
                 best_df = restart_result.trades_df
                 best_metrics = restart_result.metrics
                 best_params = restart_result.params
+                report_best_progress()
             maybe_report_progress()
     else:
         max_workers = min(workers, len(starts))
@@ -666,6 +671,7 @@ def optimize_parameters(
                     best_df = restart_result.trades_df
                     best_metrics = restart_result.metrics
                     best_params = restart_result.params
+                    report_best_progress()
                 if progress_interval_seconds > 0:
                     elapsed = time.monotonic() - start_time
                     print(
