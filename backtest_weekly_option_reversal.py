@@ -49,6 +49,7 @@ import pandas as pd
 from option_pricing import black_scholes_call_price, black_scholes_put_price
 
 TRADING_DAYS_PER_YEAR = 252
+PRICING_VOL_WINDOW_DAYS = 21
 
 
 def _shell_join(parts: List[str]) -> str:
@@ -195,7 +196,10 @@ def run_backtest(
     df["upside_vol_annualized"] = (
         returns.rolling(vol_window).apply(upside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
     )
-    df["pricing_vol_annualized"] = returns.rolling(vol_window).std(ddof=0) * math.sqrt(TRADING_DAYS_PER_YEAR)
+    # Keep Black-Scholes sigma on a fixed 21-trading-day realized-vol estimate.
+    df["pricing_vol_annualized"] = (
+        returns.rolling(PRICING_VOL_WINDOW_DAYS).std(ddof=0) * math.sqrt(TRADING_DAYS_PER_YEAR)
+    )
 
     trades = []
     next_entry_idx = 0
@@ -589,7 +593,12 @@ def main() -> None:
     parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
     parser.add_argument("--put-roc-threshold", type=float, default=-0.25, help="Put trigger: ROC <= threshold.")
     parser.add_argument("--call-roc-threshold", type=float, default=0.25, help="Call trigger: ROC >= threshold.")
-    parser.add_argument("--vol-window", type=int, default=10, help="Rolling window for downside stddev.")
+    parser.add_argument(
+        "--vol-window",
+        type=int,
+        default=10,
+        help="Rolling window for trigger volatility (downside/upside), not Black-Scholes pricing vol.",
+    )
     parser.add_argument(
         "--downside-vol-threshold",
         type=float,
@@ -643,7 +652,7 @@ def main() -> None:
         help="How often to print optimization progress. Set <=0 to disable.",
     )
     parser.add_argument("--roc-lookback-min", type=int, default=2, help="Lower bound for roc-lookback in optimization.")
-    parser.add_argument("--roc-lookback-max", type=int, default=20, help="Upper bound for roc-lookback in optimization.")
+    parser.add_argument("--roc-lookback-max", type=int, default=40, help="Upper bound for roc-lookback in optimization.")
     parser.add_argument("--vol-window-min", type=int, default=5, help="Lower bound for vol-window in optimization.")
     parser.add_argument("--vol-window-max", type=int, default=40, help="Upper bound for vol-window in optimization.")
     parser.add_argument(
