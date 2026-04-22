@@ -757,7 +757,7 @@ def main() -> None:
         help="How often to print optimization progress. Set <=0 to disable.",
     )
     parser.add_argument("--roc-lookback-min", type=int, default=2, help="Lower bound for roc-lookback in optimization.")
-    parser.add_argument("--roc-lookback-max", type=int, default=40, help="Upper bound for roc-lookback in optimization.")
+    parser.add_argument("--roc-lookback-max", type=int, default=60, help="Upper bound for roc-lookback in optimization.")
     parser.add_argument("--vol-window-min", type=int, default=5, help="Lower bound for vol-window in optimization.")
     parser.add_argument("--vol-window-max", type=int, default=40, help="Upper bound for vol-window in optimization.")
     parser.add_argument(
