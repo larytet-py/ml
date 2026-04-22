@@ -28,13 +28,6 @@ python3 backtest_weekly_option_reversal.py \
   --optimize \
   --opt-iters 50 \
   --opt-min-trades 5
-
-python3 backtest_weekly_option_reversal.py \
-  --symbol SPY \
-  --side call \
-  --optimize \
-  --opt-iters 50 \
-  --opt-min-trades 5
 """
 import argparse
 import math
