@@ -25,42 +25,16 @@ ORDER BY api_security.symbol, api_securitydailydata.date;
 python3 backtest_weekly_option_reversal.py \
   --symbol SPY \
   --side put \
-  --roc-lookback 5 \
-  --put-roc-threshold -0.025 \
-  --vol-window 10 \
-  --downside-vol-threshold 0.05 \
   --optimize \
   --opt-iters 50 \
-  --opt-restarts 16 \
-  --opt-min-trades 5 \
-  --roc-threshold-min -0.08 \
-  --roc-threshold-max -0.005 \
-  --vol-threshold-min 0.01 \
-  --vol-threshold-max 0.20 \
-  --roc-lookback-min 2 \
-  --roc-lookback-max 20 \
-  --vol-window-min 5 \
-  --vol-window-max 30
+  --opt-min-trades 5
 
 python3 backtest_weekly_option_reversal.py \
   --symbol SPY \
   --side call \
-  --roc-lookback 5 \
-  --call-roc-threshold 0.025 \
-  --vol-window 10 \
-  --upside-vol-threshold 0.05 \
   --optimize \
   --opt-iters 50 \
-  --opt-restarts 16 \
-  --opt-min-trades 5 \
-  --roc-threshold-min 0.005 \
-  --roc-threshold-max 0.08 \
-  --vol-threshold-min 0.01 \
-  --vol-threshold-max 0.20 \
-  --roc-lookback-min 2 \
-  --roc-lookback-max 20 \
-  --vol-window-min 5 \
-  --vol-window-max 30
+  --opt-min-trades 5
 """
 import argparse
 import math
@@ -613,19 +587,19 @@ def main() -> None:
     parser.add_argument("--start-date", default=None, help="Optional filter, YYYY-MM-DD.")
     parser.add_argument("--end-date", default=None, help="Optional filter, YYYY-MM-DD.")
     parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
-    parser.add_argument("--put-roc-threshold", type=float, default=-0.03, help="Put trigger: ROC <= threshold.")
-    parser.add_argument("--call-roc-threshold", type=float, default=0.03, help="Call trigger: ROC >= threshold.")
-    parser.add_argument("--vol-window", type=int, default=20, help="Rolling window for downside stddev.")
+    parser.add_argument("--put-roc-threshold", type=float, default=-0.25, help="Put trigger: ROC <= threshold.")
+    parser.add_argument("--call-roc-threshold", type=float, default=0.25, help="Call trigger: ROC >= threshold.")
+    parser.add_argument("--vol-window", type=int, default=10, help="Rolling window for downside stddev.")
     parser.add_argument(
         "--downside-vol-threshold",
         type=float,
-        default=0.20,
+        default=0.05,
         help="Annualized downside vol threshold for put signal.",
     )
     parser.add_argument(
         "--upside-vol-threshold",
         type=float,
-        default=0.20,
+        default=0.05,
         help="Annualized upside vol threshold for call signal.",
     )
     parser.add_argument("--risk-free-rate", type=float, default=0.04, help="Risk-free rate for Black-Scholes.")
@@ -645,8 +619,8 @@ def main() -> None:
         help="How many recent trades to print. Use -1 to print all trades.",
     )
     parser.add_argument("--optimize", action="store_true", help="Run gradient-based optimization for strategy parameters.")
-    parser.add_argument("--opt-iters", type=int, default=40, help="Iterations per optimization restart.")
-    parser.add_argument("--opt-restarts", type=int, default=12, help="Number of optimization restarts.")
+    parser.add_argument("--opt-iters", type=int, default=50, help="Iterations per optimization restart.")
+    parser.add_argument("--opt-restarts", type=int, default=20, help="Number of optimization restarts.")
     parser.add_argument("--opt-learning-rate", type=float, default=0.25, help="Projected gradient ascent step size.")
     parser.add_argument("--opt-fd-eps", type=float, default=0.03, help="Finite-difference relative step for continuous params.")
     parser.add_argument(
