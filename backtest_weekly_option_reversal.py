@@ -25,9 +25,7 @@ ORDER BY api_security.symbol, api_securitydailydata.date;
 python3 backtest_weekly_option_reversal.py \
   --symbol SPY \
   --side put \
-  --optimize \
-  --opt-iters 50 \
-  --opt-min-trades 5
+  --optimize
 """
 import argparse
 import math
@@ -736,7 +734,7 @@ def main() -> None:
     parser.add_argument(
         "--opt-min-trades",
         type=int,
-        default=5,
+        default=6,
         help="Minimum trades target used in objective penalty.",
     )
     parser.add_argument(
