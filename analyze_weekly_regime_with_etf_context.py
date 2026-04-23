@@ -319,10 +319,10 @@ def add_neighbor_features(
             neighbor_vals = metric_arr[neighbor_idxs, :]
             nbr_count[i] = len(neighbor_idxs)
             # Compute per-metric stats only from finite values to avoid
-            # RuntimeWarning on empty/all-NaN slices.
+            # RuntimeWarning on empty/all-NaN/all-inf slices.
             for j in range(n_metrics):
                 col_vals = neighbor_vals[:, j]
-                finite_vals = col_vals[~np.isnan(col_vals)]
+                finite_vals = col_vals[np.isfinite(col_vals)]
                 if finite_vals.size == 0:
                     continue
                 nbr_mean[i, j] = float(finite_vals.mean())
