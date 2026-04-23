@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import time
 from datetime import datetime, timezone
 from multiprocessing import get_context
 from pathlib import Path
@@ -69,6 +70,12 @@ def parse_args() -> argparse.Namespace:
         default=25,
         help="How many left-side symbols each worker task processes",
     )
+    parser.add_argument(
+        "--last-months",
+        type=int,
+        default=2,
+        help="Only use rows from the last N months (based on latest date in input)",
+    )
     return parser.parse_args()
 
 
@@ -98,6 +105,14 @@ def build_jobs(symbol_count: int, chunk_size: int) -> list[tuple[int, int]]:
     return jobs
 
 
+def pair_count_for_job(symbol_count: int, start: int, end: int) -> int:
+    # Sum of (symbol_count - i - 1) for i in [start, end).
+    first = symbol_count - start - 1
+    last = symbol_count - end
+    length = end - start
+    return (length * (first + last)) // 2
+
+
 def corr_from_overlap(x: np.ndarray, y: np.ndarray, min_overlap: int) -> tuple[float, int]:
     mask = np.isfinite(x) & np.isfinite(y)
     overlap = int(mask.sum())
@@ -115,8 +130,10 @@ def corr_from_overlap(x: np.ndarray, y: np.ndarray, min_overlap: int) -> tuple[f
     return corr, overlap
 
 
-def worker_pairwise(args: tuple[np.ndarray, list[str], int, int, int]) -> list[tuple[str, str, float, int]]:
-    values, symbols, start_i, end_i, min_overlap = args
+def worker_pairwise(
+    args: tuple[np.ndarray, list[str], int, int, int, int]
+) -> tuple[list[tuple[str, str, float, int]], int]:
+    values, symbols, start_i, end_i, min_overlap, pair_count = args
     n_symbols = len(symbols)
     out: list[tuple[str, str, float, int]] = []
 
@@ -127,7 +144,7 @@ def worker_pairwise(args: tuple[np.ndarray, list[str], int, int, int]) -> list[t
             corr, overlap = corr_from_overlap(xi, values[:, j], min_overlap)
             out.append((si, symbols[j], corr, overlap))
 
-    return out
+    return out, pair_count
 
 
 def compute_pairwise(
@@ -143,13 +160,38 @@ def compute_pairwise(
     if not jobs:
         return pd.DataFrame(columns=["symbol_a", "symbol_b", "correlation", "overlap_days"])
 
-    packed_jobs = [(values, symbols, start, end, min_overlap) for start, end in jobs]
+    packed_jobs = [
+        (values, symbols, start, end, min_overlap, pair_count_for_job(len(symbols), start, end))
+        for start, end in jobs
+    ]
+    total_pairs = len(symbols) * (len(symbols) - 1) // 2
+    done_pairs = 0
+    last_log = time.monotonic()
+
+    def maybe_log_progress(force: bool = False) -> None:
+        nonlocal last_log
+        now = time.monotonic()
+        if force or (now - last_log >= 1.0):
+            pct = (100.0 * done_pairs / total_pairs) if total_pairs else 100.0
+            log_phase(f"Progress: {pct:6.2f}% ({done_pairs:,}/{total_pairs:,} pairs)")
+            last_log = now
 
     if workers == 1:
-        chunked_results = [worker_pairwise(job) for job in packed_jobs]
+        chunked_results = []
+        for job in packed_jobs:
+            chunk, pair_count = worker_pairwise(job)
+            chunked_results.append(chunk)
+            done_pairs += pair_count
+            maybe_log_progress()
     else:
         with get_context("spawn").Pool(processes=workers) as pool:
-            chunked_results = pool.map(worker_pairwise, packed_jobs)
+            chunked_results = []
+            for chunk, pair_count in pool.imap_unordered(worker_pairwise, packed_jobs):
+                chunked_results.append(chunk)
+                done_pairs += pair_count
+                maybe_log_progress()
+
+    maybe_log_progress(force=True)
 
     rows = [row for chunk in chunked_results for row in chunk]
     return pd.DataFrame(rows, columns=["symbol_a", "symbol_b", "correlation", "overlap_days"])
@@ -183,12 +225,21 @@ def main() -> None:
         raise ValueError("--chunk-size must be >= 1")
     if args.min_overlap < 2:
         raise ValueError("--min-overlap must be >= 2")
+    if args.last_months < 1:
+        raise ValueError("--last-months must be >= 1")
 
     log_phase(f"Loading input CSV: {args.input_csv}")
     pivot = load_and_pivot(args.input_csv, args.value_col)
+    max_date = pivot.index.max()
+    cutoff = max_date - pd.DateOffset(months=args.last_months)
+    pivot = pivot[pivot.index >= cutoff].copy()
+
     symbols = [str(s) for s in pivot.columns.tolist()]
     log_phase(
         f"Prepared pivot table with {len(pivot):,} dates and {len(symbols):,} symbols"
+    )
+    log_phase(
+        f"Date window: last {args.last_months} month(s), cutoff={cutoff.date()}, max_date={max_date.date()}"
     )
 
     log_phase(
