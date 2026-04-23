@@ -2,5 +2,6 @@ clickhouse/*
 data/*
 !data/
 !data/etfs.csv
+!data/etfs_correlation_pairs.03.csv
 __pycache__/*
-models/weekly_regime_model.joblib
+!models/weekly_regime_model.joblib
