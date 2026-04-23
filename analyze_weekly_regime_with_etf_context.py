@@ -118,7 +118,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--coefficients-output-json",
-        default=None,
+        default="models/weekly_regime_model.json",
         help=(
             "Optional path to save per-symbol/class/feature coefficients as JSON "
             "(human-readable)"
