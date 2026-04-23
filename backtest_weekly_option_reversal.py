@@ -724,8 +724,8 @@ def main() -> None:
         help="How many recent trades to print. Use -1 to print all trades.",
     )
     parser.add_argument("--optimize", action="store_true", help="Run gradient-based optimization for strategy parameters.")
-    parser.add_argument("--opt-iters", type=int, default=50, help="Iterations per optimization restart.")
-    parser.add_argument("--opt-restarts", type=int, default=50, help="Number of optimization restarts.")
+    parser.add_argument("--opt-iters", type=int, default=100, help="Iterations per optimization restart.")
+    parser.add_argument("--opt-restarts", type=int, default=200, help="Number of optimization restarts.")
     parser.add_argument("--opt-learning-rate", type=float, default=0.25, help="Projected gradient ascent step size.")
     parser.add_argument("--opt-fd-eps", type=float, default=0.03, help="Finite-difference relative step for continuous params.")
     parser.add_argument(
