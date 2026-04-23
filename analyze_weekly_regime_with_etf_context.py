@@ -424,24 +424,21 @@ def build_feature_table(
     ) as tmp_file:
         neighbors_csv = tmp_file.name
 
-    try:
-        add_neighbor_features(
-            base,
-            neighbor_map=neighbor_map,
-            metric_cols=metric_cols,
-            output_csv=neighbors_csv,
-        )
-        # Drop base before loading neighbor features back from CSV.
-        del base
-        gc.collect()
-        model_df = load_feature_subset_for_weekly(
-            feature_csv=neighbors_csv,
-            weekly=weekly,
-            keep_cols=keep_cols,
-        )
-    finally:
-        if os.path.exists(neighbors_csv):
-            os.remove(neighbors_csv)
+    add_neighbor_features(
+        base,
+        neighbor_map=neighbor_map,
+        metric_cols=metric_cols,
+        output_csv=neighbors_csv,
+    )
+    # Drop base before loading neighbor features back from CSV.
+    del base
+    gc.collect()
+    model_df = load_feature_subset_for_weekly(
+        feature_csv=neighbors_csv,
+        weekly=weekly,
+        keep_cols=keep_cols,
+    )
+    log_phase(f"Phase: retained neighbor temp CSV ({neighbors_csv})")
 
     merged = weekly.merge(
         model_df,
