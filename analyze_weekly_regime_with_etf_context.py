@@ -109,6 +109,22 @@ def parse_args() -> argparse.Namespace:
         help="Where to save training metadata JSON (human-readable)",
     )
     parser.add_argument(
+        "--coefficients-output-csv",
+        default=None,
+        help=(
+            "Optional path to save per-symbol/class/feature coefficients as CSV "
+            "(human-readable)"
+        ),
+    )
+    parser.add_argument(
+        "--coefficients-output-json",
+        default=None,
+        help=(
+            "Optional path to save per-symbol/class/feature coefficients as JSON "
+            "(human-readable)"
+        ),
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=default_workers(),
@@ -483,6 +499,47 @@ def evaluate_per_symbol_multinomial_models(
     }
 
 
+def extract_coefficients_long(
+    per_symbol_models: dict[str, dict],
+    feature_cols: list[str],
+) -> pd.DataFrame:
+    rows: list[dict] = []
+    for symbol, symbol_model in sorted(per_symbol_models.items()):
+        model_bundle = symbol_model["model"]
+        if model_bundle["type"] != "pipeline":
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "class_label": model_bundle["majority_label"],
+                    "feature": "__constant_prediction__",
+                    "coefficient": np.nan,
+                    "intercept": np.nan,
+                    "model_type": model_bundle["type"],
+                }
+            )
+            continue
+
+        clf = model_bundle["model"]
+        lr = clf.named_steps["model"]
+        classes = [str(c) for c in lr.classes_]
+
+        for class_idx, class_label in enumerate(classes):
+            intercept = float(lr.intercept_[class_idx])
+            for feat_idx, feat_name in enumerate(feature_cols):
+                rows.append(
+                    {
+                        "symbol": symbol,
+                        "class_label": class_label,
+                        "feature": feat_name,
+                        "coefficient": float(lr.coef_[class_idx, feat_idx]),
+                        "intercept": intercept,
+                        "model_type": model_bundle["type"],
+                    }
+                )
+
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -590,6 +647,24 @@ def main() -> None:
         "per_symbol_confusion_matrix_long": confusion_table.to_dict(orient="records"),
     }
     metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    coefficients_df = extract_coefficients_long(
+        per_symbol_models=eval_bundle["per_symbol_models"],
+        feature_cols=feature_cols,
+    )
+    if args.coefficients_output_csv:
+        coefficients_csv_path = Path(args.coefficients_output_csv)
+        coefficients_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        coefficients_df.to_csv(coefficients_csv_path, index=False)
+        print(f"Saved coefficients CSV: {coefficients_csv_path}")
+    if args.coefficients_output_json:
+        coefficients_json_path = Path(args.coefficients_output_json)
+        coefficients_json_path.parent.mkdir(parents=True, exist_ok=True)
+        coefficients_json_path.write_text(
+            json.dumps(coefficients_df.to_dict(orient="records"), indent=2),
+            encoding="utf-8",
+        )
+        print(f"Saved coefficients JSON: {coefficients_json_path}")
 
     print(f"Saved merged feature table: {output_path}")
     print(f"Saved model artifact: {model_output_path}")
