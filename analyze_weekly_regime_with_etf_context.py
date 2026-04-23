@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Model weekly ATM regime labels using ETF-level and same-price-neighborhood context.
+Model weekly ATM regime labels using ETF-level and correlation-neighborhood context.
 
 Target labels come from data/_weekly_atm_worthless_only.csv:
 - constraining_top
@@ -12,7 +12,7 @@ entry-open causality:
 - underlying ETF metrics: price, price momentum, volume, volume momentum,
   price ROC, volume ROC, price stddev, volume stddev
 - nearby ETF metrics: the same metrics averaged/std'd over neighboring ETFs
-  by same-day price rank (k neighbors above + k neighbors below)
+  selected by correlation pairs (corr > threshold or corr < -threshold)
 """
 
 from __future__ import annotations
@@ -65,7 +65,18 @@ def parse_args() -> argparse.Namespace:
         "--neighbors-k",
         type=int,
         default=5,
-        help="How many price-neighbors above and below to use per date",
+        help="Deprecated: kept for backward compatibility, not used by correlation-neighbor logic",
+    )
+    parser.add_argument(
+        "--correlation-pairs-csv",
+        default="data/etfs-all_correlation_pairs.csv",
+        help="Pairwise ETF correlation CSV (symbol_a,symbol_b,correlation)",
+    )
+    parser.add_argument(
+        "--correlation-threshold",
+        type=float,
+        default=0.3,
+        help="Neighbor rule: use ETFs where correlation > threshold or < -threshold",
     )
     parser.add_argument(
         "--momentum-lookback",
@@ -158,6 +169,36 @@ def load_weekly(path: str) -> pd.DataFrame:
     return df
 
 
+def load_correlation_neighbors(path: str, threshold: float) -> dict[str, set[str]]:
+    if threshold < 0:
+        raise ValueError("--correlation-threshold must be >= 0")
+
+    corr = pd.read_csv(path, usecols=["symbol_a", "symbol_b", "correlation"])
+    corr["symbol_a"] = corr["symbol_a"].astype(str)
+    corr["symbol_b"] = corr["symbol_b"].astype(str)
+    corr["correlation"] = pd.to_numeric(corr["correlation"], errors="coerce")
+    corr = corr.dropna(subset=["symbol_a", "symbol_b", "correlation"]).copy()
+
+    filtered = corr[corr["correlation"].abs() > threshold].copy()
+    if filtered.empty:
+        return {}
+
+    edges_ab = filtered[["symbol_a", "symbol_b"]].rename(
+        columns={"symbol_a": "symbol", "symbol_b": "neighbor_symbol"}
+    )
+    edges_ba = filtered[["symbol_b", "symbol_a"]].rename(
+        columns={"symbol_b": "symbol", "symbol_a": "neighbor_symbol"}
+    )
+    edges = pd.concat([edges_ab, edges_ba], ignore_index=True).drop_duplicates()
+    edges = edges[edges["symbol"] != edges["neighbor_symbol"]]
+
+    return (
+        edges.groupby("symbol", sort=False)["neighbor_symbol"]
+        .apply(lambda s: set(s.tolist()))
+        .to_dict()
+    )
+
+
 def add_underlying_features(
     ohlcv: pd.DataFrame,
     momentum_lookback: int,
@@ -219,39 +260,63 @@ def _add_underlying_features_for_symbol(
 
 def add_neighbor_features(
     df: pd.DataFrame,
-    neighbors_k: int,
+    neighbor_map: dict[str, set[str]],
     metric_cols: list[str],
 ) -> pd.DataFrame:
-    if neighbors_k < 1:
-        raise ValueError("--neighbors-k must be >= 1")
-
     log_phase("Phase: neighbor feature engineering started")
-    out = df.sort_values(["date", "price", "symbol"]).reset_index(drop=True).copy()
-    by_date = out.groupby("date", sort=False)
+    out = df.sort_values(["date", "symbol"]).reset_index(drop=True).copy()
+
+    if not neighbor_map:
+        for col in metric_cols:
+            out[f"nbr_{col}_mean"] = np.nan
+            out[f"nbr_{col}_std"] = np.nan
+            out[f"delta_{col}_vs_nbr_mean"] = np.nan
+        out["nbr_count"] = 0
+        log_phase("Phase: neighbor feature engineering completed (no correlation neighbors found)")
+        return out
+
+    edge_rows: list[tuple[str, str]] = []
+    for symbol, neighbors in neighbor_map.items():
+        for neighbor_symbol in neighbors:
+            edge_rows.append((symbol, neighbor_symbol))
+
+    edges = pd.DataFrame(edge_rows, columns=["symbol", "neighbor_symbol"]).drop_duplicates()
+    if edges.empty:
+        for col in metric_cols:
+            out[f"nbr_{col}_mean"] = np.nan
+            out[f"nbr_{col}_std"] = np.nan
+            out[f"delta_{col}_vs_nbr_mean"] = np.nan
+        out["nbr_count"] = 0
+        log_phase("Phase: neighbor feature engineering completed (no valid neighbor edges)")
+        return out
+
+    neighbors_daily = (
+        out[["symbol", "date"]]
+        .merge(edges, how="left", on="symbol")
+    )
+
+    neighbor_values = out[["symbol", "date"] + metric_cols].rename(
+        columns={"symbol": "neighbor_symbol"}
+    )
+    neighbor_values["__neighbor_row_exists"] = 1
+    neighbors_daily = neighbors_daily.merge(
+        neighbor_values,
+        how="left",
+        on=["neighbor_symbol", "date"],
+    )
+
+    out_idx = out.set_index(["symbol", "date"])
+    grp = neighbors_daily.groupby(["symbol", "date"], sort=False)
+    out_idx["nbr_count"] = grp["__neighbor_row_exists"].sum(min_count=1).fillna(0).astype("int32")
 
     for col in metric_cols:
-        sum_col = pd.Series(0.0, index=out.index)
-        sumsq_col = pd.Series(0.0, index=out.index)
-        cnt_col = pd.Series(0, index=out.index, dtype="int32")
+        means = grp[col].mean()
+        stds = grp[col].std(ddof=0)
+        out_idx[f"nbr_{col}_mean"] = means
+        out_idx[f"nbr_{col}_std"] = stds
+        out_idx[f"delta_{col}_vs_nbr_mean"] = out_idx[col] - means
 
-        for step in range(1, neighbors_k + 1):
-            for direction in (step, -step):
-                shifted = by_date[col].shift(direction)
-                valid = shifted.notna()
-                vals = shifted.fillna(0.0)
-                sum_col = sum_col + vals
-                sumsq_col = sumsq_col + vals * vals
-                cnt_col = cnt_col + valid.astype("int32")
-
-        cnt_safe = cnt_col.replace(0, np.nan)
-        mean_col = sum_col / cnt_safe
-        var_col = (sumsq_col / cnt_safe) - (mean_col * mean_col)
-
-        out[f"nbr_{col}_mean"] = mean_col
-        out[f"nbr_{col}_std"] = np.sqrt(var_col.clip(lower=0))
-        out[f"delta_{col}_vs_nbr_mean"] = out[col] - mean_col
-
-    out["nbr_count"] = cnt_col
+    out = out_idx.reset_index()
     log_phase("Phase: neighbor feature engineering completed")
     return out
 
@@ -259,7 +324,7 @@ def add_neighbor_features(
 def build_feature_table(
     ohlcv: pd.DataFrame,
     weekly: pd.DataFrame,
-    neighbors_k: int,
+    neighbor_map: dict[str, set[str]],
     momentum_lookback: int,
     roc_lookback: int,
     std_lookback: int,
@@ -287,7 +352,7 @@ def build_feature_table(
 
     with_neighbors = add_neighbor_features(
         base,
-        neighbors_k=neighbors_k,
+        neighbor_map=neighbor_map,
         metric_cols=metric_cols,
     )
 
@@ -614,11 +679,21 @@ def main() -> None:
     log_phase(f"Phase: load weekly labels started ({args.weekly_csv})")
     weekly = load_weekly(args.weekly_csv)
     log_phase(f"Phase: load weekly labels completed (rows={len(weekly)})")
+    log_phase(
+        f"Phase: load correlation pairs started ({args.correlation_pairs_csv}, threshold={args.correlation_threshold})"
+    )
+    neighbor_map = load_correlation_neighbors(
+        path=args.correlation_pairs_csv,
+        threshold=args.correlation_threshold,
+    )
+    log_phase(
+        f"Phase: load correlation pairs completed (symbols_with_neighbors={len(neighbor_map)})"
+    )
 
     merged = build_feature_table(
         ohlcv=ohlcv,
         weekly=weekly,
-        neighbors_k=args.neighbors_k,
+        neighbor_map=neighbor_map,
         momentum_lookback=args.momentum_lookback,
         roc_lookback=args.roc_lookback,
         std_lookback=args.std_lookback,
@@ -684,6 +759,8 @@ def main() -> None:
         "feature_cols": feature_cols,
         "target_labels": TARGET_LABELS,
         "neighbors_k": args.neighbors_k,
+        "correlation_pairs_csv": args.correlation_pairs_csv,
+        "correlation_threshold": args.correlation_threshold,
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
@@ -707,6 +784,8 @@ def main() -> None:
         "feature_count": len(feature_cols),
         "feature_cols": feature_cols,
         "neighbors_k": args.neighbors_k,
+        "correlation_pairs_csv": args.correlation_pairs_csv,
+        "correlation_threshold": args.correlation_threshold,
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
