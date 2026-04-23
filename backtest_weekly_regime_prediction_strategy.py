@@ -26,6 +26,7 @@ from option_pricing import BlackScholesPricer
 
 TRADING_DAYS_PER_YEAR = 252
 PRICING_VOL_WINDOW_DAYS = 21
+DEFAULT_SYMBOL_SOURCE_CSV = "data/etfs.csv"
 
 
 @dataclass
@@ -71,8 +72,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--symbols",
-        default="SPY,GDX,IWM",
-        help="Comma-separated symbols to trade",
+        default=None,
+        help=(
+            "Comma-separated symbols to trade. "
+            f"If omitted, use all symbols from {DEFAULT_SYMBOL_SOURCE_CSV}."
+        ),
     )
     parser.add_argument("--start-date", default=None, help="Optional YYYY-MM-DD filter")
     parser.add_argument("--end-date", default=None, help="Optional YYYY-MM-DD filter")
@@ -116,6 +120,24 @@ def _resolve_weekly_csv(path: str) -> str:
     raise FileNotFoundError(
         f"Weekly sample CSV not found at '{path}' and fallback '{fallback}'."
     )
+
+
+def infer_symbols_from_csv(path: str) -> list[str]:
+    df = pd.read_csv(path, usecols=["symbol"])
+    invalid_values = {"", "nan", "none", "null"}
+    symbols = (
+        df["symbol"]
+        .astype(str)
+        .str.strip()
+        .loc[lambda s: ~s.str.lower().isin(invalid_values)]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+    symbols = sorted(symbols)
+    if not symbols:
+        raise ValueError(f"No symbols found in '{path}'.")
+    return symbols
 
 
 def load_ohlcv(ohlcv_csv: str, symbols: list[str], start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
@@ -188,12 +210,14 @@ def load_prediction_rows(
     )
 
     pred_parts: list[pd.DataFrame] = []
+    skipped_missing_model: list[str] = []
     for symbol in symbols:
         s = df[df["symbol"] == symbol].copy()
         if s.empty:
             continue
         if symbol not in per_symbol_models:
-            raise ValueError(f"Symbol '{symbol}' not found in model artifact per_symbol_models.")
+            skipped_missing_model.append(symbol)
+            continue
 
         symbol_model_bundle = per_symbol_models[symbol]["model"]
         if isinstance(symbol_model_bundle, dict):
@@ -213,6 +237,13 @@ def load_prediction_rows(
 
     if not pred_parts:
         raise ValueError("No predictions were produced for selected symbols.")
+
+    if skipped_missing_model:
+        print(
+            "Skipped symbols not present in model artifact: "
+            f"{', '.join(sorted(skipped_missing_model)[:20])}"
+            + (" ..." if len(skipped_missing_model) > 20 else "")
+        )
 
     out = pd.concat(pred_parts, ignore_index=True)
     return out.sort_values(["symbol", "entry_date"]).reset_index(drop=True)
@@ -406,9 +437,13 @@ def summarize(trades_df: pd.DataFrame) -> None:
 
 def main() -> None:
     args = parse_args()
-    symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
+    if args.symbols:
+        symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
+    else:
+        symbols = infer_symbols_from_csv(DEFAULT_SYMBOL_SOURCE_CSV)
+        print(f"--symbols not provided; using all symbols from {DEFAULT_SYMBOL_SOURCE_CSV}: {len(symbols)}")
     if not symbols:
-        raise ValueError("--symbols must contain at least one symbol.")
+        raise ValueError("No symbols resolved for backtest.")
 
     ohlcv = load_ohlcv(args.ohlcv_csv, symbols, args.start_date, args.end_date)
     predictions = load_prediction_rows(
@@ -419,6 +454,9 @@ def main() -> None:
         end_date=args.end_date,
         out_of_sample_only=args.out_of_sample_only,
     )
+    symbols = sorted(predictions["symbol"].astype(str).unique().tolist())
+    if not symbols:
+        raise ValueError("No symbols with predictions after filtering/model compatibility checks.")
     consolidating_side_by_symbol = consolidation_side_map(
         weekly_csv=args.weekly_csv,
         symbols=symbols,
