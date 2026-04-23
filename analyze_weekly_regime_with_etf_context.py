@@ -387,18 +387,32 @@ def main() -> None:
     train, test = time_split(merged, train_end_date=args.train_end_date, test_fraction=args.test_fraction)
 
     baseline_metrics = evaluate_baseline(train["regime"], test["regime"])
+    baseline_label = train["regime"].value_counts(normalize=True).idxmax()
     model_metrics, report, pred = evaluate_model(train, test, feature_cols)
 
     per_etf = test[["symbol", "regime"]].copy()
     per_etf["pred_regime"] = pred.values
-    per_etf["correct"] = (per_etf["regime"] == per_etf["pred_regime"]).astype(float)
-    per_etf = (
+    per_etf["baseline_pred_regime"] = baseline_label
+    per_etf["model_correct"] = (per_etf["regime"] == per_etf["pred_regime"]).astype(float)
+    per_etf["baseline_correct"] = (per_etf["regime"] == per_etf["baseline_pred_regime"]).astype(float)
+
+    per_etf_model = (
         per_etf.groupby("symbol", as_index=False)
         .agg(
-            test_rows=("correct", "size"),
-            test_accuracy=("correct", "mean"),
+            test_rows=("model_correct", "size"),
+            test_accuracy=("model_correct", "mean"),
         )
         .sort_values(["test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
+    )
+    per_etf_compare = (
+        per_etf.groupby("symbol", as_index=False)
+        .agg(
+            test_rows=("model_correct", "size"),
+            baseline_test_accuracy=("baseline_correct", "mean"),
+            model_test_accuracy=("model_correct", "mean"),
+        )
+        .assign(accuracy_lift=lambda d: d["model_test_accuracy"] - d["baseline_test_accuracy"])
+        .sort_values(["model_test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
     )
 
     print("Rows in merged table:", len(merged))
@@ -418,7 +432,10 @@ def main() -> None:
     print(report)
 
     print("\nPer-ETF test accuracy (model):")
-    print(per_etf.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print(per_etf_model.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+
+    print("\nPer-ETF test accuracy (baseline vs model):")
+    print(per_etf_compare.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     print(f"Saved merged feature table: {output_path}")
 
