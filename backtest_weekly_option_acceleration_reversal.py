@@ -788,13 +788,13 @@ def main() -> None:
 
     if args.optimize:
         if args.side == "call":
-            accel_threshold_min = args.accel_threshold_min if args.accel_threshold_min is not None else 0.005
-            accel_threshold_max = args.accel_threshold_max if args.accel_threshold_max is not None else 0.10
+            accel_threshold_min = args.accel_threshold_min if args.accel_threshold_min is not None else 0.001
+            accel_threshold_max = args.accel_threshold_max if args.accel_threshold_max is not None else 0.30
             initial_accel_threshold = args.call_accel_threshold
             initial_vol_threshold = args.upside_vol_threshold
         else:
-            accel_threshold_min = args.accel_threshold_min if args.accel_threshold_min is not None else -0.10
-            accel_threshold_max = args.accel_threshold_max if args.accel_threshold_max is not None else -0.005
+            accel_threshold_min = args.accel_threshold_min if args.accel_threshold_min is not None else -0.30
+            accel_threshold_max = args.accel_threshold_max if args.accel_threshold_max is not None else -0.001
             initial_accel_threshold = args.put_accel_threshold
             initial_vol_threshold = args.downside_vol_threshold
 
