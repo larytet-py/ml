@@ -38,7 +38,6 @@ import pandas as pd
 import requests
 
 from option_pricing import black_scholes_call_price, black_scholes_put_price
-# from weekly_regime_inference import predict_latest_weekly_regimes
 
 
 TRADING_DAYS_PER_YEAR = 252
@@ -389,9 +388,6 @@ def _evaluate_config(
     risk_free_rate: float,
     min_pricing_vol: float,
     contract_size: int,
-    regime_guess: Optional[str],
-    regime_confidence: Optional[float],
-    regime_date: Optional[str],
 ) -> Dict[str, Any]:
     signal_df = build_signal_frame(symbol_df, cfg.roc_lookback, cfg.vol_window)
     latest = signal_df.iloc[-1]
@@ -458,17 +454,9 @@ def _evaluate_config(
 
         fired = True
         premium_per_contract = premium * contract_size
-        regime_suffix = ""
-        if regime_guess:
-            regime_conf_text = ""
-            if regime_confidence is not None and not pd.isna(regime_confidence):
-                regime_conf_text = f", conf={float(regime_confidence):.3f}"
-            regime_date_text = f", as_of={regime_date}" if regime_date else ""
-            regime_suffix = f" | weekly_regime_guess={regime_guess}{regime_conf_text}{regime_date_text}"
         signal_message = (
             f"ENTER {side.upper()} POSITION | {cfg.symbol} | next Friday in {days_to_expiry} days | "
             f"estimated ATM premium={premium:.4f} per share, last close {spot:.2f}"
-            f"{regime_suffix}"
         )
         messages.append(signal_message)
         fired_signals.append(
@@ -501,9 +489,6 @@ def _evaluate_config(
         "latest_roc": latest_roc,
         "latest_pricing_vol_annualized": latest_pricing_vol,
         "fired_signals": fired_signals,
-        "weekly_regime_guess": regime_guess,
-        "weekly_regime_confidence": regime_confidence,
-        "weekly_regime_date": regime_date,
     }
 
     if "put" in selected_sides:
@@ -560,36 +545,6 @@ def main() -> None:
     parser.add_argument("--risk-free-rate", type=float, default=0.04, help="Risk-free rate for Black-Scholes.")
     parser.add_argument("--min-pricing-vol", type=float, default=0.10, help="Vol floor (annualized) used in option pricing.")
     parser.add_argument("--contract-size", type=int, default=100, help="Shares per option contract.")
-    # Weekly regime prediction inputs are temporarily disabled.
-    # parser.add_argument(
-    #     "--regime-model-path",
-    #     default="models/weekly_regime_model.joblib",
-    #     help="Weekly regime model artifact produced by analyze_weekly_regime_with_etf_context.py.",
-    # )
-    # parser.add_argument(
-    #     "--regime-ohlcv-csv",
-    #     default="data/etfs-all.csv",
-    #     help="OHLCV CSV used to compute neighbor-aware weekly regime features.",
-    # )
-    # parser.add_argument(
-    #     "--regime-correlation-pairs-csv",
-    #     default="data/etfs_correlation_pairs.03.csv",
-    #     help=(
-    #         "Correlation pairs CSV used in weekly regime feature generation. "
-    #         "Defaults to data/etfs_correlation_pairs.03.csv."
-    #     ),
-    # )
-    # parser.add_argument(
-    #     "--regime-workers",
-    #     type=int,
-    #     default=1,
-    #     help="Worker count for weekly regime feature generation.",
-    # )
-    # parser.add_argument(
-    #     "--disable-regime-guess",
-    #     action="store_true",
-    #     help="Disable weekly regime inference in alert messages.",
-    # )
     parser.add_argument(
         "--summary-json",
         default=None,
@@ -612,22 +567,8 @@ def main() -> None:
 
     all_messages: List[str] = []
     config_summaries: List[Dict[str, Any]] = []
-    # Weekly regime prediction is temporarily disabled.
-    # regime_predictions: Dict[str, Dict[str, Any]] = {}
-    # try:
-    #     regime_predictions = predict_latest_weekly_regimes(
-    #         symbols=sorted({cfg.symbol for cfg in configs}),
-    #         model_path=args.regime_model_path,
-    #         ohlcv_csv=args.regime_ohlcv_csv,
-    #         correlation_pairs_csv=args.regime_correlation_pairs_csv,
-    #         workers=args.regime_workers,
-    #     )
-    # except Exception as exc:
-    #     print(f"Warning: weekly regime inference unavailable ({exc}). Continuing without regime guess.")
-
     for idx, cfg in enumerate(configs, start=1):
         df = symbol_data[cfg.symbol]
-        # regime_payload = regime_predictions.get(cfg.symbol, {})
         all_messages.append(f"\n=== Config #{idx} ===")
         evaluation = _evaluate_config(
             cfg=cfg,
@@ -635,9 +576,6 @@ def main() -> None:
             risk_free_rate=args.risk_free_rate,
             min_pricing_vol=args.min_pricing_vol,
             contract_size=args.contract_size,
-            regime_guess=None,
-            regime_confidence=None,
-            regime_date=None,
         )
         all_messages.extend(evaluation["messages"])
         config_summaries.append({"config_index": idx, **evaluation})
