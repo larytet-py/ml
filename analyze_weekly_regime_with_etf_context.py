@@ -10,7 +10,9 @@ Target labels come from data/_weekly_atm_worthless_only.csv:
 Features are computed from data/etfs-all.csv on the entry date with
 entry-open causality:
 - underlying ETF metrics: price, price momentum, volume, volume momentum,
-  price ROC, volume ROC, price stddev, volume stddev
+  price ROC, volume ROC, price stddev, volume stddev,
+  (high-open)/open, (open-low)/open, (high-close)/close,
+  (close-low)/low, (high-low)/high, (high-low)/low
 - nearby ETF metrics: the same metrics averaged/std'd over neighboring ETFs
   selected by correlation pairs (corr > threshold or corr < -threshold)
 """
@@ -62,7 +64,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ohlcv-csv",
         default="data/etfs-all.csv",
-        help="ETF OHLCV CSV (must include symbol,date,open,volume)",
+        help="ETF OHLCV CSV (must include symbol,date,open,high,low,close,volume)",
     )
     parser.add_argument(
         "--weekly-csv",
@@ -159,12 +161,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_ohlcv(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path, usecols=["symbol", "date", "open", "volume"])
+    df = pd.read_csv(path, usecols=["symbol", "date", "open", "high", "low", "close", "volume"])
     df["symbol"] = df["symbol"].astype(str)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["open"] = pd.to_numeric(df["open"], errors="coerce")
+    df["high"] = pd.to_numeric(df["high"], errors="coerce")
+    df["low"] = pd.to_numeric(df["low"], errors="coerce")
+    df["close"] = pd.to_numeric(df["close"], errors="coerce")
     df["volume"] = pd.to_numeric(df["volume"], errors="coerce")
-    df = df.dropna(subset=["symbol", "date", "open", "volume"]).copy()
+    df = df.dropna(subset=["symbol", "date", "open", "high", "low", "close", "volume"]).copy()
     return df.sort_values(["symbol", "date"]).reset_index(drop=True)
 
 
@@ -257,6 +262,18 @@ def _add_underlying_features_for_symbol(
     df["price_momentum"] = df["open"].pct_change(momentum_lookback)
     df["price_roc"] = df["open"].pct_change(roc_lookback)
     df["price_stddev"] = df["open"].rolling(std_lookback, min_periods=std_lookback).std()
+
+    # Same-day range shape features.
+    open_denom = df["open"].replace(0, np.nan)
+    close_denom = df["close"].replace(0, np.nan)
+    high_denom = df["high"].replace(0, np.nan)
+    low_denom = df["low"].replace(0, np.nan)
+    df["high_open_over_open"] = (df["high"] - df["open"]) / open_denom
+    df["open_low_over_open"] = (df["open"] - df["low"]) / open_denom
+    df["high_close_over_close"] = (df["high"] - df["close"]) / close_denom
+    df["close_low_over_low"] = (df["close"] - df["low"]) / low_denom
+    df["high_low_over_high"] = (df["high"] - df["low"]) / high_denom
+    df["high_low_over_low"] = (df["high"] - df["low"]) / low_denom
 
     # Volume for entry_date is not known at the open; use lagged volume only.
     vol_lag_1 = df["volume"].shift(1)
@@ -409,6 +426,12 @@ def build_feature_table(
         "volume_roc",
         "price_stddev",
         "volume_stddev",
+        "high_open_over_open",
+        "open_low_over_open",
+        "high_close_over_close",
+        "close_low_over_low",
+        "high_low_over_high",
+        "high_low_over_low",
     ]
 
     keep_cols = ["symbol", "date"] + metric_cols + [
