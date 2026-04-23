@@ -62,28 +62,6 @@ def parse_args() -> argparse.Namespace:
         help="How many price-neighbors above and below to use per date",
     )
     parser.add_argument(
-        "--neighbor-weighting",
-        choices=["uniform", "inverse_rank", "exp_decay"],
-        default="uniform",
-        help=(
-            "Weighting scheme for neighbors by rank distance. "
-            "uniform=all neighbors equal, inverse_rank=1/(rank^p), "
-            "exp_decay=exp(-alpha*(rank-1))."
-        ),
-    )
-    parser.add_argument(
-        "--neighbor-weight-power",
-        type=float,
-        default=1.0,
-        help="Power p used by inverse_rank weighting: weight=1/(rank^p)",
-    )
-    parser.add_argument(
-        "--neighbor-decay-alpha",
-        type=float,
-        default=0.7,
-        help="Alpha used by exp_decay weighting: weight=exp(-alpha*(rank-1))",
-    )
-    parser.add_argument(
         "--momentum-lookback",
         type=int,
         default=5,
@@ -230,35 +208,13 @@ def _add_underlying_features_for_symbol(
     return df
 
 
-def neighbor_step_weight(
-    step: int,
-    weighting: str,
-    weight_power: float,
-    decay_alpha: float,
-) -> float:
-    if weighting == "uniform":
-        return 1.0
-    if weighting == "inverse_rank":
-        return 1.0 / (float(step) ** weight_power)
-    if weighting == "exp_decay":
-        return float(np.exp(-decay_alpha * (step - 1)))
-    raise ValueError(f"Unsupported neighbor weighting: {weighting}")
-
-
 def add_neighbor_features(
     df: pd.DataFrame,
     neighbors_k: int,
     metric_cols: list[str],
-    weighting: str,
-    weight_power: float,
-    decay_alpha: float,
 ) -> pd.DataFrame:
     if neighbors_k < 1:
         raise ValueError("--neighbors-k must be >= 1")
-    if weight_power <= 0:
-        raise ValueError("--neighbor-weight-power must be > 0")
-    if decay_alpha < 0:
-        raise ValueError("--neighbor-decay-alpha must be >= 0")
 
     out = df.sort_values(["date", "price", "symbol"]).reset_index(drop=True).copy()
     by_date = out.groupby("date", sort=False)
@@ -266,37 +222,26 @@ def add_neighbor_features(
     for col in metric_cols:
         sum_col = pd.Series(0.0, index=out.index)
         sumsq_col = pd.Series(0.0, index=out.index)
-        weight_sum_col = pd.Series(0.0, index=out.index)
         cnt_col = pd.Series(0, index=out.index, dtype="int32")
 
         for step in range(1, neighbors_k + 1):
-            step_weight = neighbor_step_weight(
-                step=step,
-                weighting=weighting,
-                weight_power=weight_power,
-                decay_alpha=decay_alpha,
-            )
             for direction in (step, -step):
                 shifted = by_date[col].shift(direction)
                 valid = shifted.notna()
                 vals = shifted.fillna(0.0)
-                valid_f = valid.astype("float64")
-                weighted_valid = step_weight * valid_f
-                sum_col = sum_col + (vals * weighted_valid)
-                sumsq_col = sumsq_col + (vals * vals * weighted_valid)
-                weight_sum_col = weight_sum_col + weighted_valid
+                sum_col = sum_col + vals
+                sumsq_col = sumsq_col + vals * vals
                 cnt_col = cnt_col + valid.astype("int32")
 
-        weight_safe = weight_sum_col.replace(0, np.nan)
-        mean_col = sum_col / weight_safe
-        var_col = (sumsq_col / weight_safe) - (mean_col * mean_col)
+        cnt_safe = cnt_col.replace(0, np.nan)
+        mean_col = sum_col / cnt_safe
+        var_col = (sumsq_col / cnt_safe) - (mean_col * mean_col)
 
         out[f"nbr_{col}_mean"] = mean_col
         out[f"nbr_{col}_std"] = np.sqrt(var_col.clip(lower=0))
         out[f"delta_{col}_vs_nbr_mean"] = out[col] - mean_col
 
     out["nbr_count"] = cnt_col
-    out["nbr_weight_sum"] = weight_sum_col
     return out
 
 
@@ -307,9 +252,6 @@ def build_feature_table(
     momentum_lookback: int,
     roc_lookback: int,
     std_lookback: int,
-    neighbor_weighting: str,
-    neighbor_weight_power: float,
-    neighbor_decay_alpha: float,
     workers: int,
 ) -> pd.DataFrame:
     base = add_underlying_features(
@@ -335,16 +277,13 @@ def build_feature_table(
         base,
         neighbors_k=neighbors_k,
         metric_cols=metric_cols,
-        weighting=neighbor_weighting,
-        weight_power=neighbor_weight_power,
-        decay_alpha=neighbor_decay_alpha,
     )
 
     keep_cols = ["symbol", "date"] + metric_cols + [
         f"nbr_{c}_mean" for c in metric_cols
     ] + [f"nbr_{c}_std" for c in metric_cols] + [
         f"delta_{c}_vs_nbr_mean" for c in metric_cols
-    ] + ["nbr_count", "nbr_weight_sum"]
+    ] + ["nbr_count"]
 
     model_df = with_neighbors[keep_cols].copy()
 
@@ -622,9 +561,6 @@ def main() -> None:
         momentum_lookback=args.momentum_lookback,
         roc_lookback=args.roc_lookback,
         std_lookback=args.std_lookback,
-        neighbor_weighting=args.neighbor_weighting,
-        neighbor_weight_power=args.neighbor_weight_power,
-        neighbor_decay_alpha=args.neighbor_decay_alpha,
         workers=args.workers,
     )
     merged = merged.replace([np.inf, -np.inf], np.nan)
@@ -683,9 +619,6 @@ def main() -> None:
         "feature_cols": feature_cols,
         "target_labels": TARGET_LABELS,
         "neighbors_k": args.neighbors_k,
-        "neighbor_weighting": args.neighbor_weighting,
-        "neighbor_weight_power": args.neighbor_weight_power,
-        "neighbor_decay_alpha": args.neighbor_decay_alpha,
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
@@ -707,9 +640,6 @@ def main() -> None:
         "feature_count": len(feature_cols),
         "feature_cols": feature_cols,
         "neighbors_k": args.neighbors_k,
-        "neighbor_weighting": args.neighbor_weighting,
-        "neighbor_weight_power": args.neighbor_weight_power,
-        "neighbor_decay_alpha": args.neighbor_decay_alpha,
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
