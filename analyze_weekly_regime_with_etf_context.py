@@ -18,6 +18,8 @@ entry-open causality:
 from __future__ import annotations
 
 import argparse
+import os
+from multiprocessing import get_context
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +33,11 @@ from sklearn.preprocessing import StandardScaler
 
 
 TARGET_LABELS = ["constraining_top", "constraining_low", "consolidating"]
+
+
+def default_workers() -> int:
+    cpu_count = os.cpu_count() or 1
+    return max(1, cpu_count // 2)
 
 
 def parse_args() -> argparse.Namespace:
@@ -90,6 +97,12 @@ def parse_args() -> argparse.Namespace:
         default="data/weekly_regime_features.csv",
         help="Where to save merged training table",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=default_workers(),
+        help="Number of worker processes for per-symbol feature engineering (default: half of available CPU cores)",
+    )
     return parser.parse_args()
 
 
@@ -117,32 +130,53 @@ def add_underlying_features(
     momentum_lookback: int,
     roc_lookback: int,
     std_lookback: int,
+    workers: int,
 ) -> pd.DataFrame:
-    df = ohlcv.copy()
-    g = df.groupby("symbol", sort=False)
+    if workers < 1:
+        raise ValueError("--workers must be >= 1")
+
+    parts = [
+        grp.copy()
+        for _, grp in ohlcv.groupby("symbol", sort=False)
+    ]
+
+    args = [
+        (part, momentum_lookback, roc_lookback, std_lookback)
+        for part in parts
+    ]
+
+    if workers == 1:
+        out_parts = [_add_underlying_features_for_symbol(a) for a in args]
+    else:
+        # Use process-based parallelism to spread symbol feature creation across cores.
+        with get_context("spawn").Pool(processes=workers) as pool:
+            out_parts = pool.map(_add_underlying_features_for_symbol, args)
+
+    return pd.concat(out_parts, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
+
+
+def _add_underlying_features_for_symbol(
+    args: tuple[pd.DataFrame, int, int, int]
+) -> pd.DataFrame:
+    df, momentum_lookback, roc_lookback, std_lookback = args
+    df = df.sort_values("date").copy()
 
     # Entry-time safe: on entry_date we assume only today's open is known.
     # Price features are built from the open series.
     df["price"] = df["open"]
-    df["price_momentum"] = g["open"].pct_change(momentum_lookback)
-    df["price_roc"] = g["open"].pct_change(roc_lookback)
-    price_roll = g["open"].rolling(std_lookback, min_periods=std_lookback)
-    df["price_stddev"] = price_roll.std().reset_index(level=0, drop=True)
+    df["price_momentum"] = df["open"].pct_change(momentum_lookback)
+    df["price_roc"] = df["open"].pct_change(roc_lookback)
+    df["price_stddev"] = df["open"].rolling(std_lookback, min_periods=std_lookback).std()
 
     # Volume for entry_date is not known at the open; use lagged volume only.
-    vol_lag_1 = g["volume"].shift(1)
-    vol_lag_m = g["volume"].shift(1 + momentum_lookback)
-    vol_lag_r = g["volume"].shift(1 + roc_lookback)
+    vol_lag_1 = df["volume"].shift(1)
+    vol_lag_m = df["volume"].shift(1 + momentum_lookback)
+    vol_lag_r = df["volume"].shift(1 + roc_lookback)
 
     df["volume"] = vol_lag_1
     df["volume_momentum"] = (vol_lag_1 / vol_lag_m) - 1.0
     df["volume_roc"] = (vol_lag_1 / vol_lag_r) - 1.0
-    df["volume_stddev"] = (
-        vol_lag_1.groupby(df["symbol"], sort=False)
-        .rolling(std_lookback, min_periods=std_lookback)
-        .std()
-        .reset_index(level=0, drop=True)
-    )
+    df["volume_stddev"] = vol_lag_1.rolling(std_lookback, min_periods=std_lookback).std()
 
     return df
 
@@ -187,12 +221,14 @@ def build_feature_table(
     momentum_lookback: int,
     roc_lookback: int,
     std_lookback: int,
+    workers: int,
 ) -> pd.DataFrame:
     base = add_underlying_features(
         ohlcv=ohlcv,
         momentum_lookback=momentum_lookback,
         roc_lookback=roc_lookback,
         std_lookback=std_lookback,
+        workers=workers,
     )
 
     metric_cols = [
@@ -322,6 +358,7 @@ def main() -> None:
         momentum_lookback=args.momentum_lookback,
         roc_lookback=args.roc_lookback,
         std_lookback=args.std_lookback,
+        workers=args.workers,
     )
     merged = merged.replace([np.inf, -np.inf], np.nan)
 
