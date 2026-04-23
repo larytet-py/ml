@@ -39,7 +39,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from option_pricing import black_scholes_call_price, black_scholes_put_price
+from option_pricing import BlackScholesPricer
 
 TRADING_DAYS_PER_YEAR = 252
 PRICING_VOL_WINDOW_DAYS = 21
@@ -182,6 +182,11 @@ def run_backtest(
     contract_size: int,
     allow_overlap: bool,
 ) -> pd.DataFrame:
+    pricer = BlackScholesPricer(
+        risk_free_rate=risk_free_rate,
+        min_sigma=min_pricing_vol_annualized,
+    )
+
     close = df["close"]
     returns = close.pct_change()
 
@@ -250,27 +255,19 @@ def run_backtest(
             # Skip same-day expiry signals (e.g., Friday close) in this EOD model.
             continue
 
-        pricing_vol = max(float(row["pricing_vol_annualized"]), min_pricing_vol_annualized)
-        if side == "put":
-            premium = black_scholes_put_price(
-                spot=entry_close,
-                strike=strike,
-                time_to_expiry_years=time_to_expiry_years,
-                risk_free_rate=risk_free_rate,
-                sigma=pricing_vol,
-            )
-        else:
-            premium = black_scholes_call_price(
-                spot=entry_close,
-                strike=strike,
-                time_to_expiry_years=time_to_expiry_years,
-                risk_free_rate=risk_free_rate,
-                sigma=pricing_vol,
-            )
+        raw_pricing_vol = float(row["pricing_vol_annualized"])
+        pricing_vol = pricer.effective_sigma(raw_pricing_vol)
+        premium = pricer.price(
+            side=side,
+            spot=entry_close,
+            strike=strike,
+            time_to_expiry_years=time_to_expiry_years,
+            sigma=raw_pricing_vol,
+        )
 
         exit_row = df.iloc[exit_idx]
         exit_close = float(exit_row["close"])
-        intrinsic = max(strike - exit_close, 0.0) if side == "put" else max(exit_close - strike, 0.0)
+        intrinsic = pricer.intrinsic_value(side=side, strike=strike, spot=exit_close)
         expired_itm = intrinsic > 0.0
         pnl_per_share = premium - intrinsic
 
