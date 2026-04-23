@@ -35,6 +35,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 TARGET_LABELS = ["constraining_top", "constraining_low", "consolidating"]
+BINARY_HEAD_LABELS = ["consolidating", "constraining_top"]
 
 
 def default_workers() -> int:
@@ -308,11 +309,7 @@ def evaluate_baseline(y_train: pd.Series, y_test: pd.Series) -> dict[str, float]
     }
 
 
-def evaluate_model(
-    train: pd.DataFrame,
-    test: pd.DataFrame,
-    feature_cols: list[str],
-) -> tuple[dict[str, float], str, pd.Series, Pipeline]:
+def build_numeric_pipeline(feature_cols: list[str]) -> Pipeline:
     pre = ColumnTransformer(
         transformers=[
             (
@@ -329,7 +326,7 @@ def evaluate_model(
         remainder="drop",
     )
 
-    clf = Pipeline(
+    return Pipeline(
         steps=[
             ("pre", pre),
             (
@@ -343,23 +340,167 @@ def evaluate_model(
         ]
     )
 
-    x_train = train[feature_cols]
-    x_test = test[feature_cols]
-    y_train = train["regime"]
-    y_test = test["regime"]
+def fit_binary_head(
+    train: pd.DataFrame,
+    feature_cols: list[str],
+    target_label: str,
+) -> dict:
+    y_train = (train["regime"] == target_label).astype(int)
+    positive_probability = float(y_train.mean())
 
-    clf.fit(x_train, y_train)
-    pred = clf.predict(x_test)
-    prob = clf.predict_proba(x_test)
+    # If a symbol has only one class for this head in train, fallback to constant probability.
+    if y_train.nunique() < 2:
+        return {
+            "type": "constant",
+            "target_label": target_label,
+            "positive_probability": positive_probability,
+        }
 
-    metrics = {
-        "accuracy": accuracy_score(y_test, pred),
-        "log_loss": log_loss(y_test, prob, labels=clf.named_steps["model"].classes_),
+    clf = build_numeric_pipeline(feature_cols)
+    clf.fit(train[feature_cols], y_train)
+    return {
+        "type": "pipeline",
+        "target_label": target_label,
+        "positive_probability": positive_probability,
+        "model": clf,
     }
 
-    report = classification_report(y_test, pred, digits=4)
-    pred_series = pd.Series(pred, index=test.index, name="pred_regime")
-    return metrics, report, pred_series, clf
+
+def predict_binary_head(model_bundle: dict, x: pd.DataFrame) -> np.ndarray:
+    if model_bundle["type"] == "constant":
+        return np.full(len(x), model_bundle["positive_probability"], dtype=float)
+
+    clf = model_bundle["model"]
+    classes = clf.named_steps["model"].classes_
+    pos_idx = int(np.where(classes == 1)[0][0])
+    return clf.predict_proba(x)[:, pos_idx]
+
+
+def evaluate_per_symbol_two_head_models(
+    merged: pd.DataFrame,
+    feature_cols: list[str],
+    train_end_date: str | None,
+    test_fraction: float,
+) -> tuple[dict[str, float], dict[str, float], str, pd.DataFrame, pd.DataFrame, dict]:
+    prediction_parts: list[pd.DataFrame] = []
+    per_symbol_rows: list[dict] = []
+    per_symbol_models: dict[str, dict] = {}
+    train_rows_total = 0
+    test_rows_total = 0
+
+    for symbol, symbol_df in merged.groupby("symbol", sort=True):
+        train, test = time_split(symbol_df, train_end_date=train_end_date, test_fraction=test_fraction)
+        train_rows_total += len(train)
+        test_rows_total += len(test)
+
+        baseline_probs = train["regime"].value_counts(normalize=True).reindex(TARGET_LABELS, fill_value=0.0)
+        baseline_pred = baseline_probs.idxmax()
+
+        consolidating_head = fit_binary_head(train, feature_cols, target_label="consolidating")
+        constraining_top_head = fit_binary_head(train, feature_cols, target_label="constraining_top")
+
+        x_test = test[feature_cols]
+        p_consolidating = predict_binary_head(consolidating_head, x_test)
+        p_constraining_top = predict_binary_head(constraining_top_head, x_test)
+        p_constraining_low = np.clip(1.0 - p_consolidating - p_constraining_top, 0.0, None)
+
+        probs = np.column_stack([p_constraining_top, p_constraining_low, p_consolidating])
+        row_sums = probs.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0.0] = 1.0
+        probs = probs / row_sums
+
+        pred_idx = np.argmax(probs, axis=1)
+        pred = np.array(TARGET_LABELS, dtype=object)[pred_idx]
+
+        per_symbol_rows.append(
+            {
+                "symbol": symbol,
+                "train_rows": int(len(train)),
+                "test_rows": int(len(test)),
+                "baseline_test_accuracy": float((test["regime"] == baseline_pred).mean()),
+                "model_test_accuracy": float((test["regime"].to_numpy() == pred).mean()),
+            }
+        )
+
+        prediction_parts.append(
+            pd.DataFrame(
+                {
+                    "symbol": test["symbol"].to_numpy(),
+                    "entry_date": test["entry_date"].to_numpy(),
+                    "regime": test["regime"].to_numpy(),
+                    "pred_regime": pred,
+                    "baseline_pred_regime": np.repeat(baseline_pred, len(test)),
+                    "baseline_prob_constraining_top": np.repeat(float(baseline_probs["constraining_top"]), len(test)),
+                    "baseline_prob_constraining_low": np.repeat(float(baseline_probs["constraining_low"]), len(test)),
+                    "baseline_prob_consolidating": np.repeat(float(baseline_probs["consolidating"]), len(test)),
+                    "model_prob_constraining_top": probs[:, 0],
+                    "model_prob_constraining_low": probs[:, 1],
+                    "model_prob_consolidating": probs[:, 2],
+                }
+            )
+        )
+
+        per_symbol_models[symbol] = {
+            "consolidating_head": consolidating_head,
+            "constraining_top_head": constraining_top_head,
+            "train_rows": int(len(train)),
+            "test_rows": int(len(test)),
+            "train_date_min": pd.Timestamp(train["entry_date"].min()).date().isoformat(),
+            "train_date_max": pd.Timestamp(train["entry_date"].max()).date().isoformat(),
+            "test_date_min": pd.Timestamp(test["entry_date"].min()).date().isoformat(),
+            "test_date_max": pd.Timestamp(test["entry_date"].max()).date().isoformat(),
+        }
+
+    if not prediction_parts:
+        raise ValueError("No symbols available for training/evaluation.")
+
+    pred_df = pd.concat(prediction_parts, ignore_index=True)
+    pred_df["model_correct"] = (pred_df["regime"] == pred_df["pred_regime"]).astype(float)
+    pred_df["baseline_correct"] = (pred_df["regime"] == pred_df["baseline_pred_regime"]).astype(float)
+
+    model_prob = pred_df[
+        [
+            "model_prob_constraining_top",
+            "model_prob_constraining_low",
+            "model_prob_consolidating",
+        ]
+    ].to_numpy()
+    baseline_prob = pred_df[
+        [
+            "baseline_prob_constraining_top",
+            "baseline_prob_constraining_low",
+            "baseline_prob_consolidating",
+        ]
+    ].to_numpy()
+
+    model_metrics = {
+        "accuracy": float(accuracy_score(pred_df["regime"], pred_df["pred_regime"])),
+        "log_loss": float(log_loss(pred_df["regime"], model_prob, labels=TARGET_LABELS)),
+    }
+    baseline_metrics = {
+        "accuracy": float(accuracy_score(pred_df["regime"], pred_df["baseline_pred_regime"])),
+        "log_loss": float(log_loss(pred_df["regime"], baseline_prob, labels=TARGET_LABELS)),
+    }
+
+    report = classification_report(pred_df["regime"], pred_df["pred_regime"], digits=4)
+    per_symbol_table = (
+        pd.DataFrame(per_symbol_rows)
+        .assign(accuracy_lift=lambda d: d["model_test_accuracy"] - d["baseline_test_accuracy"])
+        .sort_values(["model_test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
+    )
+
+    split_stats = {
+        "train_rows": int(train_rows_total),
+        "test_rows": int(test_rows_total),
+        "train_date_min": min(v["train_date_min"] for v in per_symbol_models.values()),
+        "train_date_max": max(v["train_date_max"] for v in per_symbol_models.values()),
+        "test_date_min": min(v["test_date_min"] for v in per_symbol_models.values()),
+        "test_date_max": max(v["test_date_max"] for v in per_symbol_models.values()),
+    }
+    return baseline_metrics, model_metrics, report, pred_df, per_symbol_table, {
+        "per_symbol_models": per_symbol_models,
+        "split_stats": split_stats,
+    }
 
 
 def main() -> None:
@@ -396,76 +537,55 @@ def main() -> None:
         }
     ]
 
-    train, test = time_split(merged, train_end_date=args.train_end_date, test_fraction=args.test_fraction)
-
-    baseline_metrics = evaluate_baseline(train["regime"], test["regime"])
-    baseline_label = train["regime"].value_counts(normalize=True).idxmax()
-    model_metrics, report, pred, clf = evaluate_model(train, test, feature_cols)
-
-    per_etf = test[["symbol", "regime"]].copy()
-    per_etf["pred_regime"] = pred.values
-    per_etf["baseline_pred_regime"] = baseline_label
-    per_etf["model_correct"] = (per_etf["regime"] == per_etf["pred_regime"]).astype(float)
-    per_etf["baseline_correct"] = (per_etf["regime"] == per_etf["baseline_pred_regime"]).astype(float)
-
-    per_etf_model = (
-        per_etf.groupby("symbol", as_index=False)
-        .agg(
-            test_rows=("model_correct", "size"),
-            test_accuracy=("model_correct", "mean"),
+    baseline_metrics, model_metrics, report, pred_df, per_symbol_table, eval_bundle = (
+        evaluate_per_symbol_two_head_models(
+            merged=merged,
+            feature_cols=feature_cols,
+            train_end_date=args.train_end_date,
+            test_fraction=args.test_fraction,
         )
-        .sort_values(["test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
     )
-    per_etf_compare = (
-        per_etf.groupby("symbol", as_index=False)
-        .agg(
-            test_rows=("model_correct", "size"),
-            baseline_test_accuracy=("baseline_correct", "mean"),
-            model_test_accuracy=("model_correct", "mean"),
-        )
-        .assign(accuracy_lift=lambda d: d["model_test_accuracy"] - d["baseline_test_accuracy"])
-        .sort_values(["model_test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
-    )
+    split_stats = eval_bundle["split_stats"]
 
     print("Rows in merged table:", len(merged))
-    print("Train rows:", len(train), "Test rows:", len(test))
-    print("Train date range:", train["entry_date"].min().date(), "->", train["entry_date"].max().date())
-    print("Test date range:", test["entry_date"].min().date(), "->", test["entry_date"].max().date())
+    print("Train rows:", split_stats["train_rows"], "Test rows:", split_stats["test_rows"])
+    print("Train date range:", split_stats["train_date_min"], "->", split_stats["train_date_max"])
+    print("Test date range:", split_stats["test_date_min"], "->", split_stats["test_date_max"])
+    print("Modeling mode: per-symbol with separate binary heads for consolidating and constraining_top")
 
-    print("\nBaseline (predict by train appearance probabilities):")
+    print("\nBaseline (per-symbol train appearance probabilities):")
     print(f"  accuracy: {baseline_metrics['accuracy']:.4f}")
     print(f"  log_loss: {baseline_metrics['log_loss']:.4f}")
 
-    print("\nLogistic regression with ETF+neighbor features:")
+    print("\nPer-symbol two-head logistic model:")
     print(f"  accuracy: {model_metrics['accuracy']:.4f}")
     print(f"  log_loss: {model_metrics['log_loss']:.4f}")
 
     print("\nClassification report (model):")
     print(report)
 
-    print("\nPer-ETF test accuracy (model):")
-    print(per_etf_model.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
-
-    print("\nPer-ETF test accuracy (baseline vs model):")
-    print(per_etf_compare.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print("\nPer-symbol test accuracy (baseline vs model):")
+    print(per_symbol_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     model_output_path = Path(args.model_output)
     model_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     bundle = {
-        "model": clf,
+        "modeling_mode": "per_symbol_two_head",
+        "binary_head_labels": BINARY_HEAD_LABELS,
+        "per_symbol_models": eval_bundle["per_symbol_models"],
         "feature_cols": feature_cols,
         "target_labels": TARGET_LABELS,
         "neighbors_k": args.neighbors_k,
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
-        "train_rows": int(len(train)),
-        "test_rows": int(len(test)),
+        "train_rows": int(split_stats["train_rows"]),
+        "test_rows": int(split_stats["test_rows"]),
         "train_end_date": (
             args.train_end_date
             if args.train_end_date
-            else pd.Timestamp(train["entry_date"].max()).date().isoformat()
+            else split_stats["train_date_max"]
         ),
     }
     joblib.dump(bundle, model_output_path)
@@ -481,16 +601,19 @@ def main() -> None:
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
-        "train_rows": int(len(train)),
-        "test_rows": int(len(test)),
-        "train_date_min": pd.Timestamp(train["entry_date"].min()).date().isoformat(),
-        "train_date_max": pd.Timestamp(train["entry_date"].max()).date().isoformat(),
-        "test_date_min": pd.Timestamp(test["entry_date"].min()).date().isoformat(),
-        "test_date_max": pd.Timestamp(test["entry_date"].max()).date().isoformat(),
+        "modeling_mode": "per_symbol_two_head",
+        "binary_head_labels": BINARY_HEAD_LABELS,
+        "train_rows": int(split_stats["train_rows"]),
+        "test_rows": int(split_stats["test_rows"]),
+        "train_date_min": split_stats["train_date_min"],
+        "train_date_max": split_stats["train_date_max"],
+        "test_date_min": split_stats["test_date_min"],
+        "test_date_max": split_stats["test_date_max"],
         "baseline_accuracy": float(baseline_metrics["accuracy"]),
         "baseline_log_loss": float(baseline_metrics["log_loss"]),
         "model_accuracy": float(model_metrics["accuracy"]),
         "model_log_loss": float(model_metrics["log_loss"]),
+        "per_symbol_metrics": per_symbol_table.to_dict(orient="records"),
     }
     metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
