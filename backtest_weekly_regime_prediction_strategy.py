@@ -409,6 +409,15 @@ def summarize(trades_df: pd.DataFrame) -> None:
     print(f"Average PnL/trade (per 1 contract): {avg_pnl:.2f}")
     print(f"Median PnL/trade (per 1 contract): {med_pnl:.2f}")
 
+    by_symbol_ordered = trades_df.sort_values(["symbol", "entry_date", "exit_date"]).copy()
+    by_symbol_ordered["cum_pnl"] = by_symbol_ordered.groupby("symbol")["pnl_per_contract"].cumsum()
+    by_symbol_ordered["cum_peak"] = by_symbol_ordered.groupby("symbol")["cum_pnl"].cummax()
+    by_symbol_ordered["drawdown"] = by_symbol_ordered["cum_pnl"] - by_symbol_ordered["cum_peak"]
+    by_symbol_drawdown = (
+        by_symbol_ordered.groupby("symbol", as_index=False)
+        .agg(max_drawdown=("drawdown", "min"))
+    )
+
     print("\nBreakdown by symbol:")
     by_symbol = (
         trades_df.groupby("symbol", as_index=False)
@@ -418,6 +427,7 @@ def summarize(trades_df: pd.DataFrame) -> None:
             total_pnl=("pnl_per_contract", "sum"),
             avg_pnl=("pnl_per_contract", "mean"),
         )
+        .merge(by_symbol_drawdown, on="symbol", how="left")
         .sort_values("symbol")
     )
     print(by_symbol.to_string(index=False, justify="center", float_format=lambda x: f"{x:.4f}"))
