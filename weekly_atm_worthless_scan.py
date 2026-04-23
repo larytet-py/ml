@@ -34,8 +34,13 @@ def put_strike_from_open(entry_open: float) -> int:
     return int(math.floor(entry_open))
 
 
-def load_ohlcv(csv_path: str, symbol: str, start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
-    df = pd.read_csv(csv_path)
+def load_ohlcv_for_symbol(
+    source_df: pd.DataFrame,
+    symbol: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+) -> pd.DataFrame:
+    df = source_df.copy()
 
     if "symbol" not in df.columns:
         raise ValueError("CSV must include a 'symbol' column.")
@@ -49,7 +54,7 @@ def load_ohlcv(csv_path: str, symbol: str, start_date: Optional[str], end_date: 
 
     df = df[df["symbol"].astype(str) == symbol].copy()
     if df.empty:
-        raise ValueError(f"No rows found for symbol '{symbol}' in {csv_path}")
+        raise ValueError(f"No rows found for symbol '{symbol}'.")
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     for col in need_cols:
@@ -72,6 +77,35 @@ def load_ohlcv(csv_path: str, symbol: str, start_date: Optional[str], end_date: 
         raise ValueError("No Mon-Fri rows left after filtering.")
 
     return df.reset_index(drop=True)
+
+
+def load_source_csv(csv_path: str) -> pd.DataFrame:
+    df = pd.read_csv(csv_path)
+
+    required = ["symbol", "date", "open", "close", "high", "low", "volume"]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        missing_str = ", ".join(f"'{c}'" for c in missing)
+        raise ValueError(f"CSV must include columns: {missing_str}")
+
+    return df
+
+
+def infer_symbols(source_df: pd.DataFrame) -> list[str]:
+    invalid_values = {"", "nan", "none", "null"}
+    symbols = (
+        source_df["symbol"]
+        .astype(str)
+        .str.strip()
+        .loc[lambda s: ~s.str.lower().isin(invalid_values)]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+    symbols = sorted(symbols)
+    if not symbols:
+        raise ValueError("No symbols found in CSV 'symbol' column.")
+    return symbols
 
 
 def scan_weekly_atm_worthless(
@@ -202,19 +236,25 @@ def print_summary(result_df: pd.DataFrame) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Scan ATM weekly 0-5 DTE worthless expiries.")
-    parser.add_argument("--csv", default="data/etfs-all.csv", help="Input OHLCV CSV path")
-    parser.add_argument("--symbol", "--ticker", dest="symbol", default="SPY", help="Ticker symbol (case-sensitive)")
+    parser.add_argument("--csv", default="data/etfs.csv", help="Input OHLCV CSV path")
+    parser.add_argument(
+        "--symbol",
+        "--ticker",
+        dest="symbol",
+        default=None,
+        help="Ticker symbol (case-sensitive). If omitted, process all symbols in --csv.",
+    )
     parser.add_argument("--start-date", default=None, help="Start date YYYY-MM-DD")
     parser.add_argument("--end-date", default=None, help="End date YYYY-MM-DD")
     parser.add_argument(
         "--output-csv",
         default=None,
-        help="Path to save detailed rows (default: data/{symbol}_weekly_atm_worthless_scan.csv)",
+        help="Path to save detailed rows (default: data/weekly_atm_worthless_scan.csv)",
     )
     parser.add_argument(
         "--worthless-only-output-csv",
         default=None,
-        help="Path to save only rows where put/call/both are worthless (default: data/{symbol}_weekly_atm_worthless_only.csv)",
+        help="Path to save only rows where put/call/both are worthless (default: data/_weekly_atm_worthless_only.csv)",
     )
     return parser.parse_args()
 
@@ -222,32 +262,58 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    df = load_ohlcv(
-        csv_path=args.csv,
-        symbol=args.symbol,
-        start_date=args.start_date,
-        end_date=args.end_date,
+    source_df = load_source_csv(args.csv)
+
+    symbols = [args.symbol] if args.symbol else infer_symbols(source_df)
+    total_symbols = len(symbols)
+    if total_symbols > 1:
+        print(f"Processing {total_symbols} symbols from {args.csv}")
+
+    all_results: list[pd.DataFrame] = []
+
+    for idx, symbol in enumerate(symbols, start=1):
+        try:
+            df = load_ohlcv_for_symbol(
+                source_df=source_df,
+                symbol=symbol,
+                start_date=args.start_date,
+                end_date=args.end_date,
+            )
+        except ValueError as exc:
+            print(f"\n[{idx}/{total_symbols}] {symbol}: skipped ({exc})")
+            continue
+
+        result_df = scan_weekly_atm_worthless(df=df)
+
+        print(f"\n[{idx}/{total_symbols}] Symbol: {symbol}")
+        print_summary(result_df)
+
+        if not result_df.empty:
+            all_results.append(result_df)
+
+    combined_df = (
+        pd.concat(all_results, ignore_index=True).sort_values(["symbol", "entry_date", "expiry_date"]).reset_index(drop=True)
+        if all_results
+        else pd.DataFrame()
     )
+    print("\nCombined summary:")
+    print_summary(combined_df)
 
-    result_df = scan_weekly_atm_worthless(df=df)
-
-    print_summary(result_df)
-
-    output_csv = args.output_csv or f"data/{args.symbol}_weekly_atm_worthless_scan.csv"
-    worthless_only_output_csv = (
-        args.worthless_only_output_csv or f"data/{args.symbol}_weekly_atm_worthless_only.csv"
-    )
+    output_csv = args.output_csv or "data/weekly_atm_worthless_scan.csv"
+    worthless_only_output_csv = args.worthless_only_output_csv or "data/_weekly_atm_worthless_only.csv"
 
     output_path = Path(output_csv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    result_df.to_csv(output_path, index=False)
-    print(f"\nSaved detailed output: {output_path}")
+    combined_df.to_csv(output_path, index=False)
+    print(f"Saved detailed output: {output_path}")
 
-    worthless_df = result_df[result_df["outcome"].isin(["call", "put", "both"])].copy()
+    worthless_df = combined_df[combined_df["outcome"].isin(["call", "put", "both"])].copy()
     worthless_output_path = Path(worthless_only_output_csv)
     worthless_output_path.parent.mkdir(parents=True, exist_ok=True)
     worthless_df.to_csv(worthless_output_path, index=False)
     print(f"Saved worthless-only output: {worthless_output_path}")
+
+
 
 
 if __name__ == "__main__":
