@@ -226,22 +226,6 @@ def compute_pairwise(
     return pd.DataFrame(rows, columns=["symbol_a", "symbol_b", "correlation", "overlap_days"])
 
 
-def to_matrix(symbols: list[str], pairs: pd.DataFrame) -> pd.DataFrame:
-    n = len(symbols)
-    matrix = np.full((n, n), np.nan, dtype=np.float64)
-    np.fill_diagonal(matrix, 1.0)
-
-    index_by_symbol = {symbol: i for i, symbol in enumerate(symbols)}
-
-    for row in pairs.itertuples(index=False):
-        i = index_by_symbol[row.symbol_a]
-        j = index_by_symbol[row.symbol_b]
-        matrix[i, j] = row.correlation
-        matrix[j, i] = row.correlation
-
-    return pd.DataFrame(matrix, index=symbols, columns=symbols)
-
-
 def ensure_parent(path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
