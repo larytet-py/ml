@@ -23,7 +23,6 @@ import argparse
 import gc
 import json
 import os
-import tempfile
 from multiprocessing import get_context
 from pathlib import Path
 from datetime import datetime, timezone
@@ -124,6 +123,11 @@ def parse_args() -> argparse.Namespace:
         "--features-output-csv",
         default="data/weekly_regime_features.csv",
         help="Where to save merged training table",
+    )
+    parser.add_argument(
+        "--neighbors-output-csv",
+        default="data/weekly_regime_neighbors.csv",
+        help="Where to save neighbor feature table used during merge",
     )
     parser.add_argument(
         "--model-output",
@@ -407,6 +411,7 @@ def build_feature_table(
     roc_lookback: int,
     std_lookback: int,
     workers: int,
+    neighbors_output_csv: str,
 ) -> pd.DataFrame:
     log_phase("Phase: build feature table started")
     base = add_underlying_features(
@@ -439,29 +444,27 @@ def build_feature_table(
     ] + [f"nbr_{c}_std" for c in metric_cols] + [
         f"delta_{c}_vs_nbr_mean" for c in metric_cols
     ] + ["nbr_count"]
-    with tempfile.NamedTemporaryFile(
-        prefix="weekly_regime_neighbors_",
-        suffix=".csv",
-        dir="/tmp",
-        delete=False,
-    ) as tmp_file:
-        neighbors_csv = tmp_file.name
+
+    neighbors_csv = Path(neighbors_output_csv)
+    neighbors_csv.parent.mkdir(parents=True, exist_ok=True)
+    if neighbors_csv.exists():
+        neighbors_csv.unlink()
 
     add_neighbor_features(
         base,
         neighbor_map=neighbor_map,
         metric_cols=metric_cols,
-        output_csv=neighbors_csv,
+        output_csv=str(neighbors_csv),
     )
     # Drop base before loading neighbor features back from CSV.
     del base
     gc.collect()
     model_df = load_feature_subset_for_weekly(
-        feature_csv=neighbors_csv,
+        feature_csv=str(neighbors_csv),
         weekly=weekly,
         keep_cols=keep_cols,
     )
-    log_phase(f"Phase: retained neighbor temp CSV ({neighbors_csv})")
+    log_phase(f"Phase: retained neighbor CSV ({neighbors_csv})")
 
     merged = weekly.merge(
         model_df,
@@ -810,6 +813,7 @@ def main() -> None:
         roc_lookback=args.roc_lookback,
         std_lookback=args.std_lookback,
         workers=args.workers,
+        neighbors_output_csv=args.neighbors_output_csv,
     )
     merged = merged.replace([np.inf, -np.inf], np.nan)
     log_phase(f"Phase: clean infinities completed (rows={len(merged)})")
