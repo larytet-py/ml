@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Create pairwise symbol correlations from data/etfs-all.csv "
-            "using multiprocessing."
+            "and save as CSV using multiprocessing."
         )
     )
     parser.add_argument(
@@ -41,11 +41,6 @@ def parse_args() -> argparse.Namespace:
         "--value-col",
         default="close",
         help="Numeric column used to compute correlation (default: close)",
-    )
-    parser.add_argument(
-        "--output-matrix-csv",
-        default="data/etfs-all_correlation_matrix.csv",
-        help="Output CSV path for square correlation matrix",
     )
     parser.add_argument(
         "--output-pairs-csv",
@@ -308,17 +303,9 @@ def main() -> None:
         chunk_size=args.chunk_size,
     )
 
-    log_phase(f"Building square matrix from {len(pairs):,} symbol pairs")
-    matrix = to_matrix(symbols, pairs)
-
     ensure_parent(args.output_pairs_csv)
-    ensure_parent(args.output_matrix_csv)
-
     pairs.to_csv(args.output_pairs_csv, index=False)
-    matrix.to_csv(args.output_matrix_csv, index=True)
-
-    log_phase(f"Saved pairwise correlations to: {args.output_pairs_csv}")
-    log_phase(f"Saved correlation matrix to: {args.output_matrix_csv}")
+    log_phase(f"Saved pairwise correlations CSV to: {args.output_pairs_csv}")
 
 
 if __name__ == "__main__":
