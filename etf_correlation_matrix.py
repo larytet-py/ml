@@ -7,7 +7,7 @@ import argparse
 import math
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from multiprocessing import get_context
 from pathlib import Path
 
@@ -23,6 +23,10 @@ def log_phase(message: str) -> None:
 def default_workers() -> int:
     cpu_count = os.cpu_count() or 1
     return max(1, cpu_count // 2)
+
+
+def default_start_date() -> str:
+    return (datetime.now(timezone.utc).date() - timedelta(days=365)).isoformat()
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,10 +70,18 @@ def parse_args() -> argparse.Namespace:
         help="How many left-side symbols each worker task processes",
     )
     parser.add_argument(
-        "--last-days",
+        "--start-date",
+        default=default_start_date(),
+        help=(
+            "Start date (inclusive) for filtering rows, format YYYY-MM-DD "
+            "(default: 1 year ago)"
+        ),
+    )
+    parser.add_argument(
+        "--num-days",
         type=int,
-        default=30,
-        help="Only use rows from the last N days (based on latest date in input)",
+        default=5,
+        help="Number of calendar days from --start-date to include (default: 5)",
     )
     parser.add_argument(
         "--dollar-volume-threshold",
@@ -238,17 +250,26 @@ def main() -> None:
         raise ValueError("--chunk-size must be >= 1")
     if args.min_overlap < 2:
         raise ValueError("--min-overlap must be >= 2")
-    if args.last_days < 1:
-        raise ValueError("--last-days must be >= 1")
+    if args.num_days < 1:
+        raise ValueError("--num-days must be >= 1")
     if args.dollar_volume_threshold < 0:
         raise ValueError("--dollar-volume-threshold must be >= 0")
 
     log_phase(f"Loading input CSV: {args.input_csv}")
     pivot, raw = load_and_pivot(args.input_csv, args.value_col)
-    max_date = pivot.index.max()
-    cutoff = max_date - pd.Timedelta(days=args.last_days)
-    pivot = pivot[pivot.index >= cutoff].copy()
-    raw = raw[raw["date"] >= cutoff].copy()
+    start_date = pd.to_datetime(args.start_date, errors="coerce")
+    if pd.isna(start_date):
+        raise ValueError("--start-date must be in YYYY-MM-DD format")
+    start_date = start_date.normalize()
+    end_date = start_date + pd.Timedelta(days=args.num_days)
+    pivot = pivot[(pivot.index >= start_date) & (pivot.index < end_date)].copy()
+    raw = raw[(raw["date"] >= start_date) & (raw["date"] < end_date)].copy()
+
+    if pivot.empty:
+        raise ValueError(
+            "No rows found in selected window: "
+            f"start_date={start_date.date()}, num_days={args.num_days}"
+        )
 
     # Use each symbol's latest available day in the selected window to measure liquidity.
     latest_liquidity = (
@@ -267,7 +288,9 @@ def main() -> None:
         f"Prepared pivot table with {len(pivot):,} dates and {len(symbols):,} symbols"
     )
     log_phase(
-        f"Date window: last {args.last_days} day(s), cutoff={cutoff.date()}, max_date={max_date.date()}"
+        "Date window: "
+        f"start_date={start_date.date()}, num_days={args.num_days}, "
+        f"end_date_exclusive={end_date.date()}"
     )
     liquid_count = int(liquid_by_symbol.sum())
     log_phase(
