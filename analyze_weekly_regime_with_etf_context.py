@@ -379,93 +379,92 @@ def predict_multinomial_head(model_bundle: dict, x: pd.DataFrame) -> np.ndarray:
     return model_bundle["model"].predict(x)
 
 
-def evaluate_per_symbol_multinomial_models(
-    merged: pd.DataFrame,
-    feature_cols: list[str],
-    train_end_date: str | None,
-    test_fraction: float,
-) -> tuple[pd.DataFrame, dict]:
+def _fit_and_evaluate_single_symbol(
+    args: tuple[str, pd.DataFrame, list[str], str | None, float]
+) -> dict:
+    symbol, symbol_df, feature_cols, train_end_date, test_fraction = args
+    train, test = time_split(symbol_df, train_end_date=train_end_date, test_fraction=test_fraction)
+
+    train_probs = train["regime"].value_counts(normalize=True)
+    model_bundle = fit_multinomial_head(train, feature_cols)
+    pred = predict_multinomial_head(model_bundle, test[feature_cols])
+    pred_series = pd.Series(pred, index=test.index)
+    true_series = test["regime"].astype(str)
+
     per_symbol_label_rows: list[dict] = []
     per_symbol_precision_recall_rows: list[dict] = []
     per_symbol_confusion_rows: list[dict] = []
-    per_symbol_models: dict[str, dict] = {}
-    train_rows_total = 0
-    test_rows_total = 0
 
-    for symbol, symbol_df in merged.groupby("symbol", sort=True):
-        train, test = time_split(symbol_df, train_end_date=train_end_date, test_fraction=test_fraction)
-        train_rows_total += len(train)
-        test_rows_total += len(test)
+    for label in TARGET_LABELS:
+        mask = test["regime"] == label
+        support = int(mask.sum())
+        if support > 0:
+            model_class_accuracy = float((pred_series[mask] == label).mean())
+        else:
+            model_class_accuracy = np.nan
 
-        train_probs = train["regime"].value_counts(normalize=True)
-        model_bundle = fit_multinomial_head(train, feature_cols)
-        pred = predict_multinomial_head(model_bundle, test[feature_cols])
-        pred_series = pd.Series(pred, index=test.index)
-        true_series = test["regime"].astype(str)
+        baseline_class_accuracy = float(train_probs.get(label, 0.0))
+        per_symbol_label_rows.append(
+            {
+                "symbol": symbol,
+                "label": label,
+                "support": support,
+                "probability_guess_class_accuracy": baseline_class_accuracy,
+                "model_class_accuracy": model_class_accuracy,
+                "accuracy_lift": (
+                    model_class_accuracy - baseline_class_accuracy
+                    if not np.isnan(model_class_accuracy)
+                    else np.nan
+                ),
+            }
+        )
 
-        for label in TARGET_LABELS:
-            mask = test["regime"] == label
-            support = int(mask.sum())
-            if support > 0:
-                model_class_accuracy = float((pred_series[mask] == label).mean())
-            else:
-                model_class_accuracy = np.nan
+        true_positive = int(((true_series == label) & (pred_series == label)).sum())
+        predicted_count = int((pred_series == label).sum())
+        precision = (
+            float(true_positive / predicted_count)
+            if predicted_count > 0
+            else np.nan
+        )
+        recall = (
+            float(true_positive / support)
+            if support > 0
+            else np.nan
+        )
 
-            baseline_class_accuracy = float(train_probs.get(label, 0.0))
-            per_symbol_label_rows.append(
+        per_symbol_precision_recall_rows.append(
+            {
+                "symbol": symbol,
+                "label": label,
+                "support_true": support,
+                "predicted_count": predicted_count,
+                "true_positive": true_positive,
+                "precision": precision,
+                "recall": recall,
+            }
+        )
+
+    for true_label in TARGET_LABELS:
+        true_mask = true_series == true_label
+        for predicted_label in TARGET_LABELS:
+            count = int((true_mask & (pred_series == predicted_label)).sum())
+            per_symbol_confusion_rows.append(
                 {
                     "symbol": symbol,
-                    "label": label,
-                    "support": support,
-                    "probability_guess_class_accuracy": baseline_class_accuracy,
-                    "model_class_accuracy": model_class_accuracy,
-                    "accuracy_lift": (
-                        model_class_accuracy - baseline_class_accuracy
-                        if not np.isnan(model_class_accuracy)
-                        else np.nan
-                    ),
+                    "true_label": true_label,
+                    "predicted_label": predicted_label,
+                    "count": count,
                 }
             )
 
-            true_positive = int(((true_series == label) & (pred_series == label)).sum())
-            predicted_count = int((pred_series == label).sum())
-            precision = (
-                float(true_positive / predicted_count)
-                if predicted_count > 0
-                else np.nan
-            )
-            recall = (
-                float(true_positive / support)
-                if support > 0
-                else np.nan
-            )
-
-            per_symbol_precision_recall_rows.append(
-                {
-                    "symbol": symbol,
-                    "label": label,
-                    "support_true": support,
-                    "predicted_count": predicted_count,
-                    "true_positive": true_positive,
-                    "precision": precision,
-                    "recall": recall,
-                }
-            )
-
-        for true_label in TARGET_LABELS:
-            true_mask = true_series == true_label
-            for predicted_label in TARGET_LABELS:
-                count = int((true_mask & (pred_series == predicted_label)).sum())
-                per_symbol_confusion_rows.append(
-                    {
-                        "symbol": symbol,
-                        "true_label": true_label,
-                        "predicted_label": predicted_label,
-                        "count": count,
-                    }
-                )
-
-        per_symbol_models[symbol] = {
+    return {
+        "symbol": symbol,
+        "train_rows": int(len(train)),
+        "test_rows": int(len(test)),
+        "per_symbol_label_rows": per_symbol_label_rows,
+        "per_symbol_precision_recall_rows": per_symbol_precision_recall_rows,
+        "per_symbol_confusion_rows": per_symbol_confusion_rows,
+        "model_entry": {
             "model": model_bundle,
             "train_rows": int(len(train)),
             "test_rows": int(len(test)),
@@ -473,7 +472,46 @@ def evaluate_per_symbol_multinomial_models(
             "train_date_max": pd.Timestamp(train["entry_date"].max()).date().isoformat(),
             "test_date_min": pd.Timestamp(test["entry_date"].min()).date().isoformat(),
             "test_date_max": pd.Timestamp(test["entry_date"].max()).date().isoformat(),
-        }
+        },
+    }
+
+
+def evaluate_per_symbol_multinomial_models(
+    merged: pd.DataFrame,
+    feature_cols: list[str],
+    train_end_date: str | None,
+    test_fraction: float,
+    workers: int,
+) -> tuple[pd.DataFrame, dict]:
+    if workers < 1:
+        raise ValueError("--workers must be >= 1")
+
+    per_symbol_label_rows: list[dict] = []
+    per_symbol_precision_recall_rows: list[dict] = []
+    per_symbol_confusion_rows: list[dict] = []
+    per_symbol_models: dict[str, dict] = {}
+    train_rows_total = 0
+    test_rows_total = 0
+
+    symbol_jobs = [
+        (symbol, symbol_df.copy(), feature_cols, train_end_date, test_fraction)
+        for symbol, symbol_df in merged.groupby("symbol", sort=True)
+    ]
+
+    if workers == 1:
+        symbol_results = [_fit_and_evaluate_single_symbol(job) for job in symbol_jobs]
+    else:
+        # Use process-based parallelism to spread per-symbol training/evaluation across cores.
+        with get_context("spawn").Pool(processes=workers) as pool:
+            symbol_results = pool.map(_fit_and_evaluate_single_symbol, symbol_jobs)
+
+    for result in symbol_results:
+        train_rows_total += result["train_rows"]
+        test_rows_total += result["test_rows"]
+        per_symbol_label_rows.extend(result["per_symbol_label_rows"])
+        per_symbol_precision_recall_rows.extend(result["per_symbol_precision_recall_rows"])
+        per_symbol_confusion_rows.extend(result["per_symbol_confusion_rows"])
+        per_symbol_models[result["symbol"]] = result["model_entry"]
 
     if not per_symbol_label_rows:
         raise ValueError("No symbols available for training/evaluation.")
@@ -587,6 +625,7 @@ def main() -> None:
         feature_cols=feature_cols,
         train_end_date=args.train_end_date,
         test_fraction=args.test_fraction,
+        workers=args.workers,
     )
     split_stats = eval_bundle["split_stats"]
     precision_recall_table = eval_bundle["per_symbol_precision_recall"]
