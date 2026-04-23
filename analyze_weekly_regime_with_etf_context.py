@@ -18,8 +18,10 @@ entry-open causality:
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import os
+import tempfile
 from multiprocessing import get_context
 from pathlib import Path
 from datetime import datetime, timezone
@@ -185,7 +187,8 @@ def load_correlation_neighbors(path: str, threshold: float) -> dict[str, set[str
     corr["correlation"] = pd.to_numeric(corr["correlation"], errors="coerce")
     corr = corr.dropna(subset=["symbol_a", "symbol_b", "correlation"]).copy()
 
-    filtered = corr[corr["correlation"].abs() > threshold].copy()
+    # Ignore weak correlations in the closed interval [-threshold, threshold].
+    filtered = corr[~corr["correlation"].between(-threshold, threshold, inclusive="both")].copy()
     if filtered.empty:
         return {}
 
@@ -272,63 +275,104 @@ def add_neighbor_features(
     df: pd.DataFrame,
     neighbor_map: dict[str, set[str]],
     metric_cols: list[str],
+    output_csv: str | None = None,
 ) -> pd.DataFrame:
     log_phase("Phase: neighbor feature engineering started")
-    out = df.sort_values(["date", "symbol"]).reset_index(drop=True).copy()
-
-    if not neighbor_map:
-        for col in metric_cols:
-            out[f"nbr_{col}_mean"] = np.nan
-            out[f"nbr_{col}_std"] = np.nan
-            out[f"delta_{col}_vs_nbr_mean"] = np.nan
-        out["nbr_count"] = 0
-        log_phase("Phase: neighbor feature engineering completed (no correlation neighbors found)")
-        return out
-
-    edge_rows: list[tuple[str, str]] = []
-    for symbol, neighbors in neighbor_map.items():
-        for neighbor_symbol in neighbors:
-            edge_rows.append((symbol, neighbor_symbol))
-
-    edges = pd.DataFrame(edge_rows, columns=["symbol", "neighbor_symbol"]).drop_duplicates()
-    if edges.empty:
-        for col in metric_cols:
-            out[f"nbr_{col}_mean"] = np.nan
-            out[f"nbr_{col}_std"] = np.nan
-            out[f"delta_{col}_vs_nbr_mean"] = np.nan
-        out["nbr_count"] = 0
-        log_phase("Phase: neighbor feature engineering completed (no valid neighbor edges)")
-        return out
-
-    neighbors_daily = (
-        out[["symbol", "date"]]
-        .merge(edges, how="left", on="symbol")
+    sorted_df = df.sort_values(["date", "symbol"]).reset_index(drop=True)
+    out_cols = (
+        ["symbol", "date"]
+        + metric_cols
+        + [f"nbr_{c}_mean" for c in metric_cols]
+        + [f"nbr_{c}_std" for c in metric_cols]
+        + [f"delta_{c}_vs_nbr_mean" for c in metric_cols]
+        + ["nbr_count"]
     )
 
-    neighbor_values = out[["symbol", "date"] + metric_cols].rename(
-        columns={"symbol": "neighbor_symbol"}
-    )
-    neighbor_values["__neighbor_row_exists"] = 1
-    neighbors_daily = neighbors_daily.merge(
-        neighbor_values,
-        how="left",
-        on=["neighbor_symbol", "date"],
-    )
+    # Stream date-by-date to avoid building an exploded (symbol,date,neighbor) table.
+    out_chunks: list[pd.DataFrame] = []
+    write_to_csv = output_csv is not None
+    wrote_header = False
+    unique_dates = sorted_df["date"].drop_duplicates()
+    total_dates = int(len(unique_dates))
+    log_every = 25
 
-    out_idx = out.set_index(["symbol", "date"])
-    grp = neighbors_daily.groupby(["symbol", "date"], sort=False)
-    out_idx["nbr_count"] = grp["__neighbor_row_exists"].sum(min_count=1).fillna(0).astype("int32")
+    for date_idx, (_, day) in enumerate(sorted_df.groupby("date", sort=False), start=1):
+        day = day.sort_values("symbol").reset_index(drop=True)
+        symbols = day["symbol"].astype(str).to_numpy()
+        metric_arr = day[metric_cols].to_numpy(dtype=float, copy=False)
+        n_symbols = len(day)
+        n_metrics = len(metric_cols)
 
-    for col in metric_cols:
-        means = grp[col].mean()
-        stds = grp[col].std(ddof=0)
-        out_idx[f"nbr_{col}_mean"] = means
-        out_idx[f"nbr_{col}_std"] = stds
-        out_idx[f"delta_{col}_vs_nbr_mean"] = out_idx[col] - means
+        nbr_count = np.zeros(n_symbols, dtype=np.int32)
+        nbr_mean = np.full((n_symbols, n_metrics), np.nan, dtype=float)
+        nbr_std = np.full((n_symbols, n_metrics), np.nan, dtype=float)
+        idx_by_symbol = {sym: idx for idx, sym in enumerate(symbols)}
 
-    out = out_idx.reset_index()
+        for i, sym in enumerate(symbols):
+            neighbors = neighbor_map.get(sym)
+            if not neighbors:
+                continue
+            neighbor_idxs = [idx_by_symbol[nbr] for nbr in neighbors if nbr in idx_by_symbol]
+            if not neighbor_idxs:
+                continue
+
+            neighbor_vals = metric_arr[neighbor_idxs, :]
+            nbr_count[i] = len(neighbor_idxs)
+            nbr_mean[i, :] = np.nanmean(neighbor_vals, axis=0)
+            nbr_std[i, :] = np.nanstd(neighbor_vals, axis=0, ddof=0)
+
+        day_out = day[["symbol", "date"] + metric_cols].copy()
+        for j, col in enumerate(metric_cols):
+            day_out[f"nbr_{col}_mean"] = nbr_mean[:, j]
+            day_out[f"nbr_{col}_std"] = nbr_std[:, j]
+            day_out[f"delta_{col}_vs_nbr_mean"] = day_out[col] - nbr_mean[:, j]
+        day_out["nbr_count"] = nbr_count
+        day_out = day_out[out_cols]
+
+        if write_to_csv:
+            day_out.to_csv(output_csv, mode="a", index=False, header=not wrote_header)
+            wrote_header = True
+        else:
+            out_chunks.append(day_out)
+
+        if date_idx == 1 or date_idx % log_every == 0 or date_idx == total_dates:
+            dt = pd.Timestamp(day_out["date"].iloc[0]).date().isoformat()
+            log_phase(
+                "Phase: neighbor feature engineering progress "
+                f"({date_idx}/{total_dates} dates, current_date={dt}, rows_today={n_symbols})"
+            )
+
+    if write_to_csv:
+        log_phase(f"Phase: neighbor feature engineering completed (streamed to {output_csv})")
+        return pd.DataFrame(columns=out_cols)
+
+    out = pd.concat(out_chunks, ignore_index=True) if out_chunks else pd.DataFrame(columns=out_cols)
     log_phase("Phase: neighbor feature engineering completed")
     return out
+
+
+def load_feature_subset_for_weekly(
+    feature_csv: str,
+    weekly: pd.DataFrame,
+    keep_cols: list[str],
+    chunksize: int = 200_000,
+) -> pd.DataFrame:
+    keys = (
+        weekly[["symbol", "entry_date"]]
+        .dropna(subset=["symbol", "entry_date"])
+        .drop_duplicates()
+        .rename(columns={"entry_date": "date"})
+    )
+
+    selected_parts: list[pd.DataFrame] = []
+    for chunk in pd.read_csv(feature_csv, usecols=keep_cols, parse_dates=["date"], chunksize=chunksize):
+        selected = chunk.merge(keys, on=["symbol", "date"], how="inner")
+        if not selected.empty:
+            selected_parts.append(selected)
+
+    if not selected_parts:
+        return pd.DataFrame(columns=keep_cols)
+    return pd.concat(selected_parts, ignore_index=True)
 
 
 def build_feature_table(
@@ -360,19 +404,37 @@ def build_feature_table(
         "volume_stddev",
     ]
 
-    with_neighbors = add_neighbor_features(
-        base,
-        neighbor_map=neighbor_map,
-        metric_cols=metric_cols,
-    )
-
     keep_cols = ["symbol", "date"] + metric_cols + [
         f"nbr_{c}_mean" for c in metric_cols
     ] + [f"nbr_{c}_std" for c in metric_cols] + [
         f"delta_{c}_vs_nbr_mean" for c in metric_cols
     ] + ["nbr_count"]
+    with tempfile.NamedTemporaryFile(
+        prefix="weekly_regime_neighbors_",
+        suffix=".csv",
+        dir="/tmp",
+        delete=False,
+    ) as tmp_file:
+        neighbors_csv = tmp_file.name
 
-    model_df = with_neighbors[keep_cols].copy()
+    try:
+        add_neighbor_features(
+            base,
+            neighbor_map=neighbor_map,
+            metric_cols=metric_cols,
+            output_csv=neighbors_csv,
+        )
+        # Drop base before loading neighbor features back from CSV.
+        del base
+        gc.collect()
+        model_df = load_feature_subset_for_weekly(
+            feature_csv=neighbors_csv,
+            weekly=weekly,
+            keep_cols=keep_cols,
+        )
+    finally:
+        if os.path.exists(neighbors_csv):
+            os.remove(neighbors_csv)
 
     merged = weekly.merge(
         model_df,
