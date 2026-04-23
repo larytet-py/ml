@@ -18,10 +18,12 @@ entry-open causality:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from multiprocessing import get_context
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -96,6 +98,16 @@ def parse_args() -> argparse.Namespace:
         "--features-output-csv",
         default="data/weekly_regime_features.csv",
         help="Where to save merged training table",
+    )
+    parser.add_argument(
+        "--model-output",
+        default="models/weekly_regime_model.joblib",
+        help="Where to save the trained sklearn pipeline + feature schema",
+    )
+    parser.add_argument(
+        "--metadata-output-json",
+        default="models/weekly_regime_model_metadata.json",
+        help="Where to save training metadata JSON (human-readable)",
     )
     parser.add_argument(
         "--workers",
@@ -300,7 +312,7 @@ def evaluate_model(
     train: pd.DataFrame,
     test: pd.DataFrame,
     feature_cols: list[str],
-) -> tuple[dict[str, float], str, pd.Series]:
+) -> tuple[dict[str, float], str, pd.Series, Pipeline]:
     pre = ColumnTransformer(
         transformers=[
             (
@@ -347,7 +359,7 @@ def evaluate_model(
 
     report = classification_report(y_test, pred, digits=4)
     pred_series = pd.Series(pred, index=test.index, name="pred_regime")
-    return metrics, report, pred_series
+    return metrics, report, pred_series, clf
 
 
 def main() -> None:
@@ -388,7 +400,7 @@ def main() -> None:
 
     baseline_metrics = evaluate_baseline(train["regime"], test["regime"])
     baseline_label = train["regime"].value_counts(normalize=True).idxmax()
-    model_metrics, report, pred = evaluate_model(train, test, feature_cols)
+    model_metrics, report, pred, clf = evaluate_model(train, test, feature_cols)
 
     per_etf = test[["symbol", "regime"]].copy()
     per_etf["pred_regime"] = pred.values
@@ -437,7 +449,54 @@ def main() -> None:
     print("\nPer-ETF test accuracy (baseline vs model):")
     print(per_etf_compare.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
+    model_output_path = Path(args.model_output)
+    model_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    bundle = {
+        "model": clf,
+        "feature_cols": feature_cols,
+        "target_labels": TARGET_LABELS,
+        "neighbors_k": args.neighbors_k,
+        "momentum_lookback": args.momentum_lookback,
+        "roc_lookback": args.roc_lookback,
+        "std_lookback": args.std_lookback,
+        "train_rows": int(len(train)),
+        "test_rows": int(len(test)),
+        "train_end_date": (
+            args.train_end_date
+            if args.train_end_date
+            else pd.Timestamp(train["entry_date"].max()).date().isoformat()
+        ),
+    }
+    joblib.dump(bundle, model_output_path)
+
+    metadata_output_path = Path(args.metadata_output_json)
+    metadata_output_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "model_output": str(model_output_path),
+        "target_labels": TARGET_LABELS,
+        "feature_count": len(feature_cols),
+        "feature_cols": feature_cols,
+        "neighbors_k": args.neighbors_k,
+        "momentum_lookback": args.momentum_lookback,
+        "roc_lookback": args.roc_lookback,
+        "std_lookback": args.std_lookback,
+        "train_rows": int(len(train)),
+        "test_rows": int(len(test)),
+        "train_date_min": pd.Timestamp(train["entry_date"].min()).date().isoformat(),
+        "train_date_max": pd.Timestamp(train["entry_date"].max()).date().isoformat(),
+        "test_date_min": pd.Timestamp(test["entry_date"].min()).date().isoformat(),
+        "test_date_max": pd.Timestamp(test["entry_date"].max()).date().isoformat(),
+        "baseline_accuracy": float(baseline_metrics["accuracy"]),
+        "baseline_log_loss": float(baseline_metrics["log_loss"]),
+        "model_accuracy": float(model_metrics["accuracy"]),
+        "model_log_loss": float(model_metrics["log_loss"]),
+    }
+    metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
     print(f"Saved merged feature table: {output_path}")
+    print(f"Saved model artifact: {model_output_path}")
+    print(f"Saved model metadata: {metadata_output_path}")
 
 
 if __name__ == "__main__":
