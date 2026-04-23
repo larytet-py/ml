@@ -362,6 +362,8 @@ def evaluate_per_symbol_multinomial_models(
     test_fraction: float,
 ) -> tuple[pd.DataFrame, dict]:
     per_symbol_label_rows: list[dict] = []
+    per_symbol_precision_recall_rows: list[dict] = []
+    per_symbol_confusion_rows: list[dict] = []
     per_symbol_models: dict[str, dict] = {}
     train_rows_total = 0
     test_rows_total = 0
@@ -375,6 +377,7 @@ def evaluate_per_symbol_multinomial_models(
         model_bundle = fit_multinomial_head(train, feature_cols)
         pred = predict_multinomial_head(model_bundle, test[feature_cols])
         pred_series = pd.Series(pred, index=test.index)
+        true_series = test["regime"].astype(str)
 
         for label in TARGET_LABELS:
             mask = test["regime"] == label
@@ -400,6 +403,44 @@ def evaluate_per_symbol_multinomial_models(
                 }
             )
 
+            true_positive = int(((true_series == label) & (pred_series == label)).sum())
+            predicted_count = int((pred_series == label).sum())
+            precision = (
+                float(true_positive / predicted_count)
+                if predicted_count > 0
+                else np.nan
+            )
+            recall = (
+                float(true_positive / support)
+                if support > 0
+                else np.nan
+            )
+
+            per_symbol_precision_recall_rows.append(
+                {
+                    "symbol": symbol,
+                    "label": label,
+                    "support_true": support,
+                    "predicted_count": predicted_count,
+                    "true_positive": true_positive,
+                    "precision": precision,
+                    "recall": recall,
+                }
+            )
+
+        for true_label in TARGET_LABELS:
+            true_mask = true_series == true_label
+            for predicted_label in TARGET_LABELS:
+                count = int((true_mask & (pred_series == predicted_label)).sum())
+                per_symbol_confusion_rows.append(
+                    {
+                        "symbol": symbol,
+                        "true_label": true_label,
+                        "predicted_label": predicted_label,
+                        "count": count,
+                    }
+                )
+
         per_symbol_models[symbol] = {
             "model": model_bundle,
             "train_rows": int(len(train)),
@@ -417,6 +458,14 @@ def evaluate_per_symbol_multinomial_models(
         pd.DataFrame(per_symbol_label_rows)
         .sort_values(["symbol", "label"], ascending=[True, True])
     )
+    per_symbol_precision_recall_table = (
+        pd.DataFrame(per_symbol_precision_recall_rows)
+        .sort_values(["symbol", "label"], ascending=[True, True])
+    )
+    per_symbol_confusion_table = (
+        pd.DataFrame(per_symbol_confusion_rows)
+        .sort_values(["symbol", "true_label", "predicted_label"], ascending=[True, True, True])
+    )
 
     split_stats = {
         "train_rows": int(train_rows_total),
@@ -429,6 +478,8 @@ def evaluate_per_symbol_multinomial_models(
     return per_symbol_label_table, {
         "per_symbol_models": per_symbol_models,
         "split_stats": split_stats,
+        "per_symbol_precision_recall": per_symbol_precision_recall_table,
+        "per_symbol_confusion": per_symbol_confusion_table,
     }
 
 
@@ -473,9 +524,26 @@ def main() -> None:
         test_fraction=args.test_fraction,
     )
     split_stats = eval_bundle["split_stats"]
+    precision_recall_table = eval_bundle["per_symbol_precision_recall"]
+    confusion_table = eval_bundle["per_symbol_confusion"]
 
     print("Per-symbol per-label class accuracy (historical-probability guess vs model):")
     print(per_symbol_label_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print()
+    print("Per-symbol per-label precision/recall:")
+    print(precision_recall_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print()
+    print("Per-symbol confusion matrices (rows=true label, cols=predicted label):")
+    for symbol in sorted(confusion_table["symbol"].unique()):
+        symbol_conf = confusion_table[confusion_table["symbol"] == symbol]
+        matrix = symbol_conf.pivot(
+            index="true_label",
+            columns="predicted_label",
+            values="count",
+        ).reindex(index=TARGET_LABELS, columns=TARGET_LABELS, fill_value=0)
+        print()
+        print(symbol)
+        print(matrix.to_string())
 
     model_output_path = Path(args.model_output)
     model_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -518,6 +586,8 @@ def main() -> None:
         "test_date_min": split_stats["test_date_min"],
         "test_date_max": split_stats["test_date_max"],
         "per_symbol_per_label_class_accuracy": per_symbol_label_table.to_dict(orient="records"),
+        "per_symbol_per_label_precision_recall": precision_recall_table.to_dict(orient="records"),
+        "per_symbol_confusion_matrix_long": confusion_table.to_dict(orient="records"),
     }
     metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
