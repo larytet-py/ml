@@ -32,7 +32,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
-    log_loss,
     precision_recall_fscore_support,
 )
 from sklearn.pipeline import Pipeline
@@ -40,8 +39,6 @@ from sklearn.preprocessing import StandardScaler
 
 
 TARGET_LABELS = ["constraining_top", "constraining_low", "consolidating"]
-BINARY_HEAD_LABELS = ["consolidating", "constraining_top"]
-LOG_LOSS_LABELS = sorted(TARGET_LABELS)
 
 
 def default_workers() -> int:
@@ -304,15 +301,9 @@ def time_split(df: pd.DataFrame, train_end_date: str | None, test_fraction: floa
 
 
 def evaluate_baseline(y_train: pd.Series, y_test: pd.Series) -> dict[str, float]:
-    labels = LOG_LOSS_LABELS
-    probs = y_train.value_counts(normalize=True).reindex(labels, fill_value=0.0)
-    y_pred = pd.Series(np.repeat(probs.idxmax(), len(y_test)), index=y_test.index)
-    y_prob = np.tile(probs.values, (len(y_test), 1))
-
-    return {
-        "accuracy": accuracy_score(y_test, y_pred),
-        "log_loss": log_loss(y_test, y_prob, labels=labels),
-    }
+    majority_label = y_train.value_counts().idxmax()
+    y_pred = pd.Series(np.repeat(majority_label, len(y_test)), index=y_test.index)
+    return {"accuracy": accuracy_score(y_test, y_pred)}
 
 
 def build_numeric_pipeline(feature_cols: list[str]) -> Pipeline:
@@ -346,43 +337,36 @@ def build_numeric_pipeline(feature_cols: list[str]) -> Pipeline:
         ]
     )
 
-def fit_binary_head(
+def fit_multinomial_head(
     train: pd.DataFrame,
     feature_cols: list[str],
-    target_label: str,
 ) -> dict:
-    y_train = (train["regime"] == target_label).astype(int)
-    positive_probability = float(y_train.mean())
+    y_train = train["regime"]
+    majority_label = y_train.value_counts().idxmax()
 
-    # If a symbol has only one class for this head in train, fallback to constant probability.
+    # If a symbol has only one class in train, fallback to constant label prediction.
     if y_train.nunique() < 2:
         return {
             "type": "constant",
-            "target_label": target_label,
-            "positive_probability": positive_probability,
+            "majority_label": majority_label,
         }
 
     clf = build_numeric_pipeline(feature_cols)
     clf.fit(train[feature_cols], y_train)
     return {
         "type": "pipeline",
-        "target_label": target_label,
-        "positive_probability": positive_probability,
+        "majority_label": majority_label,
         "model": clf,
     }
 
 
-def predict_binary_head(model_bundle: dict, x: pd.DataFrame) -> np.ndarray:
+def predict_multinomial_head(model_bundle: dict, x: pd.DataFrame) -> np.ndarray:
     if model_bundle["type"] == "constant":
-        return np.full(len(x), model_bundle["positive_probability"], dtype=float)
-
-    clf = model_bundle["model"]
-    classes = clf.named_steps["model"].classes_
-    pos_idx = int(np.where(classes == 1)[0][0])
-    return clf.predict_proba(x)[:, pos_idx]
+        return np.repeat(model_bundle["majority_label"], len(x))
+    return model_bundle["model"].predict(x)
 
 
-def evaluate_per_symbol_two_head_models(
+def evaluate_per_symbol_multinomial_models(
     merged: pd.DataFrame,
     feature_cols: list[str],
     train_end_date: str | None,
@@ -399,24 +383,9 @@ def evaluate_per_symbol_two_head_models(
         train_rows_total += len(train)
         test_rows_total += len(test)
 
-        baseline_probs = train["regime"].value_counts(normalize=True).reindex(TARGET_LABELS, fill_value=0.0)
-        baseline_pred = baseline_probs.idxmax()
-
-        consolidating_head = fit_binary_head(train, feature_cols, target_label="consolidating")
-        constraining_top_head = fit_binary_head(train, feature_cols, target_label="constraining_top")
-
-        x_test = test[feature_cols]
-        p_consolidating = predict_binary_head(consolidating_head, x_test)
-        p_constraining_top = predict_binary_head(constraining_top_head, x_test)
-        p_constraining_low = np.clip(1.0 - p_consolidating - p_constraining_top, 0.0, None)
-
-        probs = np.column_stack([p_constraining_top, p_constraining_low, p_consolidating])
-        row_sums = probs.sum(axis=1, keepdims=True)
-        row_sums[row_sums == 0.0] = 1.0
-        probs = probs / row_sums
-
-        pred_idx = np.argmax(probs, axis=1)
-        pred = np.array(TARGET_LABELS, dtype=object)[pred_idx]
+        baseline_pred = train["regime"].value_counts().idxmax()
+        model_bundle = fit_multinomial_head(train, feature_cols)
+        pred = predict_multinomial_head(model_bundle, test[feature_cols])
 
         per_symbol_rows.append(
             {
@@ -436,19 +405,12 @@ def evaluate_per_symbol_two_head_models(
                     "regime": test["regime"].to_numpy(),
                     "pred_regime": pred,
                     "baseline_pred_regime": np.repeat(baseline_pred, len(test)),
-                    "baseline_prob_constraining_top": np.repeat(float(baseline_probs["constraining_top"]), len(test)),
-                    "baseline_prob_constraining_low": np.repeat(float(baseline_probs["constraining_low"]), len(test)),
-                    "baseline_prob_consolidating": np.repeat(float(baseline_probs["consolidating"]), len(test)),
-                    "model_prob_constraining_top": probs[:, 0],
-                    "model_prob_constraining_low": probs[:, 1],
-                    "model_prob_consolidating": probs[:, 2],
                 }
             )
         )
 
         per_symbol_models[symbol] = {
-            "consolidating_head": consolidating_head,
-            "constraining_top_head": constraining_top_head,
+            "model": model_bundle,
             "train_rows": int(len(train)),
             "test_rows": int(len(test)),
             "train_date_min": pd.Timestamp(train["entry_date"].min()).date().isoformat(),
@@ -464,32 +426,11 @@ def evaluate_per_symbol_two_head_models(
     pred_df["model_correct"] = (pred_df["regime"] == pred_df["pred_regime"]).astype(float)
     pred_df["baseline_correct"] = (pred_df["regime"] == pred_df["baseline_pred_regime"]).astype(float)
 
-    model_prob = pred_df[
-        [
-            "model_prob_constraining_top",
-            "model_prob_constraining_low",
-            "model_prob_consolidating",
-        ]
-    ].to_numpy()
-    baseline_prob = pred_df[
-        [
-            "baseline_prob_constraining_top",
-            "baseline_prob_constraining_low",
-            "baseline_prob_consolidating",
-        ]
-    ].to_numpy()
-    target_order = ["constraining_top", "constraining_low", "consolidating"]
-    to_logloss_idx = [target_order.index(lbl) for lbl in LOG_LOSS_LABELS]
-    model_prob = model_prob[:, to_logloss_idx]
-    baseline_prob = baseline_prob[:, to_logloss_idx]
-
     model_metrics = {
         "accuracy": float(accuracy_score(pred_df["regime"], pred_df["pred_regime"])),
-        "log_loss": float(log_loss(pred_df["regime"], model_prob, labels=LOG_LOSS_LABELS)),
     }
     baseline_metrics = {
         "accuracy": float(accuracy_score(pred_df["regime"], pred_df["baseline_pred_regime"])),
-        "log_loss": float(log_loss(pred_df["regime"], baseline_prob, labels=LOG_LOSS_LABELS)),
     }
 
     report = classification_report(pred_df["regime"], pred_df["pred_regime"], digits=4)
