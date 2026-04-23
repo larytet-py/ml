@@ -296,7 +296,11 @@ def evaluate_baseline(y_train: pd.Series, y_test: pd.Series) -> dict[str, float]
     }
 
 
-def evaluate_model(train: pd.DataFrame, test: pd.DataFrame, feature_cols: list[str]) -> tuple[dict[str, float], str]:
+def evaluate_model(
+    train: pd.DataFrame,
+    test: pd.DataFrame,
+    feature_cols: list[str],
+) -> tuple[dict[str, float], str, pd.Series]:
     pre = ColumnTransformer(
         transformers=[
             (
@@ -342,7 +346,8 @@ def evaluate_model(train: pd.DataFrame, test: pd.DataFrame, feature_cols: list[s
     }
 
     report = classification_report(y_test, pred, digits=4)
-    return metrics, report
+    pred_series = pd.Series(pred, index=test.index, name="pred_regime")
+    return metrics, report, pred_series
 
 
 def main() -> None:
@@ -382,7 +387,19 @@ def main() -> None:
     train, test = time_split(merged, train_end_date=args.train_end_date, test_fraction=args.test_fraction)
 
     baseline_metrics = evaluate_baseline(train["regime"], test["regime"])
-    model_metrics, report = evaluate_model(train, test, feature_cols)
+    model_metrics, report, pred = evaluate_model(train, test, feature_cols)
+
+    per_etf = test[["symbol", "regime"]].copy()
+    per_etf["pred_regime"] = pred.values
+    per_etf["correct"] = (per_etf["regime"] == per_etf["pred_regime"]).astype(float)
+    per_etf = (
+        per_etf.groupby("symbol", as_index=False)
+        .agg(
+            test_rows=("correct", "size"),
+            test_accuracy=("correct", "mean"),
+        )
+        .sort_values(["test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
+    )
 
     print("Rows in merged table:", len(merged))
     print("Train rows:", len(train), "Test rows:", len(test))
@@ -399,6 +416,9 @@ def main() -> None:
 
     print("\nClassification report (model):")
     print(report)
+
+    print("\nPer-ETF test accuracy (model):")
+    print(per_etf.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     print(f"Saved merged feature table: {output_path}")
 
