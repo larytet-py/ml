@@ -511,7 +511,7 @@ def main() -> None:
     ]
 
     baseline_metrics, model_metrics, report, pred_df, per_symbol_table, per_symbol_per_label_table, eval_bundle = (
-        evaluate_per_symbol_two_head_models(
+        evaluate_per_symbol_multinomial_models(
             merged=merged,
             feature_cols=feature_cols,
             train_end_date=args.train_end_date,
@@ -524,15 +524,13 @@ def main() -> None:
     print("Train rows:", split_stats["train_rows"], "Test rows:", split_stats["test_rows"])
     print("Train date range:", split_stats["train_date_min"], "->", split_stats["train_date_max"])
     print("Test date range:", split_stats["test_date_min"], "->", split_stats["test_date_max"])
-    print("Modeling mode: per-symbol with separate binary heads for consolidating and constraining_top")
+    print("Modeling mode: per-symbol single multinomial head")
 
-    print("\nBaseline (per-symbol train appearance probabilities):")
+    print("\nBaseline (per-symbol train majority label):")
     print(f"  accuracy: {baseline_metrics['accuracy']:.4f}")
-    print(f"  log_loss: {baseline_metrics['log_loss']:.4f}")
 
-    print("\nPer-symbol two-head logistic model:")
+    print("\nPer-symbol multinomial logistic model:")
     print(f"  accuracy: {model_metrics['accuracy']:.4f}")
-    print(f"  log_loss: {model_metrics['log_loss']:.4f}")
 
     print("\nClassification report (model):")
     print(report)
@@ -546,8 +544,7 @@ def main() -> None:
     model_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     bundle = {
-        "modeling_mode": "per_symbol_two_head",
-        "binary_head_labels": BINARY_HEAD_LABELS,
+        "modeling_mode": "per_symbol_multinomial",
         "per_symbol_models": eval_bundle["per_symbol_models"],
         "feature_cols": feature_cols,
         "target_labels": TARGET_LABELS,
@@ -576,8 +573,7 @@ def main() -> None:
         "momentum_lookback": args.momentum_lookback,
         "roc_lookback": args.roc_lookback,
         "std_lookback": args.std_lookback,
-        "modeling_mode": "per_symbol_two_head",
-        "binary_head_labels": BINARY_HEAD_LABELS,
+        "modeling_mode": "per_symbol_multinomial",
         "train_rows": int(split_stats["train_rows"]),
         "test_rows": int(split_stats["test_rows"]),
         "train_date_min": split_stats["train_date_min"],
@@ -585,9 +581,7 @@ def main() -> None:
         "test_date_min": split_stats["test_date_min"],
         "test_date_max": split_stats["test_date_max"],
         "baseline_accuracy": float(baseline_metrics["accuracy"]),
-        "baseline_log_loss": float(baseline_metrics["log_loss"]),
         "model_accuracy": float(model_metrics["accuracy"]),
-        "model_log_loss": float(model_metrics["log_loss"]),
         "per_symbol_metrics": per_symbol_table.to_dict(orient="records"),
         "per_symbol_per_label_metrics": per_symbol_per_label_table.to_dict(orient="records"),
     }
