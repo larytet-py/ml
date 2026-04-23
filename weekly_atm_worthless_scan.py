@@ -254,7 +254,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--worthless-only-output-csv",
         default=None,
-        help="Path to save only rows where put/call/both are worthless (default: data/_weekly_atm_worthless_only.csv)",
+        help="Path to save only rows where put/call/both are worthless (default: data/weekly_atm_worthless_only.csv)",
     )
     return parser.parse_args()
 
@@ -300,7 +300,7 @@ def main() -> None:
     print_summary(combined_df)
 
     output_csv = args.output_csv or "data/weekly_atm_worthless_scan.csv"
-    worthless_only_output_csv = args.worthless_only_output_csv or "data/_weekly_atm_worthless_only.csv"
+    worthless_only_output_csv = args.worthless_only_output_csv or "data/weekly_atm_worthless_only.csv"
 
     output_path = Path(output_csv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
