@@ -36,6 +36,12 @@ from sklearn.preprocessing import StandardScaler
 
 TARGET_LABELS = ["constraining_top", "constraining_low", "consolidating"]
 
+# Read-only per-process caches used with Linux "fork" multiprocessing.
+# Workers receive only symbol keys and look up immutable source frames here.
+_UNDERLYING_SYMBOL_FRAMES: dict[str, pd.DataFrame] = {}
+_EVAL_SYMBOL_FRAMES: dict[str, pd.DataFrame] = {}
+_EVAL_FEATURE_COLS: tuple[str, ...] = ()
+
 
 def log_phase(message: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -210,33 +216,37 @@ def add_underlying_features(
         raise ValueError("--workers must be >= 1")
 
     log_phase("Phase: underlying feature engineering started")
-    parts = [
-        grp.copy()
-        for _, grp in ohlcv.groupby("symbol", sort=False)
-    ]
-
+    symbol_frames = {
+        symbol: grp.sort_values("date").reset_index(drop=True)
+        for symbol, grp in ohlcv.groupby("symbol", sort=False)
+    }
     args = [
-        (part, momentum_lookback, roc_lookback, std_lookback)
-        for part in parts
+        (symbol, momentum_lookback, roc_lookback, std_lookback)
+        for symbol in symbol_frames.keys()
     ]
+    global _UNDERLYING_SYMBOL_FRAMES
+    _UNDERLYING_SYMBOL_FRAMES = symbol_frames
 
     if workers == 1:
         out_parts = [_add_underlying_features_for_symbol(a) for a in args]
     else:
-        # Use process-based parallelism to spread symbol feature creation across cores.
-        with get_context("spawn").Pool(processes=workers) as pool:
+        # On Linux, "fork" lets workers share parent memory copy-on-write.
+        with get_context("fork").Pool(processes=workers) as pool:
             out_parts = pool.map(_add_underlying_features_for_symbol, args)
 
+    _UNDERLYING_SYMBOL_FRAMES = {}
     result = pd.concat(out_parts, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
     log_phase("Phase: underlying feature engineering completed")
     return result
 
 
 def _add_underlying_features_for_symbol(
-    args: tuple[pd.DataFrame, int, int, int]
+    args: tuple[str, int, int, int]
 ) -> pd.DataFrame:
-    df, momentum_lookback, roc_lookback, std_lookback = args
-    df = df.sort_values("date").copy()
+    symbol, momentum_lookback, roc_lookback, std_lookback = args
+    source_df = _UNDERLYING_SYMBOL_FRAMES[symbol]
+    # Never mutate the shared source frame; build features on a worker-local copy.
+    df = source_df.copy(deep=True)
 
     # Entry-time safe: on entry_date we assume only today's open is known.
     # Price features are built from the open series.
@@ -458,9 +468,13 @@ def predict_multinomial_head(model_bundle: dict, x: pd.DataFrame) -> np.ndarray:
 
 
 def _fit_and_evaluate_single_symbol(
-    args: tuple[str, pd.DataFrame, list[str], str | None, float]
+    args: tuple[str, str | None, float]
 ) -> dict:
-    symbol, symbol_df, feature_cols, train_end_date, test_fraction = args
+    symbol, train_end_date, test_fraction = args
+    source_df = _EVAL_SYMBOL_FRAMES[symbol]
+    # Never mutate the shared source frame; split/train from a worker-local copy.
+    symbol_df = source_df.copy(deep=True)
+    feature_cols = list(_EVAL_FEATURE_COLS)
     log_phase(f"Per-symbol training started: {symbol}")
     train, test = time_split(symbol_df, train_end_date=train_end_date, test_fraction=test_fraction)
 
@@ -575,18 +589,27 @@ def evaluate_per_symbol_multinomial_models(
     train_rows_total = 0
     test_rows_total = 0
 
-    symbol_jobs = [
-        (symbol, symbol_df.copy(), feature_cols, train_end_date, test_fraction)
+    symbol_frames = {
+        symbol: symbol_df.sort_values("entry_date").reset_index(drop=True)
         for symbol, symbol_df in merged.groupby("symbol", sort=True)
+    }
+    symbol_jobs = [
+        (symbol, train_end_date, test_fraction)
+        for symbol in symbol_frames.keys()
     ]
+    global _EVAL_SYMBOL_FRAMES, _EVAL_FEATURE_COLS
+    _EVAL_SYMBOL_FRAMES = symbol_frames
+    _EVAL_FEATURE_COLS = tuple(feature_cols)
 
     if workers == 1:
         symbol_results = [_fit_and_evaluate_single_symbol(job) for job in symbol_jobs]
     else:
-        # Use process-based parallelism to spread per-symbol training/evaluation across cores.
-        with get_context("spawn").Pool(processes=workers) as pool:
+        # On Linux, "fork" lets workers share parent memory copy-on-write.
+        with get_context("fork").Pool(processes=workers) as pool:
             symbol_results = pool.map(_fit_and_evaluate_single_symbol, symbol_jobs)
 
+    _EVAL_SYMBOL_FRAMES = {}
+    _EVAL_FEATURE_COLS = ()
     for result in symbol_results:
         train_rows_total += result["train_rows"]
         test_rows_total += result["test_rows"]
