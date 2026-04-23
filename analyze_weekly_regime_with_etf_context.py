@@ -29,13 +29,19 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, log_loss
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    log_loss,
+    precision_recall_fscore_support,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
 TARGET_LABELS = ["constraining_top", "constraining_low", "consolidating"]
 BINARY_HEAD_LABELS = ["consolidating", "constraining_top"]
+LOG_LOSS_LABELS = sorted(TARGET_LABELS)
 
 
 def default_workers() -> int:
@@ -298,7 +304,7 @@ def time_split(df: pd.DataFrame, train_end_date: str | None, test_fraction: floa
 
 
 def evaluate_baseline(y_train: pd.Series, y_test: pd.Series) -> dict[str, float]:
-    labels = sorted(TARGET_LABELS)
+    labels = LOG_LOSS_LABELS
     probs = y_train.value_counts(normalize=True).reindex(labels, fill_value=0.0)
     y_pred = pd.Series(np.repeat(probs.idxmax(), len(y_test)), index=y_test.index)
     y_prob = np.tile(probs.values, (len(y_test), 1))
@@ -472,14 +478,18 @@ def evaluate_per_symbol_two_head_models(
             "baseline_prob_consolidating",
         ]
     ].to_numpy()
+    target_order = ["constraining_top", "constraining_low", "consolidating"]
+    to_logloss_idx = [target_order.index(lbl) for lbl in LOG_LOSS_LABELS]
+    model_prob = model_prob[:, to_logloss_idx]
+    baseline_prob = baseline_prob[:, to_logloss_idx]
 
     model_metrics = {
         "accuracy": float(accuracy_score(pred_df["regime"], pred_df["pred_regime"])),
-        "log_loss": float(log_loss(pred_df["regime"], model_prob, labels=TARGET_LABELS)),
+        "log_loss": float(log_loss(pred_df["regime"], model_prob, labels=LOG_LOSS_LABELS)),
     }
     baseline_metrics = {
         "accuracy": float(accuracy_score(pred_df["regime"], pred_df["baseline_pred_regime"])),
-        "log_loss": float(log_loss(pred_df["regime"], baseline_prob, labels=TARGET_LABELS)),
+        "log_loss": float(log_loss(pred_df["regime"], baseline_prob, labels=LOG_LOSS_LABELS)),
     }
 
     report = classification_report(pred_df["regime"], pred_df["pred_regime"], digits=4)
@@ -487,6 +497,28 @@ def evaluate_per_symbol_two_head_models(
         pd.DataFrame(per_symbol_rows)
         .assign(accuracy_lift=lambda d: d["model_test_accuracy"] - d["baseline_test_accuracy"])
         .sort_values(["model_test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
+    )
+    per_symbol_per_label_rows: list[dict] = []
+    for symbol, grp in pred_df.groupby("symbol", sort=True):
+        precision, recall, f1, support = precision_recall_fscore_support(
+            grp["regime"],
+            grp["pred_regime"],
+            labels=TARGET_LABELS,
+            zero_division=0,
+        )
+        for i, label in enumerate(TARGET_LABELS):
+            per_symbol_per_label_rows.append(
+                {
+                    "symbol": symbol,
+                    "label": label,
+                    "support": int(support[i]),
+                    "precision": float(precision[i]),
+                    "recall": float(recall[i]),
+                    "f1_score": float(f1[i]),
+                }
+            )
+    per_symbol_per_label_table = pd.DataFrame(per_symbol_per_label_rows).sort_values(
+        ["symbol", "label"], ascending=[True, True]
     )
 
     split_stats = {
@@ -497,7 +529,7 @@ def evaluate_per_symbol_two_head_models(
         "test_date_min": min(v["test_date_min"] for v in per_symbol_models.values()),
         "test_date_max": max(v["test_date_max"] for v in per_symbol_models.values()),
     }
-    return baseline_metrics, model_metrics, report, pred_df, per_symbol_table, {
+    return baseline_metrics, model_metrics, report, pred_df, per_symbol_table, per_symbol_per_label_table, {
         "per_symbol_models": per_symbol_models,
         "split_stats": split_stats,
     }
@@ -537,7 +569,7 @@ def main() -> None:
         }
     ]
 
-    baseline_metrics, model_metrics, report, pred_df, per_symbol_table, eval_bundle = (
+    baseline_metrics, model_metrics, report, pred_df, per_symbol_table, per_symbol_per_label_table, eval_bundle = (
         evaluate_per_symbol_two_head_models(
             merged=merged,
             feature_cols=feature_cols,
@@ -566,6 +598,8 @@ def main() -> None:
 
     print("\nPer-symbol test accuracy (baseline vs model):")
     print(per_symbol_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print("\nPer-symbol per-label metrics (model):")
+    print(per_symbol_per_label_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     model_output_path = Path(args.model_output)
     model_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -614,6 +648,7 @@ def main() -> None:
         "model_accuracy": float(model_metrics["accuracy"]),
         "model_log_loss": float(model_metrics["log_loss"]),
         "per_symbol_metrics": per_symbol_table.to_dict(orient="records"),
+        "per_symbol_per_label_metrics": per_symbol_per_label_table.to_dict(orient="records"),
     }
     metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
