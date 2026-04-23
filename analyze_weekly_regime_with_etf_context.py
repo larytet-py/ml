@@ -22,6 +22,7 @@ import json
 import os
 from multiprocessing import get_context
 from pathlib import Path
+from datetime import datetime, timezone
 
 import joblib
 import numpy as np
@@ -34,6 +35,11 @@ from sklearn.preprocessing import StandardScaler
 
 
 TARGET_LABELS = ["constraining_top", "constraining_low", "consolidating"]
+
+
+def log_phase(message: str) -> None:
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    print(f"[{ts}] {message}", flush=True)
 
 
 def default_workers() -> int:
@@ -162,6 +168,7 @@ def add_underlying_features(
     if workers < 1:
         raise ValueError("--workers must be >= 1")
 
+    log_phase("Phase: underlying feature engineering started")
     parts = [
         grp.copy()
         for _, grp in ohlcv.groupby("symbol", sort=False)
@@ -179,7 +186,9 @@ def add_underlying_features(
         with get_context("spawn").Pool(processes=workers) as pool:
             out_parts = pool.map(_add_underlying_features_for_symbol, args)
 
-    return pd.concat(out_parts, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
+    result = pd.concat(out_parts, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
+    log_phase("Phase: underlying feature engineering completed")
+    return result
 
 
 def _add_underlying_features_for_symbol(
@@ -216,6 +225,7 @@ def add_neighbor_features(
     if neighbors_k < 1:
         raise ValueError("--neighbors-k must be >= 1")
 
+    log_phase("Phase: neighbor feature engineering started")
     out = df.sort_values(["date", "price", "symbol"]).reset_index(drop=True).copy()
     by_date = out.groupby("date", sort=False)
 
@@ -242,6 +252,7 @@ def add_neighbor_features(
         out[f"delta_{col}_vs_nbr_mean"] = out[col] - mean_col
 
     out["nbr_count"] = cnt_col
+    log_phase("Phase: neighbor feature engineering completed")
     return out
 
 
@@ -254,6 +265,7 @@ def build_feature_table(
     std_lookback: int,
     workers: int,
 ) -> pd.DataFrame:
+    log_phase("Phase: build feature table started")
     base = add_underlying_features(
         ohlcv=ohlcv,
         momentum_lookback=momentum_lookback,
@@ -294,6 +306,7 @@ def build_feature_table(
         right_on=["symbol", "date"],
     ).drop(columns=["date"])
 
+    log_phase("Phase: build feature table completed")
     return merged
 
 
@@ -383,6 +396,7 @@ def _fit_and_evaluate_single_symbol(
     args: tuple[str, pd.DataFrame, list[str], str | None, float]
 ) -> dict:
     symbol, symbol_df, feature_cols, train_end_date, test_fraction = args
+    log_phase(f"Per-symbol training started: {symbol}")
     train, test = time_split(symbol_df, train_end_date=train_end_date, test_fraction=test_fraction)
 
     train_probs = train["regime"].value_counts(normalize=True)
@@ -457,7 +471,7 @@ def _fit_and_evaluate_single_symbol(
                 }
             )
 
-    return {
+    result = {
         "symbol": symbol,
         "train_rows": int(len(train)),
         "test_rows": int(len(test)),
@@ -474,6 +488,8 @@ def _fit_and_evaluate_single_symbol(
             "test_date_max": pd.Timestamp(test["entry_date"].max()).date().isoformat(),
         },
     }
+    log_phase(f"Per-symbol training completed: {symbol}")
+    return result
 
 
 def evaluate_per_symbol_multinomial_models(
@@ -486,6 +502,7 @@ def evaluate_per_symbol_multinomial_models(
     if workers < 1:
         raise ValueError("--workers must be >= 1")
 
+    log_phase("Phase: per-symbol model training/evaluation started")
     per_symbol_label_rows: list[dict] = []
     per_symbol_precision_recall_rows: list[dict] = []
     per_symbol_confusion_rows: list[dict] = []
@@ -537,6 +554,7 @@ def evaluate_per_symbol_multinomial_models(
         "test_date_min": min(v["test_date_min"] for v in per_symbol_models.values()),
         "test_date_max": max(v["test_date_max"] for v in per_symbol_models.values()),
     }
+    log_phase("Phase: per-symbol model training/evaluation completed")
     return per_symbol_label_table, {
         "per_symbol_models": per_symbol_models,
         "split_stats": split_stats,
@@ -587,10 +605,15 @@ def extract_coefficients_long(
 
 
 def main() -> None:
+    log_phase("Pipeline started")
     args = parse_args()
 
+    log_phase(f"Phase: load OHLCV started ({args.ohlcv_csv})")
     ohlcv = load_ohlcv(args.ohlcv_csv)
+    log_phase(f"Phase: load OHLCV completed (rows={len(ohlcv)})")
+    log_phase(f"Phase: load weekly labels started ({args.weekly_csv})")
     weekly = load_weekly(args.weekly_csv)
+    log_phase(f"Phase: load weekly labels completed (rows={len(weekly)})")
 
     merged = build_feature_table(
         ohlcv=ohlcv,
@@ -602,10 +625,13 @@ def main() -> None:
         workers=args.workers,
     )
     merged = merged.replace([np.inf, -np.inf], np.nan)
+    log_phase(f"Phase: clean infinities completed (rows={len(merged)})")
 
     output_path = Path(args.features_output_csv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    log_phase(f"Phase: save merged features started ({output_path})")
     merged.to_csv(output_path, index=False)
+    log_phase(f"Phase: save merged features completed ({output_path})")
 
     feature_cols = [
         c
@@ -669,7 +695,9 @@ def main() -> None:
             else split_stats["train_date_max"]
         ),
     }
+    log_phase(f"Phase: save model artifact started ({model_output_path})")
     joblib.dump(bundle, model_output_path)
+    log_phase(f"Phase: save model artifact completed ({model_output_path})")
 
     metadata_output_path = Path(args.metadata_output_json)
     metadata_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -693,7 +721,9 @@ def main() -> None:
         "per_symbol_per_label_precision_recall": precision_recall_table.to_dict(orient="records"),
         "per_symbol_confusion_matrix_long": confusion_table.to_dict(orient="records"),
     }
+    log_phase(f"Phase: save metadata started ({metadata_output_path})")
     metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    log_phase(f"Phase: save metadata completed ({metadata_output_path})")
 
     coefficients_df = extract_coefficients_long(
         per_symbol_models=eval_bundle["per_symbol_models"],
@@ -702,20 +732,25 @@ def main() -> None:
     if args.coefficients_output_csv:
         coefficients_csv_path = Path(args.coefficients_output_csv)
         coefficients_csv_path.parent.mkdir(parents=True, exist_ok=True)
+        log_phase(f"Phase: save coefficients CSV started ({coefficients_csv_path})")
         coefficients_df.to_csv(coefficients_csv_path, index=False)
+        log_phase(f"Phase: save coefficients CSV completed ({coefficients_csv_path})")
         print(f"Saved coefficients CSV: {coefficients_csv_path}")
     if args.coefficients_output_json:
         coefficients_json_path = Path(args.coefficients_output_json)
         coefficients_json_path.parent.mkdir(parents=True, exist_ok=True)
+        log_phase(f"Phase: save coefficients JSON started ({coefficients_json_path})")
         coefficients_json_path.write_text(
             json.dumps(coefficients_df.to_dict(orient="records"), indent=2),
             encoding="utf-8",
         )
+        log_phase(f"Phase: save coefficients JSON completed ({coefficients_json_path})")
         print(f"Saved coefficients JSON: {coefficients_json_path}")
 
     print(f"Saved merged feature table: {output_path}")
     print(f"Saved model artifact: {model_output_path}")
     print(f"Saved model metadata: {metadata_output_path}")
+    log_phase("Pipeline completed")
 
 
 if __name__ == "__main__":
