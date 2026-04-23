@@ -84,3 +84,20 @@ docker exec -it ml-clickhouse-server bash -c "tail -f /var/log/clickhouse-server
 * Introduction to Linear Algebra: https://amzn.to/3qXc47m
 * Advances in Active Portfolio Management: https://amzn.to/3xwSfpX
 * Technical Analysis is Mostly Bullshit: https://amzn.to/2TU3M41
+
+
+
+# Options
+
+```bash
+# Generate correlation matrix
+python3 etf_correlation_matrix.py  --workers 20
+
+# table of OOM expirations
+python3 weekly_atm_worthless_scan.py
+
+# generate a model 
+analyze_weekly_regime_with_etf_context.py
+```
+
+
