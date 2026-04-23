@@ -80,39 +80,8 @@ def load_ohlcv(csv_path: str, symbol: str, start_date: Optional[str], end_date: 
     return df.reset_index(drop=True)
 
 
-def classify_price_behavior(
-    period_high: float,
-    period_low: float,
-    expiry_close: float,
-    reference_open: float,
-    narrow_range_threshold_pct: float,
-    top_zone_pct: float,
-    low_zone_pct: float,
-) -> str:
-    width = max(0.0, period_high - period_low)
-    if reference_open <= 0:
-        return "unknown"
-
-    range_pct = width / reference_open
-    if range_pct <= narrow_range_threshold_pct:
-        return "consolidating_narrow"
-
-    if width == 0.0:
-        return "consolidating_narrow"
-
-    pos = (expiry_close - period_low) / width
-    if pos >= top_zone_pct:
-        return "constrained_top"
-    if pos <= low_zone_pct:
-        return "constrained_low"
-    return "mid_range"
-
-
 def scan_weekly_atm_worthless(
     df: pd.DataFrame,
-    narrow_range_threshold_pct: float,
-    top_zone_pct: float,
-    low_zone_pct: float,
 ) -> pd.DataFrame:
     iso = df["date"].dt.isocalendar()
     df = df.copy()
@@ -164,15 +133,14 @@ def scan_weekly_atm_worthless(
                 else:
                     outcome = "none"
 
-                behavior = classify_price_behavior(
-                    period_high=period_high,
-                    period_low=period_low,
-                    expiry_close=expiry_close,
-                    reference_open=entry_open,
-                    narrow_range_threshold_pct=narrow_range_threshold_pct,
-                    top_zone_pct=top_zone_pct,
-                    low_zone_pct=low_zone_pct,
-                )
+                if both_worthless:
+                    regime = "consolidating"
+                elif call_worthless and not put_worthless:
+                    regime = "constraining_top"
+                elif put_worthless and not call_worthless:
+                    regime = "constraining_low"
+                else:
+                    regime = "unclassified"
 
                 out_rows.append(
                     {
@@ -188,12 +156,13 @@ def scan_weekly_atm_worthless(
                         "call_worthless": bool(call_worthless),
                         "put_worthless": bool(put_worthless),
                         "both_worthless": bool(both_worthless),
+                        "is_consolidation": bool(both_worthless),
+                        "regime": regime,
                         "outcome": outcome,
                         "period_high": round(period_high, 4),
                         "period_low": round(period_low, 4),
                         "period_range": round(period_range, 4),
                         "period_range_pct_of_open": round(period_range_pct_of_open, 6),
-                        "price_behavior": behavior,
                     }
                 )
 
@@ -223,12 +192,8 @@ def print_summary(result_df: pd.DataFrame) -> None:
     print("\nOutcome counts:")
     print(result_df["outcome"].value_counts().to_string())
 
-    print("\nPrice behavior counts:")
-    print(result_df["price_behavior"].value_counts().to_string())
-
-    print("\nOutcome x Price behavior:")
-    ctab = pd.crosstab(result_df["outcome"], result_df["price_behavior"])
-    print(ctab.to_string())
+    print("\nRegime counts:")
+    print(result_df["regime"].value_counts().to_string())
 
 
 def parse_args() -> argparse.Namespace:
@@ -237,24 +202,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--symbol", default="SPY", help="Ticker symbol")
     parser.add_argument("--start-date", default=None, help="Start date YYYY-MM-DD")
     parser.add_argument("--end-date", default=None, help="End date YYYY-MM-DD")
-    parser.add_argument(
-        "--narrow-range-threshold-pct",
-        type=float,
-        default=0.015,
-        help="Range <= this fraction of entry open is labeled consolidating_narrow (default 0.015 = 1.5%%)",
-    )
-    parser.add_argument(
-        "--top-zone-pct",
-        type=float,
-        default=0.8,
-        help="Expiry position in period range >= this is constrained_top",
-    )
-    parser.add_argument(
-        "--low-zone-pct",
-        type=float,
-        default=0.2,
-        help="Expiry position in period range <= this is constrained_low",
-    )
     parser.add_argument(
         "--output-csv",
         default="data/spy_weekly_atm_worthless_scan.csv",
@@ -271,9 +218,6 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    if not (0.0 <= args.low_zone_pct <= 1.0 and 0.0 <= args.top_zone_pct <= 1.0):
-        raise ValueError("--low-zone-pct and --top-zone-pct must be in [0,1].")
-
     df = load_ohlcv(
         csv_path=args.csv,
         symbol=args.symbol,
@@ -281,12 +225,7 @@ def main() -> None:
         end_date=args.end_date,
     )
 
-    result_df = scan_weekly_atm_worthless(
-        df=df,
-        narrow_range_threshold_pct=args.narrow_range_threshold_pct,
-        top_zone_pct=args.top_zone_pct,
-        low_zone_pct=args.low_zone_pct,
-    )
+    result_df = scan_weekly_atm_worthless(df=df)
 
     print_summary(result_df)
 
