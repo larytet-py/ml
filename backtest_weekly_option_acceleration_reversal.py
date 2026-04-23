@@ -22,7 +22,7 @@ WHERE api_security.active = TRUE
   AND api_securitydailydata.date >= CURRENT_DATE - INTERVAL '12 months'
 ORDER BY api_security.symbol, api_securitydailydata.date;
 
-python3 backtest_weekly_option_reversal.py \
+python3 backtest_weekly_option_acceleration_reversal.py \
   --symbol SPY \
   --side put \
   --optimize
@@ -70,16 +70,16 @@ def _format_best_backtest_command(
         symbol,
         "--side",
         side,
-        "--roc-lookback",
-        str(int(params["roc_lookback"])),
+        "--accel-window",
+        str(int(params["accel_window"])),
         "--vol-window",
         str(int(params["vol_window"])),
     ]
     if side == "put":
         cmd.extend(
             [
-                "--put-roc-threshold",
-                f"{params['put_roc_threshold']:.6f}",
+                "--put-accel-threshold",
+                f"{params['put_accel_threshold']:.6f}",
                 "--downside-vol-threshold",
                 f"{params['downside_vol_threshold_annualized']:.6f}",
             ]
@@ -87,8 +87,8 @@ def _format_best_backtest_command(
     else:
         cmd.extend(
             [
-                "--call-roc-threshold",
-                f"{params['call_roc_threshold']:.6f}",
+                "--call-accel-threshold",
+                f"{params['call_accel_threshold']:.6f}",
                 "--upside-vol-threshold",
                 f"{params['upside_vol_threshold_annualized']:.6f}",
             ]
@@ -117,7 +117,7 @@ class Trade:
     expired_itm: bool
     pnl_per_share: float
     pnl_per_contract: float
-    roc_signal: float
+    accel_signal: float
     trend_vol_signal: float
     pricing_vol: float
     scheduled_expiry_date: pd.Timestamp
@@ -171,9 +171,9 @@ def load_symbol_data(csv_path: str, symbol: str, start_date: Optional[str], end_
 def run_backtest(
     df: pd.DataFrame,
     side: str,
-    roc_lookback: int,
-    put_roc_threshold: float,
-    call_roc_threshold: float,
+    accel_window: int,
+    put_accel_threshold: float,
+    call_accel_threshold: float,
     vol_window: int,
     downside_vol_threshold_annualized: float,
     upside_vol_threshold_annualized: float,
@@ -190,7 +190,8 @@ def run_backtest(
     close = df["close"]
     returns = close.pct_change()
 
-    df["roc"] = close / close.shift(roc_lookback) - 1.0
+    # Acceleration = change in daily return ("velocity") over accel_window days.
+    df["acceleration"] = returns - returns.shift(accel_window)
     df["downside_vol_annualized"] = (
         returns.rolling(vol_window).apply(downside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
     )
@@ -215,14 +216,14 @@ def run_backtest(
             continue
 
         row = df.iloc[i]
-        if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
+        if pd.isna(row["acceleration"]) or pd.isna(row["pricing_vol_annualized"]):
             continue
 
         if side == "put":
             if pd.isna(row["downside_vol_annualized"]):
                 continue
             trigger = (
-                row["roc"] <= put_roc_threshold
+                row["acceleration"] <= put_accel_threshold
                 and row["downside_vol_annualized"] >= downside_vol_threshold_annualized
             )
             trend_vol_signal = float(row["downside_vol_annualized"])
@@ -230,7 +231,7 @@ def run_backtest(
             if pd.isna(row["upside_vol_annualized"]):
                 continue
             trigger = (
-                row["roc"] >= call_roc_threshold
+                row["acceleration"] >= call_accel_threshold
                 and row["upside_vol_annualized"] >= upside_vol_threshold_annualized
             )
             trend_vol_signal = float(row["upside_vol_annualized"])
@@ -284,7 +285,7 @@ def run_backtest(
                 expired_itm=expired_itm,
                 pnl_per_share=pnl_per_share,
                 pnl_per_contract=pnl_per_share * contract_size,
-                roc_signal=float(row["roc"]),
+                accel_signal=float(row["acceleration"]),
                 trend_vol_signal=trend_vol_signal,
                 pricing_vol=pricing_vol,
                 scheduled_expiry_date=scheduled_expiry_date,
@@ -351,29 +352,29 @@ def _clip(x: float, lo: float, hi: float) -> float:
 def _build_params_from_vector(
     x: List[float],
     side: str,
-    fixed_put_roc_threshold: float,
-    fixed_call_roc_threshold: float,
+    fixed_put_accel_threshold: float,
+    fixed_call_accel_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
 ) -> Dict[str, float]:
-    roc_lookback = int(round(x[0]))
-    roc_threshold = float(x[1])
+    accel_window = int(round(x[0]))
+    accel_threshold = float(x[1])
     vol_window = int(round(x[2]))
     vol_threshold = float(x[3])
 
     params = {
-        "roc_lookback": roc_lookback,
-        "put_roc_threshold": fixed_put_roc_threshold,
-        "call_roc_threshold": fixed_call_roc_threshold,
+        "accel_window": accel_window,
+        "put_accel_threshold": fixed_put_accel_threshold,
+        "call_accel_threshold": fixed_call_accel_threshold,
         "vol_window": vol_window,
         "downside_vol_threshold_annualized": fixed_downside_vol_threshold,
         "upside_vol_threshold_annualized": fixed_upside_vol_threshold,
     }
     if side == "put":
-        params["put_roc_threshold"] = roc_threshold
+        params["put_accel_threshold"] = accel_threshold
         params["downside_vol_threshold_annualized"] = vol_threshold
     else:
-        params["call_roc_threshold"] = roc_threshold
+        params["call_accel_threshold"] = accel_threshold
         params["upside_vol_threshold_annualized"] = vol_threshold
     return params
 
@@ -392,8 +393,8 @@ def _optimize_single_start(
     min_pricing_vol_annualized: float,
     contract_size: int,
     allow_overlap: bool,
-    fixed_put_roc_threshold: float,
-    fixed_call_roc_threshold: float,
+    fixed_put_accel_threshold: float,
+    fixed_call_accel_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
 ) -> Tuple[OptimizationResult, int]:
@@ -407,17 +408,17 @@ def _optimize_single_start(
         params = _build_params_from_vector(
             x=project(x),
             side=side,
-            fixed_put_roc_threshold=fixed_put_roc_threshold,
-            fixed_call_roc_threshold=fixed_call_roc_threshold,
+            fixed_put_accel_threshold=fixed_put_accel_threshold,
+            fixed_call_accel_threshold=fixed_call_accel_threshold,
             fixed_downside_vol_threshold=fixed_downside_vol_threshold,
             fixed_upside_vol_threshold=fixed_upside_vol_threshold,
         )
         trades_df = run_backtest(
             df=df,
             side=side,
-            roc_lookback=int(params["roc_lookback"]),
-            put_roc_threshold=float(params["put_roc_threshold"]),
-            call_roc_threshold=float(params["call_roc_threshold"]),
+            accel_window=int(params["accel_window"]),
+            put_accel_threshold=float(params["put_accel_threshold"]),
+            call_accel_threshold=float(params["call_accel_threshold"]),
             vol_window=int(params["vol_window"]),
             downside_vol_threshold_annualized=float(params["downside_vol_threshold_annualized"]),
             upside_vol_threshold_annualized=float(params["upside_vol_threshold_annualized"]),
@@ -527,8 +528,8 @@ def optimize_parameters(
     min_pricing_vol_annualized: float,
     contract_size: int,
     allow_overlap: bool,
-    fixed_put_roc_threshold: float,
-    fixed_call_roc_threshold: float,
+    fixed_put_accel_threshold: float,
+    fixed_call_accel_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
     progress_interval_seconds: float,
@@ -608,8 +609,8 @@ def optimize_parameters(
                 min_pricing_vol_annualized=min_pricing_vol_annualized,
                 contract_size=contract_size,
                 allow_overlap=allow_overlap,
-                fixed_put_roc_threshold=fixed_put_roc_threshold,
-                fixed_call_roc_threshold=fixed_call_roc_threshold,
+                fixed_put_accel_threshold=fixed_put_accel_threshold,
+                fixed_call_accel_threshold=fixed_call_accel_threshold,
                 fixed_downside_vol_threshold=fixed_downside_vol_threshold,
                 fixed_upside_vol_threshold=fixed_upside_vol_threshold,
             )
@@ -641,8 +642,8 @@ def optimize_parameters(
                     min_pricing_vol_annualized,
                     contract_size,
                     allow_overlap,
-                    fixed_put_roc_threshold,
-                    fixed_call_roc_threshold,
+                    fixed_put_accel_threshold,
+                    fixed_call_accel_threshold,
                     fixed_downside_vol_threshold,
                     fixed_upside_vol_threshold,
                 )
@@ -674,7 +675,7 @@ def optimize_parameters(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Backtest: sell ATM weekly puts/calls after trend shock (ROC + directional stddev trigger)."
+        description="Backtest: sell ATM weekly puts/calls after trend shock (acceleration + directional stddev trigger)."
     )
     parser.add_argument("--csv", default="data/etfs-all.csv", help="Path to input CSV.")
     parser.add_argument("--symbol", required=True, help="Ticker to backtest, e.g. SPY.")
@@ -686,9 +687,9 @@ def main() -> None:
     )
     parser.add_argument("--start-date", default=None, help="Optional filter, YYYY-MM-DD.")
     parser.add_argument("--end-date", default=None, help="Optional filter, YYYY-MM-DD.")
-    parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
-    parser.add_argument("--put-roc-threshold", type=float, default=-0.25, help="Put trigger: ROC <= threshold.")
-    parser.add_argument("--call-roc-threshold", type=float, default=0.25, help="Call trigger: ROC >= threshold.")
+    parser.add_argument("--accel-window", type=int, default=5, help="Days for acceleration.")
+    parser.add_argument("--put-accel-threshold", type=float, default=-0.03, help="Put trigger: acceleration <= threshold.")
+    parser.add_argument("--call-accel-threshold", type=float, default=0.03, help="Call trigger: acceleration >= threshold.")
     parser.add_argument(
         "--vol-window",
         type=int,
@@ -753,21 +754,21 @@ def main() -> None:
         default=1.0,
         help="How often to print optimization progress. Set <=0 to disable.",
     )
-    parser.add_argument("--roc-lookback-min", type=int, default=2, help="Lower bound for roc-lookback in optimization.")
-    parser.add_argument("--roc-lookback-max", type=int, default=60, help="Upper bound for roc-lookback in optimization.")
-    parser.add_argument("--vol-window-min", type=int, default=2, help="Lower bound for vol-window in optimization.")
+    parser.add_argument("--accel-window-min", type=int, default=2, help="Lower bound for accel-window in optimization.")
+    parser.add_argument("--accel-window-max", type=int, default=60, help="Upper bound for accel-window in optimization.")
+    parser.add_argument("--vol-window-min", type=int, default=5, help="Lower bound for vol-window in optimization.")
     parser.add_argument("--vol-window-max", type=int, default=40, help="Upper bound for vol-window in optimization.")
     parser.add_argument(
-        "--roc-threshold-min",
+        "--accel-threshold-min",
         type=float,
         default=None,
-        help="Lower bound for side-specific ROC threshold in optimization.",
+        help="Lower bound for side-specific acceleration threshold in optimization.",
     )
     parser.add_argument(
-        "--roc-threshold-max",
+        "--accel-threshold-max",
         type=float,
         default=None,
-        help="Upper bound for side-specific ROC threshold in optimization.",
+        help="Upper bound for side-specific acceleration threshold in optimization.",
     )
     parser.add_argument(
         "--vol-threshold-min",
@@ -787,25 +788,25 @@ def main() -> None:
 
     if args.optimize:
         if args.side == "call":
-            roc_threshold_min = args.roc_threshold_min if args.roc_threshold_min is not None else 0.0005
-            roc_threshold_max = args.roc_threshold_max if args.roc_threshold_max is not None else 0.20
-            initial_roc_threshold = args.call_roc_threshold
+            accel_threshold_min = args.accel_threshold_min if args.accel_threshold_min is not None else 0.005
+            accel_threshold_max = args.accel_threshold_max if args.accel_threshold_max is not None else 0.10
+            initial_accel_threshold = args.call_accel_threshold
             initial_vol_threshold = args.upside_vol_threshold
         else:
-            roc_threshold_min = args.roc_threshold_min if args.roc_threshold_min is not None else -0.30
-            roc_threshold_max = args.roc_threshold_max if args.roc_threshold_max is not None else -0.005
-            initial_roc_threshold = args.put_roc_threshold
+            accel_threshold_min = args.accel_threshold_min if args.accel_threshold_min is not None else -0.10
+            accel_threshold_max = args.accel_threshold_max if args.accel_threshold_max is not None else -0.005
+            initial_accel_threshold = args.put_accel_threshold
             initial_vol_threshold = args.downside_vol_threshold
 
         initial_vector = [
-            float(args.roc_lookback),
-            float(initial_roc_threshold),
+            float(args.accel_window),
+            float(initial_accel_threshold),
             float(args.vol_window),
             float(initial_vol_threshold),
         ]
         bounds = [
-            (float(args.roc_lookback_min), float(args.roc_lookback_max)),
-            (float(roc_threshold_min), float(roc_threshold_max)),
+            (float(args.accel_window_min), float(args.accel_window_max)),
+            (float(accel_threshold_min), float(accel_threshold_max)),
             (float(args.vol_window_min), float(args.vol_window_max)),
             (float(args.vol_threshold_min), float(args.vol_threshold_max)),
         ]
@@ -814,7 +815,7 @@ def main() -> None:
             df=df,
             side=args.side,
             symbol=args.symbol,
-            script_path="backtest_weekly_option_reversal.py",
+            script_path="backtest_weekly_option_acceleration_reversal.py",
             csv_path=args.csv,
             start_date=args.start_date,
             end_date=args.end_date,
@@ -831,8 +832,8 @@ def main() -> None:
             min_pricing_vol_annualized=args.min_pricing_vol,
             contract_size=args.contract_size,
             allow_overlap=args.allow_overlap,
-            fixed_put_roc_threshold=args.put_roc_threshold,
-            fixed_call_roc_threshold=args.call_roc_threshold,
+            fixed_put_accel_threshold=args.put_accel_threshold,
+            fixed_call_accel_threshold=args.call_accel_threshold,
             fixed_downside_vol_threshold=args.downside_vol_threshold,
             fixed_upside_vol_threshold=args.upside_vol_threshold,
             progress_interval_seconds=args.opt_progress_seconds,
@@ -841,12 +842,12 @@ def main() -> None:
 
         trades_df = result.trades_df
         print("Optimization complete. Best parameters:")
-        print(f"  roc_lookback={int(result.params['roc_lookback'])}")
+        print(f"  accel_window={int(result.params['accel_window'])}")
         if args.side == "call":
-            print(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
+            print(f"  call_accel_threshold={result.params['call_accel_threshold']:.6f}")
             print(f"  upside_vol_threshold={result.params['upside_vol_threshold_annualized']:.6f}")
         else:
-            print(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
+            print(f"  put_accel_threshold={result.params['put_accel_threshold']:.6f}")
             print(f"  downside_vol_threshold={result.params['downside_vol_threshold_annualized']:.6f}")
         print(f"  vol_window={int(result.params['vol_window'])}")
         print("  expiry=this-week")
@@ -855,9 +856,9 @@ def main() -> None:
         trades_df = run_backtest(
             df=df,
             side=args.side,
-            roc_lookback=args.roc_lookback,
-            put_roc_threshold=args.put_roc_threshold,
-            call_roc_threshold=args.call_roc_threshold,
+            accel_window=args.accel_window,
+            put_accel_threshold=args.put_accel_threshold,
+            call_accel_threshold=args.call_accel_threshold,
             vol_window=args.vol_window,
             downside_vol_threshold_annualized=args.downside_vol_threshold,
             upside_vol_threshold_annualized=args.upside_vol_threshold,
@@ -883,7 +884,7 @@ def main() -> None:
             "expired_itm",
             "pnl_per_contract",
             "time_to_expiry_days",
-            "roc_signal",
+            "accel_signal",
             "trend_vol_signal",
         ]
         trades_to_show = trades_df[cols] if args.print_trades < 0 else trades_df[cols].tail(args.print_trades)
