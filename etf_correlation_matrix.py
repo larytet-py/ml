@@ -71,10 +71,10 @@ def parse_args() -> argparse.Namespace:
         help="How many left-side symbols each worker task processes",
     )
     parser.add_argument(
-        "--last-months",
+        "--last-days",
         type=int,
-        default=2,
-        help="Only use rows from the last N months (based on latest date in input)",
+        default=30,
+        help="Only use rows from the last N days (based on latest date in input)",
     )
     return parser.parse_args()
 
@@ -225,13 +225,13 @@ def main() -> None:
         raise ValueError("--chunk-size must be >= 1")
     if args.min_overlap < 2:
         raise ValueError("--min-overlap must be >= 2")
-    if args.last_months < 1:
-        raise ValueError("--last-months must be >= 1")
+    if args.last_days < 1:
+        raise ValueError("--last-days must be >= 1")
 
     log_phase(f"Loading input CSV: {args.input_csv}")
     pivot = load_and_pivot(args.input_csv, args.value_col)
     max_date = pivot.index.max()
-    cutoff = max_date - pd.DateOffset(months=args.last_months)
+    cutoff = max_date - pd.Timedelta(days=args.last_days)
     pivot = pivot[pivot.index >= cutoff].copy()
 
     symbols = [str(s) for s in pivot.columns.tolist()]
@@ -239,7 +239,7 @@ def main() -> None:
         f"Prepared pivot table with {len(pivot):,} dates and {len(symbols):,} symbols"
     )
     log_phase(
-        f"Date window: last {args.last_months} month(s), cutoff={cutoff.date()}, max_date={max_date.date()}"
+        f"Date window: last {args.last_days} day(s), cutoff={cutoff.date()}, max_date={max_date.date()}"
     )
 
     log_phase(
