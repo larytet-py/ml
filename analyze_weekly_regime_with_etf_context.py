@@ -29,11 +29,6 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    precision_recall_fscore_support,
-)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -300,12 +295,6 @@ def time_split(df: pd.DataFrame, train_end_date: str | None, test_fraction: floa
     return train, test
 
 
-def evaluate_baseline(y_train: pd.Series, y_test: pd.Series) -> dict[str, float]:
-    majority_label = y_train.value_counts().idxmax()
-    y_pred = pd.Series(np.repeat(majority_label, len(y_test)), index=y_test.index)
-    return {"accuracy": accuracy_score(y_test, y_pred)}
-
-
 def build_numeric_pipeline(feature_cols: list[str]) -> Pipeline:
     pre = ColumnTransformer(
         transformers=[
@@ -371,9 +360,8 @@ def evaluate_per_symbol_multinomial_models(
     feature_cols: list[str],
     train_end_date: str | None,
     test_fraction: float,
-) -> tuple[dict[str, float], dict[str, float], str, pd.DataFrame, pd.DataFrame, dict]:
-    prediction_parts: list[pd.DataFrame] = []
-    per_symbol_rows: list[dict] = []
+) -> tuple[pd.DataFrame, dict]:
+    per_symbol_label_rows: list[dict] = []
     per_symbol_models: dict[str, dict] = {}
     train_rows_total = 0
     test_rows_total = 0
@@ -383,31 +371,34 @@ def evaluate_per_symbol_multinomial_models(
         train_rows_total += len(train)
         test_rows_total += len(test)
 
-        baseline_pred = train["regime"].value_counts().idxmax()
+        train_probs = train["regime"].value_counts(normalize=True)
         model_bundle = fit_multinomial_head(train, feature_cols)
         pred = predict_multinomial_head(model_bundle, test[feature_cols])
+        pred_series = pd.Series(pred, index=test.index)
 
-        per_symbol_rows.append(
-            {
-                "symbol": symbol,
-                "train_rows": int(len(train)),
-                "test_rows": int(len(test)),
-                "baseline_test_accuracy": float((test["regime"] == baseline_pred).mean()),
-                "model_test_accuracy": float((test["regime"].to_numpy() == pred).mean()),
-            }
-        )
+        for label in TARGET_LABELS:
+            mask = test["regime"] == label
+            support = int(mask.sum())
+            if support > 0:
+                model_class_accuracy = float((pred_series[mask] == label).mean())
+            else:
+                model_class_accuracy = np.nan
 
-        prediction_parts.append(
-            pd.DataFrame(
+            baseline_class_accuracy = float(train_probs.get(label, 0.0))
+            per_symbol_label_rows.append(
                 {
-                    "symbol": test["symbol"].to_numpy(),
-                    "entry_date": test["entry_date"].to_numpy(),
-                    "regime": test["regime"].to_numpy(),
-                    "pred_regime": pred,
-                    "baseline_pred_regime": np.repeat(baseline_pred, len(test)),
+                    "symbol": symbol,
+                    "label": label,
+                    "support": support,
+                    "probability_guess_class_accuracy": baseline_class_accuracy,
+                    "model_class_accuracy": model_class_accuracy,
+                    "accuracy_lift": (
+                        model_class_accuracy - baseline_class_accuracy
+                        if not np.isnan(model_class_accuracy)
+                        else np.nan
+                    ),
                 }
             )
-        )
 
         per_symbol_models[symbol] = {
             "model": model_bundle,
@@ -419,47 +410,12 @@ def evaluate_per_symbol_multinomial_models(
             "test_date_max": pd.Timestamp(test["entry_date"].max()).date().isoformat(),
         }
 
-    if not prediction_parts:
+    if not per_symbol_label_rows:
         raise ValueError("No symbols available for training/evaluation.")
 
-    pred_df = pd.concat(prediction_parts, ignore_index=True)
-    pred_df["model_correct"] = (pred_df["regime"] == pred_df["pred_regime"]).astype(float)
-    pred_df["baseline_correct"] = (pred_df["regime"] == pred_df["baseline_pred_regime"]).astype(float)
-
-    model_metrics = {
-        "accuracy": float(accuracy_score(pred_df["regime"], pred_df["pred_regime"])),
-    }
-    baseline_metrics = {
-        "accuracy": float(accuracy_score(pred_df["regime"], pred_df["baseline_pred_regime"])),
-    }
-
-    report = classification_report(pred_df["regime"], pred_df["pred_regime"], digits=4)
-    per_symbol_table = (
-        pd.DataFrame(per_symbol_rows)
-        .assign(accuracy_lift=lambda d: d["model_test_accuracy"] - d["baseline_test_accuracy"])
-        .sort_values(["model_test_accuracy", "test_rows", "symbol"], ascending=[False, False, True])
-    )
-    per_symbol_per_label_rows: list[dict] = []
-    for symbol, grp in pred_df.groupby("symbol", sort=True):
-        precision, recall, f1, support = precision_recall_fscore_support(
-            grp["regime"],
-            grp["pred_regime"],
-            labels=TARGET_LABELS,
-            zero_division=0,
-        )
-        for i, label in enumerate(TARGET_LABELS):
-            per_symbol_per_label_rows.append(
-                {
-                    "symbol": symbol,
-                    "label": label,
-                    "support": int(support[i]),
-                    "precision": float(precision[i]),
-                    "recall": float(recall[i]),
-                    "f1_score": float(f1[i]),
-                }
-            )
-    per_symbol_per_label_table = pd.DataFrame(per_symbol_per_label_rows).sort_values(
-        ["symbol", "label"], ascending=[True, True]
+    per_symbol_label_table = (
+        pd.DataFrame(per_symbol_label_rows)
+        .sort_values(["symbol", "label"], ascending=[True, True])
     )
 
     split_stats = {
@@ -470,7 +426,7 @@ def evaluate_per_symbol_multinomial_models(
         "test_date_min": min(v["test_date_min"] for v in per_symbol_models.values()),
         "test_date_max": max(v["test_date_max"] for v in per_symbol_models.values()),
     }
-    return baseline_metrics, model_metrics, report, pred_df, per_symbol_table, per_symbol_per_label_table, {
+    return per_symbol_label_table, {
         "per_symbol_models": per_symbol_models,
         "split_stats": split_stats,
     }
@@ -510,35 +466,16 @@ def main() -> None:
         }
     ]
 
-    baseline_metrics, model_metrics, report, pred_df, per_symbol_table, per_symbol_per_label_table, eval_bundle = (
-        evaluate_per_symbol_multinomial_models(
-            merged=merged,
-            feature_cols=feature_cols,
-            train_end_date=args.train_end_date,
-            test_fraction=args.test_fraction,
-        )
+    per_symbol_label_table, eval_bundle = evaluate_per_symbol_multinomial_models(
+        merged=merged,
+        feature_cols=feature_cols,
+        train_end_date=args.train_end_date,
+        test_fraction=args.test_fraction,
     )
     split_stats = eval_bundle["split_stats"]
 
-    print("Rows in merged table:", len(merged))
-    print("Train rows:", split_stats["train_rows"], "Test rows:", split_stats["test_rows"])
-    print("Train date range:", split_stats["train_date_min"], "->", split_stats["train_date_max"])
-    print("Test date range:", split_stats["test_date_min"], "->", split_stats["test_date_max"])
-    print("Modeling mode: per-symbol single multinomial head")
-
-    print("\nBaseline (per-symbol train majority label):")
-    print(f"  accuracy: {baseline_metrics['accuracy']:.4f}")
-
-    print("\nPer-symbol multinomial logistic model:")
-    print(f"  accuracy: {model_metrics['accuracy']:.4f}")
-
-    print("\nClassification report (model):")
-    print(report)
-
-    print("\nPer-symbol test accuracy (baseline vs model):")
-    print(per_symbol_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
-    print("\nPer-symbol per-label metrics (model):")
-    print(per_symbol_per_label_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
+    print("Per-symbol per-label class accuracy (historical-probability guess vs model):")
+    print(per_symbol_label_table.to_string(index=False, float_format=lambda x: f"{x:.4f}"))
 
     model_output_path = Path(args.model_output)
     model_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -580,10 +517,7 @@ def main() -> None:
         "train_date_max": split_stats["train_date_max"],
         "test_date_min": split_stats["test_date_min"],
         "test_date_max": split_stats["test_date_max"],
-        "baseline_accuracy": float(baseline_metrics["accuracy"]),
-        "model_accuracy": float(model_metrics["accuracy"]),
-        "per_symbol_metrics": per_symbol_table.to_dict(orient="records"),
-        "per_symbol_per_label_metrics": per_symbol_per_label_table.to_dict(orient="records"),
+        "per_symbol_per_label_class_accuracy": per_symbol_label_table.to_dict(orient="records"),
     }
     metadata_output_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
