@@ -27,7 +27,6 @@ Example option_signal_configs.txt rows:
 """
 import argparse
 import json
-import math
 import os
 import shlex
 from dataclasses import dataclass
@@ -38,10 +37,9 @@ import pandas as pd
 import requests
 
 from option_pricing import black_scholes_call_price, black_scholes_put_price
+from weekly_option_reversal_core import build_signal_frame, compute_weekly_entry_candidates
 
 
-TRADING_DAYS_PER_YEAR = 252
-PRICING_VOL_WINDOW_DAYS = 21
 DEFAULT_CACHE_CSV = "data/etfs.csv"
 
 
@@ -55,20 +53,6 @@ class SignalConfig:
     call_roc_threshold: float
     downside_vol_threshold: float
     upside_vol_threshold: float
-
-
-def downside_std(x) -> float:
-    negatives = x[x < 0]
-    if len(negatives) < 2:
-        return 0.0
-    return float(negatives.std(ddof=0))
-
-
-def upside_std(x) -> float:
-    positives = x[x > 0]
-    if len(positives) < 2:
-        return 0.0
-    return float(positives.std(ddof=0))
 
 
 def load_symbol_data_from_csv(csv_path: str, symbol: str, start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
@@ -301,66 +285,6 @@ def load_symbol_data(symbol: str, start_date: Optional[str], end_date: Optional[
     return df.reset_index(drop=True)
 
 
-def build_signal_frame(df: pd.DataFrame, roc_lookback: int, vol_window: int) -> pd.DataFrame:
-    out = df.copy()
-    close = out["close"]
-    returns = close.pct_change()
-    out["roc"] = close / close.shift(roc_lookback) - 1.0
-    out["downside_vol_annualized"] = returns.rolling(vol_window).apply(downside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
-    out["upside_vol_annualized"] = returns.rolling(vol_window).apply(upside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
-    # Keep pricing sigma on the same fixed 21-day realized-vol window as the backtest.
-    out["pricing_vol_annualized"] = returns.rolling(PRICING_VOL_WINDOW_DAYS).std(ddof=0) * math.sqrt(TRADING_DAYS_PER_YEAR)
-    return out
-
-
-def _entry_candidates_by_side(signal_df: pd.DataFrame, cfg: SignalConfig, side: str) -> Dict[int, int]:
-    if side not in {"put", "call"}:
-        raise ValueError(f"Unsupported side '{side}'. Expected 'put' or 'call'.")
-
-    entries: Dict[int, int] = {}
-    blocked_until: Optional[pd.Timestamp] = None
-
-    for i in range(len(signal_df)):
-        row = signal_df.iloc[i]
-        row_date = pd.Timestamp(row["date"]).normalize()
-        if blocked_until is not None and row_date <= blocked_until:
-            continue
-
-        if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
-            continue
-
-        if side == "put":
-            if pd.isna(row["downside_vol_annualized"]):
-                continue
-            is_triggered = bool(
-                row["roc"] <= cfg.put_roc_threshold
-                and row["downside_vol_annualized"] >= cfg.downside_vol_threshold
-            )
-        else:
-            if pd.isna(row["upside_vol_annualized"]):
-                continue
-            is_triggered = bool(
-                row["roc"] >= cfg.call_roc_threshold
-                and row["upside_vol_annualized"] >= cfg.upside_vol_threshold
-            )
-
-        if not is_triggered:
-            continue
-
-        entry_date = pd.Timestamp(row["date"]).normalize()
-        days_to_friday = 4 - entry_date.weekday()
-        if days_to_friday <= 0:
-            # Match backtest EOD model: do not open same-day expiry positions.
-            continue
-
-        entries[i] = days_to_friday
-        # Match backtest default behavior (allow_overlap=False):
-        # once we enter during a week, block additional entries through expiry week Friday.
-        blocked_until = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
-
-    return entries
-
-
 def _make_config_row_parser() -> argparse.ArgumentParser:
     row_parser = argparse.ArgumentParser(add_help=False)
     row_parser.add_argument("--symbol", required=True)
@@ -460,9 +384,17 @@ def _evaluate_config(
     latest_pricing_vol = float(latest["pricing_vol_annualized"])
     pricing_vol = max(latest_pricing_vol, min_pricing_vol)
 
-    entry_candidates: Dict[str, Dict[int, int]] = {}
+    entry_candidates: Dict[str, Dict[int, Dict[str, float]]] = {}
     for side in selected_sides:
-        entry_candidates[side] = _entry_candidates_by_side(signal_df, cfg, side)
+        entry_candidates[side] = compute_weekly_entry_candidates(
+            signal_df=signal_df,
+            side=side,  # type: ignore[arg-type]
+            put_roc_threshold=cfg.put_roc_threshold,
+            call_roc_threshold=cfg.call_roc_threshold,
+            downside_vol_threshold_annualized=cfg.downside_vol_threshold,
+            upside_vol_threshold_annualized=cfg.upside_vol_threshold,
+            allow_overlap=False,
+        )
 
     put_trigger = "put" in entry_candidates and latest_idx in entry_candidates["put"]
     call_trigger = "call" in entry_candidates and latest_idx in entry_candidates["call"]
@@ -474,7 +406,7 @@ def _evaluate_config(
         is_triggered = put_trigger if side == "put" else call_trigger
         if not is_triggered:
             continue
-        days_to_expiry = int(entry_candidates[side][latest_idx])
+        days_to_expiry = int(entry_candidates[side][latest_idx]["days_to_friday"])
         time_to_expiry_years = days_to_expiry / 365.25
 
         if side == "put":

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import math
-from typing import Dict, Literal
+from typing import Dict, TypedDict
 
 import pandas as pd
 
@@ -35,19 +35,25 @@ def build_signal_frame(df: pd.DataFrame, roc_lookback: int, vol_window: int) -> 
     return out
 
 
+class EntryCandidate(TypedDict):
+    exit_idx: int
+    days_to_friday: int
+    trend_vol_signal: float
+
+
 def compute_weekly_entry_candidates(
     signal_df: pd.DataFrame,
-    side: Literal["put", "call"],
+    side: str,
     put_roc_threshold: float,
     call_roc_threshold: float,
     downside_vol_threshold_annualized: float,
     upside_vol_threshold_annualized: float,
     allow_overlap: bool,
-) -> Dict[int, Dict[str, float]]:
+) -> Dict[int, EntryCandidate]:
     if side not in {"put", "call"}:
         raise ValueError(f"Unsupported side '{side}'. Expected 'put' or 'call'.")
 
-    entries: Dict[int, Dict[str, float]] = {}
+    entries: Dict[int, EntryCandidate] = {}
     next_entry_idx = 0
 
     # Use the last trading row within the same ISO week as expiry.
@@ -95,11 +101,7 @@ def compute_weekly_entry_candidates(
         if exit_idx <= i:
             continue
 
-        entries[i] = {
-            "exit_idx": float(exit_idx),
-            "days_to_friday": float(days_to_friday),
-            "trend_vol_signal": trend_vol_signal,
-        }
+        entries[i] = {"exit_idx": exit_idx, "days_to_friday": days_to_friday, "trend_vol_signal": trend_vol_signal}
 
         if not allow_overlap:
             next_entry_idx = exit_idx + 1
