@@ -7,6 +7,7 @@ CSV_PATH = "data/etfs.csv"
 RISK_FREE_RATE = 0.04
 MIN_PRICING_VOL = 0.10
 CONTRACT_SIZE = 100
+DOCUMENTED_SPY_PUT_ALERT_DATES = {"2026-03-12", "2026-03-13", "2026-03-30"}
 
 
 def _spy_put_config() -> SignalConfig:
@@ -40,7 +41,9 @@ class EvaluateConfigSpyPutTests(unittest.TestCase):
     def test_put_alerts_fire_on_documented_entry_dates(self):
         for alert_date in ("2026-03-12", "2026-03-13", "2026-03-30"):
             with self.subTest(alert_date=alert_date):
+                self.assertIn(alert_date, DOCUMENTED_SPY_PUT_ALERT_DATES)
                 evaluation = _evaluate_on(alert_date)
+                self.assertEqual(evaluation["date"], alert_date)
                 self.assertTrue(evaluation["put_trigger"])
                 self.assertEqual(len(evaluation["fired_signals"]), 1)
                 self.assertEqual(evaluation["fired_signals"][0]["side"], "put")

@@ -41,6 +41,7 @@ from option_pricing import black_scholes_call_price, black_scholes_put_price
 
 
 TRADING_DAYS_PER_YEAR = 252
+PRICING_VOL_WINDOW_DAYS = 21
 DEFAULT_CACHE_CSV = "data/etfs.csv"
 
 
@@ -307,13 +308,63 @@ def build_signal_frame(df: pd.DataFrame, roc_lookback: int, vol_window: int) -> 
     out["roc"] = close / close.shift(roc_lookback) - 1.0
     out["downside_vol_annualized"] = returns.rolling(vol_window).apply(downside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
     out["upside_vol_annualized"] = returns.rolling(vol_window).apply(upside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
-    out["pricing_vol_annualized"] = returns.rolling(vol_window).std(ddof=0) * math.sqrt(TRADING_DAYS_PER_YEAR)
+    # Keep pricing sigma on the same fixed 21-day realized-vol window as the backtest.
+    out["pricing_vol_annualized"] = returns.rolling(PRICING_VOL_WINDOW_DAYS).std(ddof=0) * math.sqrt(TRADING_DAYS_PER_YEAR)
     return out
 
 
-def _days_to_next_friday(ts: pd.Timestamp) -> int:
-    days = (4 - ts.weekday()) % 7
-    return 7 if days == 0 else days
+def _entry_candidates_by_side(signal_df: pd.DataFrame, cfg: SignalConfig, side: str) -> Dict[int, int]:
+    if side not in {"put", "call"}:
+        raise ValueError(f"Unsupported side '{side}'. Expected 'put' or 'call'.")
+
+    iso = signal_df["date"].dt.isocalendar()
+    week_key = iso["year"].astype(int) * 100 + iso["week"].astype(int)
+    week_last_idx = pd.Series(signal_df.index, index=signal_df.index).groupby(week_key).transform("max").astype(int)
+
+    entries: Dict[int, int] = {}
+    next_entry_idx = 0
+
+    for i in range(len(signal_df)):
+        if i < next_entry_idx:
+            continue
+
+        row = signal_df.iloc[i]
+        if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
+            continue
+
+        if side == "put":
+            if pd.isna(row["downside_vol_annualized"]):
+                continue
+            is_triggered = bool(
+                row["roc"] <= cfg.put_roc_threshold
+                and row["downside_vol_annualized"] >= cfg.downside_vol_threshold
+            )
+        else:
+            if pd.isna(row["upside_vol_annualized"]):
+                continue
+            is_triggered = bool(
+                row["roc"] >= cfg.call_roc_threshold
+                and row["upside_vol_annualized"] >= cfg.upside_vol_threshold
+            )
+
+        if not is_triggered:
+            continue
+
+        entry_date = pd.Timestamp(row["date"])
+        days_to_friday = 4 - entry_date.weekday()
+        if days_to_friday <= 0:
+            # Match backtest EOD model: do not open same-day expiry positions.
+            continue
+
+        exit_idx = int(week_last_idx.iloc[i])
+        if exit_idx >= len(signal_df) or exit_idx <= i:
+            continue
+
+        entries[i] = days_to_friday
+        # Match backtest default behavior (allow_overlap=False).
+        next_entry_idx = exit_idx + 1
+
+    return entries
 
 
 def _make_config_row_parser() -> argparse.ArgumentParser:
@@ -391,6 +442,7 @@ def _evaluate_config(
 ) -> Dict[str, Any]:
     signal_df = build_signal_frame(symbol_df, cfg.roc_lookback, cfg.vol_window)
     latest = signal_df.iloc[-1]
+    latest_idx = len(signal_df) - 1
 
     if pd.isna(latest["roc"]) or pd.isna(latest["pricing_vol_annualized"]):
         needed = _required_history(cfg)
@@ -398,17 +450,6 @@ def _evaluate_config(
             f"Insufficient history for {cfg.symbol} {cfg.side} with lookback/window "
             f"({cfg.roc_lookback}/{cfg.vol_window}). Need at least {needed} rows, got {len(signal_df)} rows."
         )
-
-    put_trigger = (
-        bool(latest["roc"] <= cfg.put_roc_threshold)
-        and not pd.isna(latest["downside_vol_annualized"])
-        and bool(latest["downside_vol_annualized"] >= cfg.downside_vol_threshold)
-    )
-    call_trigger = (
-        bool(latest["roc"] >= cfg.call_roc_threshold)
-        and not pd.isna(latest["upside_vol_annualized"])
-        and bool(latest["upside_vol_annualized"] >= cfg.upside_vol_threshold)
-    )
 
     if cfg.side == "put":
         selected_sides: List[str] = ["put"]
@@ -419,13 +460,18 @@ def _evaluate_config(
 
     spot = float(latest["close"])
     latest_date = pd.Timestamp(latest["date"])
-    days_to_expiry = _days_to_next_friday(latest_date)
-    time_to_expiry_years = days_to_expiry / 365.25
     latest_roc = float(latest["roc"])
     latest_downside_vol = float(latest["downside_vol_annualized"])
     latest_upside_vol = float(latest["upside_vol_annualized"])
     latest_pricing_vol = float(latest["pricing_vol_annualized"])
     pricing_vol = max(latest_pricing_vol, min_pricing_vol)
+
+    entry_candidates: Dict[str, Dict[int, int]] = {}
+    for side in selected_sides:
+        entry_candidates[side] = _entry_candidates_by_side(signal_df, cfg, side)
+
+    put_trigger = "put" in entry_candidates and latest_idx in entry_candidates["put"]
+    call_trigger = "call" in entry_candidates and latest_idx in entry_candidates["call"]
 
     messages: List[str] = []
     fired_signals: List[Dict[str, Any]] = []
@@ -434,6 +480,8 @@ def _evaluate_config(
         is_triggered = put_trigger if side == "put" else call_trigger
         if not is_triggered:
             continue
+        days_to_expiry = int(entry_candidates[side][latest_idx])
+        time_to_expiry_years = days_to_expiry / 365.25
 
         if side == "put":
             premium = black_scholes_put_price(
