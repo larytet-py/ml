@@ -388,7 +388,7 @@ def _evaluate_config(
     for side in selected_sides:
         entry_candidates[side] = compute_weekly_entry_candidates(
             signal_df=signal_df,
-            side=side,  # type: ignore[arg-type]
+            side=side,
             put_roc_threshold=cfg.put_roc_threshold,
             call_roc_threshold=cfg.call_roc_threshold,
             downside_vol_threshold_annualized=cfg.downside_vol_threshold,
