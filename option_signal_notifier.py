@@ -548,7 +548,7 @@ def main() -> None:
         default="option_signal_notifier.config",
         help=(
             "Optional config text file. One non-empty, non-comment line per setup using CLI-style flags, "
-            "for example: --symbol SPY --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005 --downside-vol-threshold 0.094507"
+            "for example: --symbol SPY --signal-model accel --side put --accel-window 18 --vol-window 20 --put-accel-threshold -0.005 --downside-vol-threshold 0.094507"
         ),
     )
     parser.add_argument(
@@ -561,10 +561,14 @@ def main() -> None:
     )
     parser.add_argument("--start-date", default=None, help="Optional date filter, YYYY-MM-DD.")
     parser.add_argument("--end-date", default=None, help="Optional date filter, YYYY-MM-DD.")
+    parser.add_argument("--signal-model", choices=["roc", "accel"], default="roc", help="Signal type: ROC+vol or acceleration+vol.")
     parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
+    parser.add_argument("--accel-window", type=int, default=5, help="Days for acceleration signal.")
     parser.add_argument("--vol-window", type=int, default=20, help="Rolling window for volatility.")
     parser.add_argument("--put-roc-threshold", type=float, default=-0.03, help="Put trigger: ROC <= threshold.")
     parser.add_argument("--call-roc-threshold", type=float, default=0.03, help="Call trigger: ROC >= threshold.")
+    parser.add_argument("--put-accel-threshold", type=float, default=-0.03, help="Put trigger: acceleration <= threshold.")
+    parser.add_argument("--call-accel-threshold", type=float, default=0.03, help="Call trigger: acceleration >= threshold.")
     parser.add_argument("--downside-vol-threshold", type=float, default=0.20, help="Annualized downside volatility threshold.")
     parser.add_argument("--upside-vol-threshold", type=float, default=0.20, help="Annualized upside volatility threshold.")
     parser.add_argument("--risk-free-rate", type=float, default=0.04, help="Risk-free rate for Black-Scholes.")
@@ -630,20 +634,35 @@ def main() -> None:
 
     if args.print_trades != 0 and len(configs) == 1:
         cfg = configs[0]
-        signal_df = build_signal_frame(symbol_data[cfg.symbol], cfg.roc_lookback, cfg.vol_window)
+        if cfg.signal_model == "accel":
+            signal_df = build_acceleration_signal_frame(symbol_data[cfg.symbol], cfg.accel_window, cfg.vol_window)
+        else:
+            signal_df = build_signal_frame(symbol_data[cfg.symbol], cfg.roc_lookback, cfg.vol_window)
         printable = signal_df.copy()
-        printable["put_signal"] = (
-            (printable["roc"] <= cfg.put_roc_threshold)
-            & (printable["downside_vol_annualized"] >= cfg.downside_vol_threshold)
-        )
-        printable["call_signal"] = (
-            (printable["roc"] >= cfg.call_roc_threshold)
-            & (printable["upside_vol_annualized"] >= cfg.upside_vol_threshold)
-        )
+        if cfg.signal_model == "accel":
+            printable["put_signal"] = (
+                (printable["acceleration"] <= cfg.put_accel_threshold)
+                & (printable["downside_vol_annualized"] >= cfg.downside_vol_threshold)
+            )
+            printable["call_signal"] = (
+                (printable["acceleration"] >= cfg.call_accel_threshold)
+                & (printable["upside_vol_annualized"] >= cfg.upside_vol_threshold)
+            )
+            signal_col = "acceleration"
+        else:
+            printable["put_signal"] = (
+                (printable["roc"] <= cfg.put_roc_threshold)
+                & (printable["downside_vol_annualized"] >= cfg.downside_vol_threshold)
+            )
+            printable["call_signal"] = (
+                (printable["roc"] >= cfg.call_roc_threshold)
+                & (printable["upside_vol_annualized"] >= cfg.upside_vol_threshold)
+            )
+            signal_col = "roc"
         cols = [
             "date",
             "close",
-            "roc",
+            signal_col,
             "downside_vol_annualized",
             "upside_vol_annualized",
             "pricing_vol_annualized",
