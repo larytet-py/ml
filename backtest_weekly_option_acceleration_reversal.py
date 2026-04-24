@@ -333,6 +333,7 @@ def _optimize_single_start(
     fixed_call_accel_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
+    goal_function: str,
 ) -> Tuple[OptimizationResult, int]:
     vector_len = len(start)
     int_dims = {0, 2}
@@ -376,7 +377,11 @@ def _optimize_single_start(
                 + 0.001 * float(metrics["avg_pnl"])
             )
             return infeasible_score, trades_df, metrics, params
-        score = float(metrics["avg_pnl"])
+        if goal_function == "min-itm-expiration":
+            # Maximize the negative ITM count (equivalent to minimizing ITM expirations).
+            score = -float(metrics["itm_expiries"])
+        else:
+            score = float(metrics["avg_pnl"])
         return score, trades_df, metrics, params
 
     def finite_difference_gradient(x: List[float]) -> List[float]:
@@ -468,6 +473,7 @@ def optimize_parameters(
     fixed_call_accel_threshold: float,
     fixed_downside_vol_threshold: float,
     fixed_upside_vol_threshold: float,
+    goal_function: str,
     progress_interval_seconds: float,
     workers: int,
 ) -> OptimizationResult:
@@ -509,7 +515,10 @@ def optimize_parameters(
             "[opt] "
             f"t+{elapsed:.1f}s "
             f"evals={eval_count} "
-            f"best_avg_pnl={best_metrics['avg_pnl']:.2f} "
+            f"goal={goal_function} "
+            f"score={best_score:.6f} "
+            f"avg_pnl={best_metrics['avg_pnl']:.2f} "
+            f"itm_count={int(best_metrics['itm_expiries'])} "
             f"trades={int(best_metrics['total'])} "
             f"cmd={best_cmd}",
             flush=True,
@@ -549,6 +558,7 @@ def optimize_parameters(
                 fixed_call_accel_threshold=fixed_call_accel_threshold,
                 fixed_downside_vol_threshold=fixed_downside_vol_threshold,
                 fixed_upside_vol_threshold=fixed_upside_vol_threshold,
+                goal_function=goal_function,
             )
             eval_count += restart_evals
             if restart_result.score > best_score:
@@ -582,6 +592,7 @@ def optimize_parameters(
                     fixed_call_accel_threshold,
                     fixed_downside_vol_threshold,
                     fixed_upside_vol_threshold,
+                    goal_function,
                 )
                 for start in starts
             ]
@@ -676,6 +687,12 @@ def main() -> None:
         type=float,
         default=75.0,
         help="Penalty points per missing trade below --opt-min-trades.",
+    )
+    parser.add_argument(
+        "--opt-goal-function",
+        choices=["avg-pnl", "min-itm-expiration"],
+        default="avg-pnl",
+        help="Optimization objective: maximize avg-pnl (default) or minimize ITM expirations.",
     )
     parser.add_argument("--opt-seed", type=int, default=7, help="Random seed for optimizer restarts.")
     parser.add_argument(
@@ -772,6 +789,7 @@ def main() -> None:
             fixed_call_accel_threshold=args.call_accel_threshold,
             fixed_downside_vol_threshold=args.downside_vol_threshold,
             fixed_upside_vol_threshold=args.upside_vol_threshold,
+            goal_function=args.opt_goal_function,
             progress_interval_seconds=args.opt_progress_seconds,
             workers=args.workers,
         )
@@ -787,7 +805,8 @@ def main() -> None:
             print(f"  downside_vol_threshold={result.params['downside_vol_threshold_annualized']:.6f}")
         print(f"  vol_window={int(result.params['vol_window'])}")
         print("  expiry=this-week")
-        print(f"  objective_score={result.score:.2f}")
+        print(f"  objective={args.opt_goal_function}")
+        print(f"  objective_score={result.score:.6f}")
     else:
         trades_df = run_backtest(
             df=df,
