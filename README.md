@@ -120,3 +120,8 @@ Example clustered dates:
 - `2026-03-30`: `GDX`, `IWM`, `VXX`
 - `2026-04-14`: `GDX`, `SPY`
 
+# Unites 
+
+```bash
+python3.11 -m unittest -q tests.test_option_signal_notifier
+```
