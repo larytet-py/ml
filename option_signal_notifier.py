@@ -317,18 +317,15 @@ def _entry_candidates_by_side(signal_df: pd.DataFrame, cfg: SignalConfig, side: 
     if side not in {"put", "call"}:
         raise ValueError(f"Unsupported side '{side}'. Expected 'put' or 'call'.")
 
-    iso = signal_df["date"].dt.isocalendar()
-    week_key = iso["year"].astype(int) * 100 + iso["week"].astype(int)
-    week_last_idx = pd.Series(signal_df.index, index=signal_df.index).groupby(week_key).transform("max").astype(int)
-
     entries: Dict[int, int] = {}
-    next_entry_idx = 0
+    blocked_until: Optional[pd.Timestamp] = None
 
     for i in range(len(signal_df)):
-        if i < next_entry_idx:
+        row = signal_df.iloc[i]
+        row_date = pd.Timestamp(row["date"]).normalize()
+        if blocked_until is not None and row_date <= blocked_until:
             continue
 
-        row = signal_df.iloc[i]
         if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
             continue
 
@@ -350,19 +347,16 @@ def _entry_candidates_by_side(signal_df: pd.DataFrame, cfg: SignalConfig, side: 
         if not is_triggered:
             continue
 
-        entry_date = pd.Timestamp(row["date"])
+        entry_date = pd.Timestamp(row["date"]).normalize()
         days_to_friday = 4 - entry_date.weekday()
         if days_to_friday <= 0:
             # Match backtest EOD model: do not open same-day expiry positions.
             continue
 
-        exit_idx = int(week_last_idx.iloc[i])
-        if exit_idx >= len(signal_df) or exit_idx <= i:
-            continue
-
         entries[i] = days_to_friday
-        # Match backtest default behavior (allow_overlap=False).
-        next_entry_idx = exit_idx + 1
+        # Match backtest default behavior (allow_overlap=False):
+        # once we enter during a week, block additional entries through expiry week Friday.
+        blocked_until = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
 
     return entries
 

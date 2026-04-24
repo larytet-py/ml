@@ -40,9 +40,7 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 
 from option_pricing import BlackScholesPricer
-
-TRADING_DAYS_PER_YEAR = 252
-PRICING_VOL_WINDOW_DAYS = 21
+from weekly_option_reversal_core import build_signal_frame, compute_weekly_entry_candidates
 
 
 def _default_worker_count() -> int:
@@ -132,20 +130,6 @@ class OptimizationResult:
     metrics: Optional[Dict[str, float]]
 
 
-def downside_std(x) -> float:
-    negatives = x[x < 0]
-    if len(negatives) < 2:
-        return 0.0
-    return float(negatives.std(ddof=0))
-
-
-def upside_std(x) -> float:
-    positives = x[x > 0]
-    if len(positives) < 2:
-        return 0.0
-    return float(positives.std(ddof=0))
-
-
 def load_symbol_data(csv_path: str, symbol: str, start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     df = df[df["symbol"] == symbol].copy()
@@ -187,72 +171,30 @@ def run_backtest(
         min_sigma=min_pricing_vol_annualized,
     )
 
-    close = df["close"]
-    returns = close.pct_change()
-
-    df["roc"] = close / close.shift(roc_lookback) - 1.0
-    df["downside_vol_annualized"] = (
-        returns.rolling(vol_window).apply(downside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
+    signal_df = build_signal_frame(df, roc_lookback=roc_lookback, vol_window=vol_window)
+    entries = compute_weekly_entry_candidates(
+        signal_df=signal_df,
+        side=side,
+        put_roc_threshold=put_roc_threshold,
+        call_roc_threshold=call_roc_threshold,
+        downside_vol_threshold_annualized=downside_vol_threshold_annualized,
+        upside_vol_threshold_annualized=upside_vol_threshold_annualized,
+        allow_overlap=allow_overlap,
     )
-    df["upside_vol_annualized"] = (
-        returns.rolling(vol_window).apply(upside_std, raw=True) * math.sqrt(TRADING_DAYS_PER_YEAR)
-    )
-    # Keep Black-Scholes sigma on a fixed 21-trading-day realized-vol estimate.
-    df["pricing_vol_annualized"] = (
-        returns.rolling(PRICING_VOL_WINDOW_DAYS).std(ddof=0) * math.sqrt(TRADING_DAYS_PER_YEAR)
-    )
-
     trades = []
-    next_entry_idx = 0
-
-    # Use the last trading row within the same ISO week as expiry.
-    iso = df["date"].dt.isocalendar()
-    week_key = iso["year"].astype(int) * 100 + iso["week"].astype(int)
-    week_last_idx = pd.Series(df.index, index=df.index).groupby(week_key).transform("max").astype(int)
-
-    for i in range(len(df)):
-        if i < next_entry_idx:
-            continue
-
-        row = df.iloc[i]
-        if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
-            continue
-
-        if side == "put":
-            if pd.isna(row["downside_vol_annualized"]):
-                continue
-            trigger = (
-                row["roc"] <= put_roc_threshold
-                and row["downside_vol_annualized"] >= downside_vol_threshold_annualized
-            )
-            trend_vol_signal = float(row["downside_vol_annualized"])
-        else:
-            if pd.isna(row["upside_vol_annualized"]):
-                continue
-            trigger = (
-                row["roc"] >= call_roc_threshold
-                and row["upside_vol_annualized"] >= upside_vol_threshold_annualized
-            )
-            trend_vol_signal = float(row["upside_vol_annualized"])
-
-        if not trigger:
-            continue
-
+    for i in sorted(entries):
+        row = signal_df.iloc[i]
         entry_close = float(row["close"])
         entry_date = pd.Timestamp(row["date"])
         strike = entry_close
-        exit_idx = int(week_last_idx.iloc[i])
-        days_to_friday = 4 - entry_date.weekday()
-        if days_to_friday <= 0:
-            continue
+        exit_idx = int(entries[i]["exit_idx"])
+        days_to_friday = int(entries[i]["days_to_friday"])
+        trend_vol_signal = float(entries[i]["trend_vol_signal"])
         scheduled_expiry_date = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
         time_to_expiry_days = days_to_friday
         time_to_expiry_years = time_to_expiry_days / 365.25
 
-        if exit_idx >= len(df):
-            continue
-        if exit_idx <= i:
-            # Skip same-day expiry signals (e.g., Friday close) in this EOD model.
+        if exit_idx >= len(signal_df):
             continue
 
         raw_pricing_vol = float(row["pricing_vol_annualized"])
@@ -265,7 +207,7 @@ def run_backtest(
             sigma=raw_pricing_vol,
         )
 
-        exit_row = df.iloc[exit_idx]
+        exit_row = signal_df.iloc[exit_idx]
         exit_close = float(exit_row["close"])
         intrinsic = pricer.intrinsic_value(side=side, strike=strike, spot=exit_close)
         expired_itm = intrinsic > 0.0
@@ -291,9 +233,6 @@ def run_backtest(
                 time_to_expiry_days=time_to_expiry_days,
             )
         )
-
-        if not allow_overlap:
-            next_entry_idx = exit_idx + 1
 
     return pd.DataFrame([t.__dict__ for t in trades])
 
