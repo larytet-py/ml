@@ -394,6 +394,7 @@ def _evaluate_config(
             downside_vol_threshold_annualized=cfg.downside_vol_threshold,
             upside_vol_threshold_annualized=cfg.upside_vol_threshold,
             allow_overlap=False,
+            require_future_week_row=False,
         )
 
     put_trigger = "put" in entry_candidates and latest_idx in entry_candidates["put"]

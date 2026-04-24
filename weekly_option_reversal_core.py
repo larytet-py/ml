@@ -49,12 +49,14 @@ def compute_weekly_entry_candidates(
     downside_vol_threshold_annualized: float,
     upside_vol_threshold_annualized: float,
     allow_overlap: bool,
+    require_future_week_row: bool = True,
 ) -> Dict[int, EntryCandidate]:
     if side not in {"put", "call"}:
         raise ValueError(f"Unsupported side '{side}'. Expected 'put' or 'call'.")
 
     entries: Dict[int, EntryCandidate] = {}
     next_entry_idx = 0
+    blocked_until: pd.Timestamp | None = None
 
     # Use the last trading row within the same ISO week as expiry.
     iso = signal_df["date"].dt.isocalendar()
@@ -62,10 +64,16 @@ def compute_weekly_entry_candidates(
     week_last_idx = pd.Series(signal_df.index, index=signal_df.index).groupby(week_key).transform("max").astype(int)
 
     for i in range(len(signal_df)):
-        if i < next_entry_idx:
-            continue
-
         row = signal_df.iloc[i]
+        row_date = pd.Timestamp(row["date"]).normalize()
+        if not allow_overlap:
+            if require_future_week_row:
+                if i < next_entry_idx:
+                    continue
+            else:
+                if blocked_until is not None and row_date <= blocked_until:
+                    continue
+
         if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
             continue
 
@@ -96,14 +104,18 @@ def compute_weekly_entry_candidates(
             continue
 
         exit_idx = int(week_last_idx.iloc[i])
-        if exit_idx >= len(signal_df):
-            continue
-        if exit_idx <= i:
-            continue
+        if require_future_week_row:
+            if exit_idx >= len(signal_df):
+                continue
+            if exit_idx <= i:
+                continue
 
         entries[i] = {"exit_idx": exit_idx, "days_to_friday": days_to_friday, "trend_vol_signal": trend_vol_signal}
 
         if not allow_overlap:
-            next_entry_idx = exit_idx + 1
+            if require_future_week_row:
+                next_entry_idx = exit_idx + 1
+            else:
+                blocked_until = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
 
     return entries
