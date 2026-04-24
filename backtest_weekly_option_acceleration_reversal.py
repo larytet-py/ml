@@ -337,6 +337,7 @@ def _optimize_single_start(
     vector_len = len(start)
     int_dims = {0, 2}
     score_tolerance = 1e-12
+    drawdown_zero_tolerance = 1e-12
 
     def project(x: List[float]) -> List[float]:
         return [_clip(v, lo, hi) for v, (lo, hi) in zip(x, bounds)]
@@ -357,7 +358,15 @@ def _optimize_single_start(
             return False
         candidate_drawdown = abs(float(candidate_metrics["max_drawdown"]))
         incumbent_drawdown = abs(float(incumbent_metrics["max_drawdown"]))
-        return candidate_drawdown < incumbent_drawdown - score_tolerance
+        if candidate_drawdown < incumbent_drawdown - score_tolerance:
+            return True
+        if abs(candidate_drawdown - incumbent_drawdown) > score_tolerance:
+            return False
+        if candidate_drawdown > drawdown_zero_tolerance or incumbent_drawdown > drawdown_zero_tolerance:
+            return False
+        candidate_avg_pnl = float(candidate_metrics["avg_pnl"])
+        incumbent_avg_pnl = float(incumbent_metrics["avg_pnl"])
+        return candidate_avg_pnl > incumbent_avg_pnl + score_tolerance
 
     def evaluate(x: List[float]) -> Tuple[float, pd.DataFrame, Optional[Dict[str, float]], Dict[str, float]]:
         params = _build_params_from_vector(
@@ -511,6 +520,7 @@ def optimize_parameters(
     best_params: Dict[str, float] = {}
     eval_count = 0
     score_tolerance = 1e-12
+    drawdown_zero_tolerance = 1e-12
     start_time = time.monotonic()
     last_report_time = start_time
 
@@ -572,7 +582,15 @@ def optimize_parameters(
             return False
         candidate_drawdown = abs(float(candidate.metrics["max_drawdown"]))
         incumbent_drawdown = abs(float(incumbent_metrics["max_drawdown"]))
-        return candidate_drawdown < incumbent_drawdown - score_tolerance
+        if candidate_drawdown < incumbent_drawdown - score_tolerance:
+            return True
+        if abs(candidate_drawdown - incumbent_drawdown) > score_tolerance:
+            return False
+        if candidate_drawdown > drawdown_zero_tolerance or incumbent_drawdown > drawdown_zero_tolerance:
+            return False
+        candidate_avg_pnl = float(candidate.metrics["avg_pnl"])
+        incumbent_avg_pnl = float(incumbent_metrics["avg_pnl"])
+        return candidate_avg_pnl > incumbent_avg_pnl + score_tolerance
 
     if workers == 1 or len(starts) == 1:
         for start in starts:
