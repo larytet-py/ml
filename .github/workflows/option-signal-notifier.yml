@@ -2,7 +2,9 @@ name: Option Signal Notifier
 
 on:
   schedule:
-    - cron: '12 22 * * 1-5' # UTC
+    # GitHub cron is UTC; these two entries cover DST/standard-time.
+    - cron: '1 20 * * 1-5' # 16:01 America/New_York when EDT
+    - cron: '1 21 * * 1-5' # 16:01 America/New_York when EST
   workflow_dispatch:
 
 jobs:
@@ -12,23 +14,38 @@ jobs:
       contents: write
 
     steps:
+      - name: Gate on America/New_York 16:01
+        id: ny_gate
+        run: |
+          set -euo pipefail
+          ny_time="$(TZ=America/New_York date +%H:%M)"
+          if [ "$ny_time" = "16:01" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.ny_gate.outputs.should_run == 'true'
         uses: actions/checkout@v4
         with:
           lfs: true
 
       - name: Set up Python
+        if: steps.ny_gate.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
+        if: steps.ny_gate.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run notifier
         id: notifier
+        if: steps.ny_gate.outputs.should_run == 'true'
         env:
           MARKET_STACK_API_KEY: ${{ secrets.MARKET_STACK_API_KEY }}
         run: |
@@ -39,6 +56,7 @@ jobs:
 
       - name: Commit updated ETF cache
         id: commit_cache
+        if: steps.ny_gate.outputs.should_run == 'true'
         run: |
           set -euo pipefail
           git lfs install
@@ -61,7 +79,7 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Send signal email (Resend API)
-        if: steps.notifier.outputs.has_signal == 'true'
+        if: steps.ny_gate.outputs.should_run == 'true' && steps.notifier.outputs.has_signal == 'true'
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
