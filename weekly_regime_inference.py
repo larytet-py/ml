@@ -5,6 +5,7 @@ Helpers for running latest per-symbol weekly regime inference from a saved model
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Optional, Sequence
 
 import joblib
@@ -52,7 +53,7 @@ def predict_latest_weekly_regimes(
     ohlcv_csv: str,
     correlation_pairs_csv: Optional[str] = None,
     as_of_date: Optional[str] = None,
-    workers: int = 1,
+    workers: int = (os.cpu_count() or 1),
 ) -> Dict[str, Dict[str, Any]]:
     target_symbols = sorted({str(s).upper() for s in symbols if str(s).strip()})
     if not target_symbols:

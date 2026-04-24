@@ -302,7 +302,7 @@ if __name__ == "__main__":
     parser.add_argument('--twelvedata-symbol', type=str, default='GOOGL', help='TwelveData symbol to process (default: GOOGL).')
     parser.add_argument('--start_date', default=datetime.now() - timedelta(days=7), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='Start date in YYYY-MM-DD format')
     parser.add_argument('--end_date', default=datetime.now(), type=lambda s: datetime.strptime(s, "%Y-%m-%d"), help='End date in YYYY-MM-DD format')
-    parser.add_argument('--num_workers', type=int, default=2, help='Number of worker processes/threads')
+    parser.add_argument('--num_workers', type=int, default=(os.cpu_count() or 1), help='Number of worker processes/threads')
     parser.add_argument('--disable-download', action='store_true', help='Disable the download functionality.')
     parser.add_argument('--clickhouse-username', type=str, default='default', help='Set Clickhouse user')
     parser.add_argument('--clickhouse-password', type=str, default='password', help='Set Clickhouse password')

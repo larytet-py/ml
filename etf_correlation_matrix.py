@@ -21,8 +21,7 @@ def log_phase(message: str) -> None:
 
 
 def default_workers() -> int:
-    cpu_count = os.cpu_count() or 1
-    return max(1, cpu_count // 2)
+    return os.cpu_count() or 1
 
 
 def default_start_date() -> str:
@@ -61,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         "--workers",
         type=int,
         default=default_workers(),
-        help="Number of worker processes (default: half of available CPU cores)",
+        help="Number of worker processes (default: all available CPU cores)",
     )
     parser.add_argument(
         "--chunk-size",

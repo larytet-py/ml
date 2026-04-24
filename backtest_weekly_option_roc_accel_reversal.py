@@ -44,8 +44,7 @@ from weekly_option_roc_accel_core import build_roc_accel_signal_frame, compute_w
 
 
 def _default_worker_count() -> int:
-    cpu_total = os.cpu_count() or 1
-    return max(1, cpu_total // 2)
+    return os.cpu_count() or 1
 
 
 def _shell_join(parts: List[str]) -> str:
@@ -684,7 +683,7 @@ def main() -> None:
         "--workers",
         type=int,
         default=_default_worker_count(),
-        help="Optimization worker processes. Default: 50% of cores. 1 disables multiprocessing, 0 uses all cores, negative reserves cores.",
+        help="Optimization worker processes. Default: all CPU cores. 1 disables multiprocessing, 0 uses all cores, negative reserves cores.",
     )
     parser.add_argument(
         "--opt-progress-seconds",

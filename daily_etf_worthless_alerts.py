@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 from pathlib import Path
 
 import joblib
@@ -55,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--workers",
         type=int,
-        default=1,
+        default=os.cpu_count() or 1,
         help="Worker processes for feature generation.",
     )
     parser.add_argument(
