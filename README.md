@@ -100,4 +100,23 @@ python3 weekly_atm_worthless_scan.py
 analyze_weekly_regime_with_etf_context.py
 ```
 
+# Option Signal Date Clustering (from config comments)
+
+Using the commented `Recent trades` blocks in `option_signal_notifier.config`, `entry_date` values tend to cluster across assets (same date appears in multiple symbols).
+
+- Clustered dates (distinct symbols >= 2): 33
+- Total distinct `entry_date` values: 83
+- Symbol overlap rate (share of a symbol's entry dates that overlap at least one other symbol):
+  - `VXX`: 76.2% (16/21)
+  - `SPY`: 66.7% (10/15)
+  - `GDX`: 60.0% (18/30)
+  - `TLT`: 57.1% (12/21)
+  - `IWM`: 52.5% (21/40)
+
+Example clustered dates:
+
+- `2025-10-27`: `GDX`, `IWM`, `TLT`, `VXX`
+- `2026-01-20`: `IWM`, `SPY`, `TLT`, `VXX`
+- `2026-03-30`: `GDX`, `IWM`, `VXX`
+- `2026-04-14`: `GDX`, `SPY`
 
