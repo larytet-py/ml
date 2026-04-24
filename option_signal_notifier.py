@@ -5,14 +5,16 @@ Usage:
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
   --side call \
-  --roc-lookback 20 \
+  --signal-model accel \
+  --accel-window 20 \
   --vol-window 17 \
-  --call-roc-threshold 0.052641 \
+  --call-accel-threshold 0.052641 \
   --upside-vol-threshold 0.085369
 
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
   --side put \
+  --signal-model roc \
   --roc-lookback 18 \
   --vol-window 20 \
   --put-roc-threshold -0.005000 \
@@ -22,8 +24,8 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --config option_signal_configs.txt
 
 Example option_signal_configs.txt rows:
---symbol SPY --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005000 --downside-vol-threshold 0.094507
---symbol SPY --side call --roc-lookback 20 --vol-window 17 --call-roc-threshold 0.052641 --upside-vol-threshold 0.085369
+--symbol SPY --signal-model roc --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005000 --downside-vol-threshold 0.094507
+--symbol SPY --signal-model accel --side call --accel-window 20 --vol-window 17 --call-accel-threshold 0.052641 --upside-vol-threshold 0.085369
 """
 import argparse
 import json
@@ -38,6 +40,10 @@ import requests
 
 from option_pricing import black_scholes_call_price, black_scholes_put_price
 from weekly_option_reversal_core import build_signal_frame, compute_weekly_entry_candidates
+from weekly_option_acceleration_core import (
+    build_acceleration_signal_frame,
+    compute_weekly_entry_candidates as compute_weekly_acceleration_entry_candidates,
+)
 
 
 DEFAULT_CACHE_CSV = "data/etfs.csv"
@@ -47,10 +53,14 @@ DEFAULT_CACHE_CSV = "data/etfs.csv"
 class SignalConfig:
     symbol: str
     side: str
+    signal_model: str
     roc_lookback: int
+    accel_window: int
     vol_window: int
     put_roc_threshold: float
     call_roc_threshold: float
+    put_accel_threshold: float
+    call_accel_threshold: float
     downside_vol_threshold: float
     upside_vol_threshold: float
 
@@ -289,10 +299,14 @@ def _make_config_row_parser() -> argparse.ArgumentParser:
     row_parser = argparse.ArgumentParser(add_help=False)
     row_parser.add_argument("--symbol", required=True)
     row_parser.add_argument("--side", choices=["put", "call", "both"], default="both")
+    row_parser.add_argument("--signal-model", choices=["roc", "accel"], default="roc")
     row_parser.add_argument("--roc-lookback", type=int, default=5)
+    row_parser.add_argument("--accel-window", type=int, default=5)
     row_parser.add_argument("--vol-window", type=int, default=20)
     row_parser.add_argument("--put-roc-threshold", type=float, default=-0.03)
     row_parser.add_argument("--call-roc-threshold", type=float, default=0.03)
+    row_parser.add_argument("--put-accel-threshold", type=float, default=-0.03)
+    row_parser.add_argument("--call-accel-threshold", type=float, default=0.03)
     row_parser.add_argument("--downside-vol-threshold", type=float, default=0.20)
     row_parser.add_argument("--upside-vol-threshold", type=float, default=0.20)
     return row_parser
@@ -304,10 +318,14 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
             SignalConfig(
                 symbol=args.symbol.upper(),
                 side=args.side,
+                signal_model=args.signal_model,
                 roc_lookback=args.roc_lookback,
+                accel_window=args.accel_window,
                 vol_window=args.vol_window,
                 put_roc_threshold=args.put_roc_threshold,
                 call_roc_threshold=args.call_roc_threshold,
+                put_accel_threshold=args.put_accel_threshold,
+                call_accel_threshold=args.call_accel_threshold,
                 downside_vol_threshold=args.downside_vol_threshold,
                 upside_vol_threshold=args.upside_vol_threshold,
             )
@@ -333,10 +351,14 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
             SignalConfig(
                 symbol=row.symbol.upper(),
                 side=row.side,
+                signal_model=row.signal_model,
                 roc_lookback=row.roc_lookback,
+                accel_window=row.accel_window,
                 vol_window=row.vol_window,
                 put_roc_threshold=row.put_roc_threshold,
                 call_roc_threshold=row.call_roc_threshold,
+                put_accel_threshold=row.put_accel_threshold,
+                call_accel_threshold=row.call_accel_threshold,
                 downside_vol_threshold=row.downside_vol_threshold,
                 upside_vol_threshold=row.upside_vol_threshold,
             )
@@ -348,6 +370,8 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
 
 
 def _required_history(cfg: SignalConfig) -> int:
+    if cfg.signal_model == "accel":
+        return max(cfg.accel_window + 2, cfg.vol_window + 1)
     return max(cfg.roc_lookback + 1, cfg.vol_window + 1)
 
 
@@ -358,15 +382,21 @@ def _evaluate_config(
     min_pricing_vol: float,
     contract_size: int,
 ) -> Dict[str, Any]:
-    signal_df = build_signal_frame(symbol_df, cfg.roc_lookback, cfg.vol_window)
+    if cfg.signal_model == "accel":
+        signal_df = build_acceleration_signal_frame(symbol_df, cfg.accel_window, cfg.vol_window)
+        signal_value_name = "acceleration"
+    else:
+        signal_df = build_signal_frame(symbol_df, cfg.roc_lookback, cfg.vol_window)
+        signal_value_name = "roc"
+
     latest = signal_df.iloc[-1]
     latest_idx = len(signal_df) - 1
 
-    if pd.isna(latest["roc"]) or pd.isna(latest["pricing_vol_annualized"]):
+    if pd.isna(latest[signal_value_name]) or pd.isna(latest["pricing_vol_annualized"]):
         needed = _required_history(cfg)
         raise ValueError(
-            f"Insufficient history for {cfg.symbol} {cfg.side} with lookback/window "
-            f"({cfg.roc_lookback}/{cfg.vol_window}). Need at least {needed} rows, got {len(signal_df)} rows."
+            f"Insufficient history for {cfg.symbol} {cfg.side} with model/window "
+            f"({cfg.signal_model}, {cfg.vol_window}). Need at least {needed} rows, got {len(signal_df)} rows."
         )
 
     if cfg.side == "put":
@@ -378,7 +408,7 @@ def _evaluate_config(
 
     spot = float(latest["close"])
     latest_date = pd.Timestamp(latest["date"])
-    latest_roc = float(latest["roc"])
+    latest_signal_value = float(latest[signal_value_name])
     latest_downside_vol = float(latest["downside_vol_annualized"])
     latest_upside_vol = float(latest["upside_vol_annualized"])
     latest_pricing_vol = float(latest["pricing_vol_annualized"])
@@ -386,16 +416,28 @@ def _evaluate_config(
 
     entry_candidates: Dict[str, Dict[int, Dict[str, float]]] = {}
     for side in selected_sides:
-        entry_candidates[side] = compute_weekly_entry_candidates(
-            signal_df=signal_df,
-            side=side,
-            put_roc_threshold=cfg.put_roc_threshold,
-            call_roc_threshold=cfg.call_roc_threshold,
-            downside_vol_threshold_annualized=cfg.downside_vol_threshold,
-            upside_vol_threshold_annualized=cfg.upside_vol_threshold,
-            allow_overlap=False,
-            require_future_week_row=False,
-        )
+        if cfg.signal_model == "accel":
+            entry_candidates[side] = compute_weekly_acceleration_entry_candidates(
+                signal_df=signal_df,
+                side=side,
+                put_accel_threshold=cfg.put_accel_threshold,
+                call_accel_threshold=cfg.call_accel_threshold,
+                downside_vol_threshold_annualized=cfg.downside_vol_threshold,
+                upside_vol_threshold_annualized=cfg.upside_vol_threshold,
+                allow_overlap=False,
+                require_future_week_row=False,
+            )
+        else:
+            entry_candidates[side] = compute_weekly_entry_candidates(
+                signal_df=signal_df,
+                side=side,
+                put_roc_threshold=cfg.put_roc_threshold,
+                call_roc_threshold=cfg.call_roc_threshold,
+                downside_vol_threshold_annualized=cfg.downside_vol_threshold,
+                upside_vol_threshold_annualized=cfg.upside_vol_threshold,
+                allow_overlap=False,
+                require_future_week_row=False,
+            )
 
     put_trigger = "put" in entry_candidates and latest_idx in entry_candidates["put"]
     call_trigger = "call" in entry_candidates and latest_idx in entry_candidates["call"]
@@ -452,38 +494,46 @@ def _evaluate_config(
         "messages": messages,
         "symbol": cfg.symbol,
         "configured_side": cfg.side,
+        "signal_model": cfg.signal_model,
         "selected_sides": selected_sides,
         "roc_lookback": cfg.roc_lookback,
+        "accel_window": cfg.accel_window,
         "vol_window": cfg.vol_window,
         "date": latest_date.date().isoformat(),
         "close": spot,
-        "roc": latest_roc,
+        "roc": latest_signal_value if cfg.signal_model == "roc" else None,
+        "acceleration": latest_signal_value if cfg.signal_model == "accel" else None,
         # Backward-compatible field: pricing vol actually used for premium estimation (after floor).
         "pricing_vol_annualized": pricing_vol,
         # Explicit raw/latest calculated values from the latest bar.
-        "latest_roc": latest_roc,
+        "latest_roc": latest_signal_value if cfg.signal_model == "roc" else None,
+        "latest_acceleration": latest_signal_value if cfg.signal_model == "accel" else None,
         "latest_pricing_vol_annualized": latest_pricing_vol,
         "fired_signals": fired_signals,
     }
 
     if "put" in selected_sides:
-        result.update(
-            {
-                "put_roc_threshold": cfg.put_roc_threshold,
-                "downside_vol_threshold": cfg.downside_vol_threshold,
-                "downside_vol_annualized": latest_downside_vol,
-                "put_trigger": put_trigger,
-            }
-        )
+        put_fields: Dict[str, Any] = {
+            "downside_vol_threshold": cfg.downside_vol_threshold,
+            "downside_vol_annualized": latest_downside_vol,
+            "put_trigger": put_trigger,
+        }
+        if cfg.signal_model == "accel":
+            put_fields["put_accel_threshold"] = cfg.put_accel_threshold
+        else:
+            put_fields["put_roc_threshold"] = cfg.put_roc_threshold
+        result.update(put_fields)
     if "call" in selected_sides:
-        result.update(
-            {
-                "call_roc_threshold": cfg.call_roc_threshold,
-                "upside_vol_threshold": cfg.upside_vol_threshold,
-                "upside_vol_annualized": latest_upside_vol,
-                "call_trigger": call_trigger,
-            }
-        )
+        call_fields: Dict[str, Any] = {
+            "upside_vol_threshold": cfg.upside_vol_threshold,
+            "upside_vol_annualized": latest_upside_vol,
+            "call_trigger": call_trigger,
+        }
+        if cfg.signal_model == "accel":
+            call_fields["call_accel_threshold"] = cfg.call_accel_threshold
+        else:
+            call_fields["call_roc_threshold"] = cfg.call_roc_threshold
+        result.update(call_fields)
     return result
 
 
