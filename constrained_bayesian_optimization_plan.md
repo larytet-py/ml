@@ -85,7 +85,7 @@ Window lengths are also optimization parameters (not fixed constants). The optim
 - `vol_ema_window`
 - `corr_window`
 
-Configurable threshold ranges are also optimization parameters (not fixed constants), for example:
+Configurable threshold ranges are fixed constants in configuration (search bounds), for example:
 - `roc_threshold_min`, `roc_threshold_max`
 - `vol_threshold_min`, `vol_threshold_max`
 - `accel_threshold_min`, `accel_threshold_max`
@@ -94,6 +94,8 @@ Threshold parameters can be side-specific when needed:
 - `put_roc_threshold_min/max`, `call_roc_threshold_min/max`
 - `downside_vol_threshold_min/max`, `upside_vol_threshold_min/max`
 - `put_accel_threshold_min/max`, `call_accel_threshold_min/max`
+
+Only the sampled threshold values inside these configured bounds are optimization variables.
 
 ## Naming Legend
 - Use `*_window` for lookback and rolling lengths.
