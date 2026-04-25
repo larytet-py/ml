@@ -29,9 +29,6 @@ python3 backtest_weekly_option_reversal.py \
 """
 import argparse
 import math
-import os
-import random
-import shlex
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -40,15 +37,19 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 
 from option_pricing import BlackScholesPricer
+from weekly_option_backtest_common import (
+    OptimizationResult,
+    build_start_vectors,
+    default_worker_count,
+    is_better_score,
+    load_symbol_data,
+    normalize_worker_count,
+    print_summary,
+    score_from_metrics,
+    shell_join,
+    summarize_trades,
+)
 from weekly_option_reversal_core import build_signal_frame, compute_weekly_entry_candidates
-
-
-def _default_worker_count() -> int:
-    return os.cpu_count() or 1
-
-
-def _shell_join(parts: List[str]) -> str:
-    return " ".join(shlex.quote(p) for p in parts)
 
 
 def _format_best_backtest_command(
@@ -98,7 +99,7 @@ def _format_best_backtest_command(
         cmd.extend(["--end-date", end_date])
     if allow_overlap:
         cmd.append("--allow-overlap")
-    return _shell_join(cmd)
+    return shell_join(cmd)
 
 
 @dataclass
@@ -119,36 +120,6 @@ class Trade:
     pricing_vol: float
     scheduled_expiry_date: pd.Timestamp
     time_to_expiry_days: int
-
-
-@dataclass
-class OptimizationResult:
-    params: Dict[str, float]
-    score: float
-    trades_df: pd.DataFrame
-    metrics: Optional[Dict[str, float]]
-
-
-def load_symbol_data(csv_path: str, symbol: str, start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
-    df = pd.read_csv(csv_path)
-    df = df[df["symbol"] == symbol].copy()
-    if df.empty:
-        raise ValueError(f"No rows found for symbol '{symbol}' in {csv_path}")
-
-    df["date"] = pd.to_datetime(df["date"])
-    for col in ["open", "close", "high", "low", "volume", "dividend_rate"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    if start_date:
-        df = df[df["date"] >= pd.to_datetime(start_date)]
-    if end_date:
-        df = df[df["date"] <= pd.to_datetime(end_date)]
-
-    df = df.sort_values("date").reset_index(drop=True)
-    if df.empty:
-        raise ValueError("No rows left after date filters.")
-    return df
 
 
 def run_backtest(
@@ -236,52 +207,6 @@ def run_backtest(
     return pd.DataFrame([t.__dict__ for t in trades])
 
 
-def summarize_trades(trades_df: pd.DataFrame) -> Optional[Dict[str, float]]:
-    if trades_df.empty:
-        return None
-
-    total = len(trades_df)
-    wins = int((trades_df["pnl_per_share"] > 0).sum())
-    itm_expiries = int(trades_df["expired_itm"].sum())
-    total_pnl = trades_df["pnl_per_contract"].sum()
-    avg_pnl = trades_df["pnl_per_contract"].mean()
-    median_pnl = trades_df["pnl_per_contract"].median()
-    avg_return_on_spot = (trades_df["pnl_per_share"] / trades_df["entry_close"]).mean()
-
-    equity = trades_df["pnl_per_contract"].cumsum()
-    running_peak = equity.cummax()
-    max_drawdown = (equity - running_peak).min()
-
-    return {
-        "total": float(total),
-        "wins": float(wins),
-        "win_rate": float(wins / total),
-        "itm_expiries": float(itm_expiries),
-        "itm_rate": float(itm_expiries / total),
-        "total_pnl": float(total_pnl),
-        "avg_pnl": float(avg_pnl),
-        "median_pnl": float(median_pnl),
-        "avg_return_on_spot": float(avg_return_on_spot),
-        "max_drawdown": float(max_drawdown),
-    }
-
-
-def print_summary(trades_df: pd.DataFrame) -> None:
-    metrics = summarize_trades(trades_df)
-    if metrics is None:
-        print("No trades generated with current settings.")
-        return
-
-    print(f"Trades: {int(metrics['total'])}")
-    print(f"Win rate: {metrics['win_rate']:.2%}")
-    print(f"Expired ITM: {int(metrics['itm_expiries'])} ({metrics['itm_rate']:.2%})")
-    print(f"Total PnL (per 1 contract): {metrics['total_pnl']:.2f}")
-    print(f"Average PnL/trade (per 1 contract): {metrics['avg_pnl']:.2f}")
-    print(f"Median PnL/trade (per 1 contract): {metrics['median_pnl']:.2f}")
-    print(f"Average return on spot notional: {metrics['avg_return_on_spot']:.4%}")
-    print(f"Max drawdown (per 1 contract, cumulative): {metrics['max_drawdown']:.2f}")
-
-
 def _clip(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
 
@@ -338,37 +263,9 @@ def _optimize_single_start(
 ) -> Tuple[OptimizationResult, int]:
     vector_len = len(start)
     int_dims = {0, 2}
-    score_tolerance = 1e-12
-    drawdown_zero_tolerance = 1e-12
 
     def project(x: List[float]) -> List[float]:
         return [_clip(v, lo, hi) for v, (lo, hi) in zip(x, bounds)]
-
-    def is_better_candidate(
-        candidate_score: float,
-        candidate_metrics: Optional[Dict[str, float]],
-        incumbent_score: float,
-        incumbent_metrics: Optional[Dict[str, float]],
-    ) -> bool:
-        if candidate_score > incumbent_score + score_tolerance:
-            return True
-        if abs(candidate_score - incumbent_score) > score_tolerance:
-            return False
-        if goal_function != "min-itm-expiration":
-            return False
-        if candidate_metrics is None or incumbent_metrics is None:
-            return False
-        candidate_drawdown = abs(float(candidate_metrics["max_drawdown"]))
-        incumbent_drawdown = abs(float(incumbent_metrics["max_drawdown"]))
-        if candidate_drawdown < incumbent_drawdown - score_tolerance:
-            return True
-        if abs(candidate_drawdown - incumbent_drawdown) > score_tolerance:
-            return False
-        if candidate_drawdown > drawdown_zero_tolerance or incumbent_drawdown > drawdown_zero_tolerance:
-            return False
-        candidate_avg_pnl = float(candidate_metrics["avg_pnl"])
-        incumbent_avg_pnl = float(incumbent_metrics["avg_pnl"])
-        return candidate_avg_pnl > incumbent_avg_pnl + score_tolerance
 
     def evaluate(x: List[float]) -> Tuple[float, pd.DataFrame, Optional[Dict[str, float]], Dict[str, float]]:
         params = _build_params_from_vector(
@@ -394,23 +291,12 @@ def _optimize_single_start(
             allow_overlap=allow_overlap,
         )
         metrics = summarize_trades(trades_df)
-        if metrics is None:
-            return -1_000_000_000.0, trades_df, metrics, params
-        total_trades = int(metrics["total"])
-        shortfall = max(0, min_trades - total_trades)
-        if shortfall > 0:
-            infeasible_score = (
-                -1_000_000.0
-                - trade_penalty * float(shortfall)
-                + 0.01 * float(total_trades)
-                + 0.001 * float(metrics["avg_pnl"])
-            )
-            return infeasible_score, trades_df, metrics, params
-        if goal_function == "min-itm-expiration":
-            # Maximize the negative ITM count (equivalent to minimizing ITM expirations).
-            score = -float(metrics["itm_expiries"])
-        else:
-            score = float(metrics["avg_pnl"])
+        score = score_from_metrics(
+            metrics=metrics,
+            min_trades=min_trades,
+            trade_penalty=trade_penalty,
+            goal_function=goal_function,
+        )
         return score, trades_df, metrics, params
 
     def finite_difference_gradient(x: List[float]) -> List[float]:
@@ -458,7 +344,14 @@ def _optimize_single_start(
 
             candidate_score, candidate_df, candidate_metrics, candidate_params = evaluate(candidate)
             eval_count += 1
-            if is_better_candidate(candidate_score, candidate_metrics, score, metrics):
+            if is_better_score(
+                candidate_score=candidate_score,
+                candidate_metrics=candidate_metrics,
+                incumbent_score=score,
+                incumbent_metrics=metrics,
+                goal_function=goal_function,
+                use_min_itm_tiebreak=True,
+            ):
                 x = candidate
                 score = candidate_score
                 trades_df = candidate_df
@@ -508,27 +401,22 @@ def optimize_parameters(
 ) -> OptimizationResult:
     if any(lo >= hi for lo, hi in bounds):
         raise ValueError("Invalid optimization bounds: each min value must be less than max.")
-    if workers == 0:
-        workers = os.cpu_count() or 1
-    if workers < 0:
-        workers = max(1, (os.cpu_count() or 1) + workers + 1)
-    if workers < 1:
-        raise ValueError("--workers must be >= 1, or 0 to use all CPUs, or negative to reserve cores.")
+    workers = normalize_worker_count(workers)
 
-    rng = random.Random(seed)
     best_score = -1_000_000_000.0
     best_df = pd.DataFrame()
     best_metrics: Optional[Dict[str, float]] = None
     best_params: Dict[str, float] = {}
     eval_count = 0
-    score_tolerance = 1e-12
-    drawdown_zero_tolerance = 1e-12
     start_time = time.monotonic()
     last_report_time = start_time
 
-    starts: List[List[float]] = [[_clip(v, lo, hi) for v, (lo, hi) in zip(initial_vector, bounds)]]
-    for _ in range(max(0, restarts - 1)):
-        starts.append([rng.uniform(lo, hi) for lo, hi in bounds])
+    starts = build_start_vectors(
+        initial_vector=initial_vector,
+        bounds=bounds,
+        restarts=restarts,
+        seed=seed,
+    )
 
     def report_best_progress() -> None:
         elapsed = time.monotonic() - start_time
@@ -569,31 +457,6 @@ def optimize_parameters(
             report_best_progress()
         last_report_time = now
 
-    def is_better_restart(
-        candidate: OptimizationResult,
-        incumbent_score: float,
-        incumbent_metrics: Optional[Dict[str, float]],
-    ) -> bool:
-        if candidate.score > incumbent_score + score_tolerance:
-            return True
-        if abs(candidate.score - incumbent_score) > score_tolerance:
-            return False
-        if goal_function != "min-itm-expiration":
-            return False
-        if candidate.metrics is None or incumbent_metrics is None:
-            return False
-        candidate_drawdown = abs(float(candidate.metrics["max_drawdown"]))
-        incumbent_drawdown = abs(float(incumbent_metrics["max_drawdown"]))
-        if candidate_drawdown < incumbent_drawdown - score_tolerance:
-            return True
-        if abs(candidate_drawdown - incumbent_drawdown) > score_tolerance:
-            return False
-        if candidate_drawdown > drawdown_zero_tolerance or incumbent_drawdown > drawdown_zero_tolerance:
-            return False
-        candidate_avg_pnl = float(candidate.metrics["avg_pnl"])
-        incumbent_avg_pnl = float(incumbent_metrics["avg_pnl"])
-        return candidate_avg_pnl > incumbent_avg_pnl + score_tolerance
-
     if workers == 1 or len(starts) == 1:
         for start in starts:
             restart_result, restart_evals = _optimize_single_start(
@@ -617,7 +480,14 @@ def optimize_parameters(
                 goal_function=goal_function,
             )
             eval_count += restart_evals
-            if is_better_restart(restart_result, best_score, best_metrics):
+            if is_better_score(
+                candidate_score=restart_result.score,
+                candidate_metrics=restart_result.metrics,
+                incumbent_score=best_score,
+                incumbent_metrics=best_metrics,
+                goal_function=goal_function,
+                use_min_itm_tiebreak=True,
+            ):
                 best_score = restart_result.score
                 best_df = restart_result.trades_df
                 best_metrics = restart_result.metrics
@@ -656,7 +526,14 @@ def optimize_parameters(
                 restart_result, restart_evals = future.result()
                 completed += 1
                 eval_count += restart_evals
-                if is_better_restart(restart_result, best_score, best_metrics):
+                if is_better_score(
+                    candidate_score=restart_result.score,
+                    candidate_metrics=restart_result.metrics,
+                    incumbent_score=best_score,
+                    incumbent_metrics=best_metrics,
+                    goal_function=goal_function,
+                    use_min_itm_tiebreak=True,
+                ):
                     best_score = restart_result.score
                     best_df = restart_result.trades_df
                     best_metrics = restart_result.metrics
@@ -754,7 +631,7 @@ def main() -> None:
     parser.add_argument(
         "--workers",
         type=int,
-        default=_default_worker_count(),
+        default=default_worker_count(),
         help="Optimization worker processes. Default: all CPU cores. 1 disables multiprocessing, 0 uses all cores, negative reserves cores.",
     )
     parser.add_argument(
