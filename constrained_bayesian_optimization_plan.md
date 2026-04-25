@@ -290,14 +290,9 @@ Component ranking rule:
    - Optional side-specific bounds for put/call threshold variants.
 
 ## Testing Plan
-1. Unit test feature generation for one symbol and one date range.
-2. Unit test CSV reuse logic (existing file should skip rebuild).
-3. Unit test goal registry loads up to 3 goals from config.
-4. Unit test each goal function and wrapper class methods.
-5. Integration test constrained BO with small trial budget on tiny dataset.
-6. Integration test region extraction from synthetic trial points.
-7. Integration test flatness tie-break: similar-PnL regions should select flatter component.
-8. Unit test active-dimension detection with perturbation fixtures.
+1. Integration test constrained BO with small trial budget on tiny dataset.
+2. Integration test region extraction from synthetic trial points.
+3. Integration test flatness tie-break: similar-PnL regions should select flatter component.
 
 ## Deliverables Checklist
 - `build_option_strategy_features.py` with disk-first generation and CSV reuse logic.
