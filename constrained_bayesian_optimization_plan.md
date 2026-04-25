@@ -183,6 +183,7 @@ class Goal:
 6. auxiliary diagnostics for logging.
 7. BO proposes next candidate using surrogate + acquisition with constraints.
 8. Persist every trial to CSV (`data/bo_trials.csv`) for restart/reproducibility.
+9. Compute region-flatness diagnostics for feasible trials (per-dimension local width, active-dimension count, component volume proxy).
 
 Candidate vectors must include both threshold parameters and window parameters so BO can discover stable regions over:
 - threshold dimensions (ROC/vol/accel thresholds)
@@ -214,6 +215,12 @@ optimization:
     vol_threshold_max: 1.00
     accel_threshold_min: -0.20
     accel_threshold_max: 0.20
+  robustness:
+    performance_tolerance_pct: 2.0
+    flatness_priority: true
+    flatness_tiebreak_weight: 1.0
+    min_region_samples: 25
+    min_component_fraction: 0.15
   goals:
     - name: itm_expiries
       kind: constraint
@@ -235,6 +242,12 @@ optimization:
 1. Use ITM and drawdown as hard constraints.
 2. Use avg PnL as objective inside feasible region.
 3. If no feasible region exists early, allow soft penalties until first feasible points are found.
+4. Add explicit flat-region preference:
+   - If two candidates/regions are within `performance_tolerance_pct` on objective and constraints, prefer the flatter one.
+   - "Flatter" means larger stable neighborhood and fewer sensitive dimensions.
+5. Define active dimension rule:
+   - A dimension is active in a region if small perturbations frequently break feasibility or degrade objective beyond tolerance.
+   - Prefer regions with fewer active dimensions when performance is similar.
 
 ## Region Discovery (not a single best vector)
 To support robust N-dimensional connected regions:
@@ -244,6 +257,18 @@ To support robust N-dimensional connected regions:
 4. Extract connected components.
 5. Pick largest component passing uniformity threshold (low variance in key metrics).
 6. Export region bounds to `data/bo_region_summary.json`.
+
+Flatness metrics to compute per component:
+1. `local_width_by_dim`: max stable perturbation size per dimension.
+2. `active_dim_count`: number of sensitive dimensions.
+3. `flat_volume_proxy`: product (or log-sum) of normalized local widths.
+4. `objective_drift_within_component`: dispersion of goal metrics inside region.
+
+Component ranking rule:
+1. Respect constraints first (ITM, drawdown).
+2. Maximize objective (`avg_pnl`).
+3. If objective difference is within tolerance, prioritize larger `flat_volume_proxy`.
+4. If still tied, prioritize lower `active_dim_count`.
 
 ## Integration with Existing Code
 1. Reuse backtest computation from `backtest_weekly_option_reversal.py`.
@@ -271,6 +296,8 @@ To support robust N-dimensional connected regions:
 4. Unit test each goal function and wrapper class methods.
 5. Integration test constrained BO with small trial budget on tiny dataset.
 6. Integration test region extraction from synthetic trial points.
+7. Integration test flatness tie-break: similar-PnL regions should select flatter component.
+8. Unit test active-dimension detection with perturbation fixtures.
 
 ## Deliverables Checklist
 - `build_option_strategy_features.py` with disk-first generation and CSV reuse logic.
@@ -279,4 +306,5 @@ To support robust N-dimensional connected regions:
 - Constrained BO runner with pluggable goals (max 3).
 - Trial logging and restart support.
 - Region extraction output for robust connected parameter zones.
+- Flatness diagnostics and ranking fields in `bo_region_summary.json`.
 - Tests for feature pipeline, goals, BO loop, and region extraction.
