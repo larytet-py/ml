@@ -60,12 +60,9 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Volume trend | `volume_momentum_window` | `(volume.shift(1) / volume.shift(1+window)) - 1` |
 | Volume trend | `volume_roc_window` | Same as above with ROC lookback window |
 | Volume vol | `volume_stddev_window` | Rolling std of lagged volume |
-| Intraday shape | `high_open_over_open` | `(high - open) / open` |
-| Intraday shape | `open_low_over_open` | `(open - low) / open` |
-| Intraday shape | `high_close_over_close` | `(high - close) / close` |
-| Intraday shape | `close_low_over_low` | `(close - low) / low` |
-| Intraday shape | `high_low_over_high` | `(high - low) / high` |
-| Intraday shape | `high_low_over_low` | `(high - low) / low` |
+| Intraday shape | `day_range_over_open` | `(high - low) / open` |
+| Intraday shape | `close_position_in_range` | `(close - low) / (high - low + eps)` |
+| Intraday shape | `body_over_open` | `(close - open) / open` |
 | Cross-equity corr | `corr_market_window` | Rolling mean return correlation to all symbols in the ETF set (excluding self), window |
 
 Windows are range-based from config (min/max), for example:
