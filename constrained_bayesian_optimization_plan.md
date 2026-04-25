@@ -100,8 +100,6 @@ Threshold parameters can be side-specific when needed:
 - Use `*_shift` for lag offsets used by acceleration.
 - Use `*_ema_window` for smoothing lengths.
 
-Legacy placeholders like `_L_A`, `_W`, and `_AE` are not required.
-
 ## Optimization Feature Scope
 - `open`, `high`, `low`, and `close` are kept in the dataset for backtest mechanics.
 - They must be excluded from optimization feature vectors (no direct raw OHLC optimization).
