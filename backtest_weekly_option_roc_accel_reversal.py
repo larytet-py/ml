@@ -103,6 +103,54 @@ def _format_best_backtest_command(
     return shell_join(cmd)
 
 
+def _format_best_backtest_flags(
+    symbol: str,
+    side: str,
+    params: Dict[str, float],
+    csv_path: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    allow_overlap: bool,
+) -> str:
+    flags = [
+        "--symbol",
+        symbol,
+        "--side",
+        side,
+        "--roc-lookback",
+        str(int(params["roc_lookback"])),
+        "--accel-window",
+        str(int(params["accel_window"])),
+    ]
+    if side == "put":
+        flags.extend(
+            [
+                "--put-roc-threshold",
+                f"{params['put_roc_threshold']:.6f}",
+                "--put-accel-threshold",
+                f"{params['put_accel_threshold']:.6f}",
+            ]
+        )
+    else:
+        flags.extend(
+            [
+                "--call-roc-threshold",
+                f"{params['call_roc_threshold']:.6f}",
+                "--call-accel-threshold",
+                f"{params['call_accel_threshold']:.6f}",
+            ]
+        )
+    if csv_path != "data/etfs-all.csv":
+        flags.extend(["--csv", csv_path])
+    if start_date:
+        flags.extend(["--start-date", start_date])
+    if end_date:
+        flags.extend(["--end-date", end_date])
+    if allow_overlap:
+        flags.append("--allow-overlap")
+    return shell_join(flags)
+
+
 @dataclass
 class Trade:
     side: str
@@ -674,6 +722,28 @@ def main() -> None:
     script_name = Path(__file__).name
 
     df = load_symbol_data(args.csv, args.symbol, args.start_date, args.end_date)
+    replay_flags: Optional[str] = None
+    commented_output = bool(args.optimize)
+
+    def output_line(message: str = "") -> None:
+        if commented_output:
+            print(f"# {message}")
+        else:
+            print(message)
+
+    def output_summary(trades: pd.DataFrame) -> None:
+        metrics = summarize_trades(trades)
+        if metrics is None:
+            output_line("No trades generated with current settings.")
+            return
+        output_line(f"Trades: {int(metrics['total'])}")
+        output_line(f"Win rate: {metrics['win_rate']:.2%}")
+        output_line(f"Expired ITM: {int(metrics['itm_expiries'])} ({metrics['itm_rate']:.2%})")
+        output_line(f"Total PnL (per 1 contract): {metrics['total_pnl']:.2f}")
+        output_line(f"Average PnL/trade (per 1 contract): {metrics['avg_pnl']:.2f}")
+        output_line(f"Median PnL/trade (per 1 contract): {metrics['median_pnl']:.2f}")
+        output_line(f"Average return on spot notional: {metrics['avg_return_on_spot']:.4%}")
+        output_line(f"Max drawdown (per 1 contract, cumulative): {metrics['max_drawdown']:.2f}")
 
     if args.optimize:
         if args.side == "call":
@@ -735,30 +805,37 @@ def main() -> None:
         )
 
         trades_df = result.trades_df
-        print("Optimization complete. Best parameters:")
-        print(f"  roc_lookback={int(result.params['roc_lookback'])}")
-        print(f"  accel_window={int(result.params['accel_window'])}")
+        output_line("Optimization complete. Best parameters:")
+        output_line(f"  roc_lookback={int(result.params['roc_lookback'])}")
+        output_line(f"  accel_window={int(result.params['accel_window'])}")
         if args.side == "call":
-            print(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
-            print(f"  call_accel_threshold={result.params['call_accel_threshold']:.6f}")
+            output_line(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
+            output_line(f"  call_accel_threshold={result.params['call_accel_threshold']:.6f}")
         else:
-            print(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
-            print(f"  put_accel_threshold={result.params['put_accel_threshold']:.6f}")
-        print("  expiry=this-week")
-        print(f"  objective={args.opt_goal_function}")
-        print(f"  objective_score={result.score:.6f}")
-        print(
-            "  cmd="
-            + _format_best_backtest_command(
-                script_path=script_name,
-                symbol=args.symbol,
-                side=args.side,
-                params=result.params,
-                csv_path=args.csv,
-                start_date=args.start_date,
-                end_date=args.end_date,
-                allow_overlap=args.allow_overlap,
-            )
+            output_line(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
+            output_line(f"  put_accel_threshold={result.params['put_accel_threshold']:.6f}")
+        output_line("  expiry=this-week")
+        output_line(f"  objective={args.opt_goal_function}")
+        output_line(f"  objective_score={result.score:.6f}")
+        best_cmd = _format_best_backtest_command(
+            script_path=script_name,
+            symbol=args.symbol,
+            side=args.side,
+            params=result.params,
+            csv_path=args.csv,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            allow_overlap=args.allow_overlap,
+        )
+        output_line(f"  cmd={best_cmd}")
+        replay_flags = _format_best_backtest_flags(
+            symbol=args.symbol,
+            side=args.side,
+            params=result.params,
+            csv_path=args.csv,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            allow_overlap=args.allow_overlap,
         )
     else:
         trades_df = run_backtest(
@@ -776,11 +853,15 @@ def main() -> None:
             allow_overlap=args.allow_overlap,
         )
 
-    print_summary(trades_df)
+    if commented_output:
+        output_summary(trades_df)
+    else:
+        print_summary(trades_df)
 
     show_all_trades = args.optimize
     if not trades_df.empty and (show_all_trades or args.print_trades != 0):
-        print("\nRecent trades:")
+        output_line("")
+        output_line("Recent trades:")
         cols = [
             "side",
             "entry_date",
@@ -797,7 +878,15 @@ def main() -> None:
             "accel_signal",
         ]
         trades_to_show = trades_df[cols] if (show_all_trades or args.print_trades < 0) else trades_df[cols].tail(args.print_trades)
-        print(trades_to_show.to_string(index=False, justify="center"))
+        trades_table_text = trades_to_show.to_string(index=False, justify="center")
+        if commented_output:
+            for line in trades_table_text.splitlines():
+                output_line(line)
+        else:
+            print(trades_table_text)
+
+    if replay_flags:
+        print(replay_flags)
 
     if args.trades_out:
         trades_df.to_csv(args.trades_out, index=False)
