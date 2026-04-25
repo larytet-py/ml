@@ -19,9 +19,9 @@ The default optimization target order:
 - Avoid in-memory full matrix joins across all symbols and all dates.
 
 ## Output
-- Primary output file: `data/option_strategy_features.csv`
-- Schema file: `data/option_strategy_features.schema.json`
-- Metadata file: `data/option_strategy_features.meta.json` (row count, symbol count, date range, feature version, lookbacks used)
+- Primary output file: `data/bayesian/option_strategy_features.csv`
+- Schema file: `data/bayesian/option_strategy_features.schema.json`
+- Metadata file: `data/bayesian/option_strategy_features.meta.json` (row count, symbol count, date range, feature version, lookbacks used)
 
 ## Feature List (Complete)
 All features are calculated per `(symbol, date)` row unless stated otherwise.
