@@ -52,6 +52,7 @@ from weekly_option_roc_accel_core import (
 
 DEFAULT_CACHE_CSV = "data/etfs.csv"
 SIGNAL_MODEL_CHOICES = ["roc", "accel", "accel-roc", "roc-accel", "accel/roc", "roc/accel"]
+CANONICAL_DATA_COLUMNS = ["symbol", "date", "open", "close", "high", "low", "volume", "dividend_rate"]
 
 
 def _normalize_signal_model(value: str) -> str:
@@ -81,31 +82,44 @@ class SignalConfig:
     upside_vol_threshold: float
 
 
+def _normalize_market_data_columns(df: pd.DataFrame, symbol_hint: Optional[str] = None) -> pd.DataFrame:
+    normalized = df.copy()
+    if "date" not in normalized.columns and "Date" in normalized.columns:
+        normalized = normalized.rename(columns={"Date": "date"})
+    for old_name, new_name in [("Open", "open"), ("High", "high"), ("Low", "low"), ("Close", "close"), ("Volume", "volume")]:
+        if old_name in normalized.columns and new_name not in normalized.columns:
+            normalized = normalized.rename(columns={old_name: new_name})
+
+    if "symbol" not in normalized.columns:
+        if symbol_hint is None:
+            raise ValueError("Input data must contain a 'symbol' column when no symbol hint is provided.")
+        normalized["symbol"] = symbol_hint.upper()
+    normalized["symbol"] = normalized["symbol"].astype(str).str.upper()
+
+    if "date" not in normalized.columns:
+        raise ValueError("Input data must contain a 'date' column.")
+    normalized["date"] = pd.to_datetime(normalized["date"], errors="coerce").dt.tz_localize(None)
+
+    for col in ["open", "close", "high", "low", "volume", "dividend_rate"]:
+        if col in normalized.columns:
+            normalized[col] = pd.to_numeric(normalized[col], errors="coerce")
+        else:
+            normalized[col] = pd.NA
+
+    return normalized[CANONICAL_DATA_COLUMNS]
+
+
 def load_symbol_data_from_csv(csv_path: str, symbol: str, start_date: Optional[str], end_date: Optional[str]) -> pd.DataFrame:
-    df = pd.read_csv(csv_path)
-    if "symbol" in df.columns:
-        df = df[df["symbol"] == symbol].copy()
+    df = _normalize_market_data_columns(pd.read_csv(csv_path), symbol_hint=symbol)
+    df = df[df["symbol"] == symbol].copy()
     if df.empty:
         raise ValueError(f"No rows found for symbol '{symbol}' in {csv_path}")
-
-    if "date" not in df.columns and "Date" in df.columns:
-        df = df.rename(columns={"Date": "date"})
-    for old_name, new_name in [("Open", "open"), ("High", "high"), ("Low", "low"), ("Close", "close"), ("Volume", "volume")]:
-        if old_name in df.columns and new_name not in df.columns:
-            df = df.rename(columns={old_name: new_name})
-
-    df["date"] = pd.to_datetime(df["date"])
-    for col in ["open", "close", "high", "low", "volume"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
 
     if start_date:
         df = df[df["date"] >= pd.to_datetime(start_date)]
     if end_date:
         df = df[df["date"] <= pd.to_datetime(end_date)]
 
-    if "close" not in df.columns:
-        raise ValueError("Input data must contain a 'close' column.")
     # Filter out invalid placeholder rows (for example close=0) that break return/volatility math.
     df = df.dropna(subset=["date", "close"])
     df = df[df["close"] > 0]
@@ -164,16 +178,12 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
     if not rows:
         raise RuntimeError(f"No data returned for symbol {symbol} from marketstack.")
 
-    df = pd.DataFrame(rows)
-    for col in ["open", "close", "high", "low", "volume"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-    if "date" not in df.columns:
-        raise RuntimeError(f"marketstack response for {symbol} did not include 'date'.")
-    if "close" not in df.columns:
+    df = _normalize_market_data_columns(pd.DataFrame(rows), symbol_hint=symbol.upper())
+    if df["date"].isna().all():
+        raise RuntimeError(f"marketstack response for {symbol} did not include parseable 'date' values.")
+    if df["close"].isna().all():
         raise RuntimeError(f"marketstack response for {symbol} did not include 'close'.")
 
-    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.tz_localize(None)
     df = df.dropna(subset=["date", "close"])
     df = df[df["close"] > 0]
     df = df.sort_values("date").reset_index(drop=True)
@@ -191,22 +201,14 @@ def _is_recent_enough(latest_date: pd.Timestamp) -> bool:
 def _persist_symbol_rows(cache_csv_path: str, symbol: str, fresh_rows: pd.DataFrame) -> None:
     cache_path = Path(cache_csv_path)
     if cache_path.exists():
-        full_df = pd.read_csv(cache_csv_path)
+        full_df = _normalize_market_data_columns(pd.read_csv(cache_csv_path), symbol_hint=symbol)
     else:
-        full_df = pd.DataFrame(columns=["symbol", "date", "open", "close", "high", "low", "volume"])
-
-    if "date" in full_df.columns:
-        full_df["date"] = pd.to_datetime(full_df["date"], errors="coerce")
-
-    if "symbol" not in full_df.columns:
-        full_df["symbol"] = symbol.upper()
+        full_df = pd.DataFrame(columns=CANONICAL_DATA_COLUMNS)
 
     keep_mask = full_df["symbol"].astype(str).str.upper() != symbol.upper()
     other_symbols = full_df[keep_mask].copy()
 
-    symbol_df = fresh_rows.copy()
-    symbol_df["symbol"] = symbol.upper()
-    symbol_df["date"] = pd.to_datetime(symbol_df["date"], errors="coerce").dt.tz_localize(None)
+    symbol_df = _normalize_market_data_columns(fresh_rows.copy(), symbol_hint=symbol)
     symbol_df = symbol_df.dropna(subset=["date", "close"])
     symbol_df = symbol_df[symbol_df["close"] > 0]
     symbol_df = symbol_df.drop_duplicates(subset=["date"], keep="last")
@@ -214,6 +216,7 @@ def _persist_symbol_rows(cache_csv_path: str, symbol: str, fresh_rows: pd.DataFr
 
     merged = pd.concat([other_symbols, symbol_df], ignore_index=True)
     merged = merged.sort_values(["symbol", "date"]).reset_index(drop=True)
+    merged = merged[CANONICAL_DATA_COLUMNS]
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(cache_csv_path, index=False)
