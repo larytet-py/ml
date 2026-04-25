@@ -750,7 +750,7 @@ def main() -> None:
     parser.add_argument(
         "--vol-threshold-max",
         type=float,
-        default=0.50,
+        default=1.00,
         help="Upper bound for side-specific vol threshold in optimization.",
     )
     args = parser.parse_args()
