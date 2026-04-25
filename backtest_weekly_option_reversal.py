@@ -425,6 +425,7 @@ def optimize_parameters(
     eval_count = 0
     start_time = time.monotonic()
     last_report_time = start_time
+    last_restart_report_time = start_time
 
     starts = build_start_vectors(
         initial_vector=initial_vector,
@@ -471,6 +472,24 @@ def optimize_parameters(
         else:
             report_best_progress()
         last_report_time = now
+
+    def maybe_report_restart_progress(completed: int, total: int, max_workers: int, force: bool = False) -> None:
+        nonlocal last_restart_report_time
+        if progress_interval_seconds <= 0:
+            return
+        now = time.monotonic()
+        if not force and now - last_restart_report_time < progress_interval_seconds:
+            return
+        elapsed = now - start_time
+        print(
+            "[opt] "
+            f"t+{elapsed:.1f}s "
+            f"restarts={completed}/{total} "
+            f"evals={eval_count} "
+            f"workers={max_workers}",
+            flush=True,
+        )
+        last_restart_report_time = now
 
     if workers == 1 or len(starts) == 1:
         for start in starts:
@@ -554,16 +573,13 @@ def optimize_parameters(
                     best_metrics = restart_result.metrics
                     best_params = restart_result.params
                     report_best_progress()
-                if progress_interval_seconds > 0:
-                    elapsed = time.monotonic() - start_time
-                    print(
-                        "[opt] "
-                        f"t+{elapsed:.1f}s "
-                        f"restarts={completed}/{len(starts)} "
-                        f"evals={eval_count} "
-                        f"workers={max_workers}",
-                        flush=True,
-                    )
+                maybe_report_restart_progress(completed=completed, total=len(starts), max_workers=max_workers)
+            maybe_report_restart_progress(
+                completed=completed,
+                total=len(starts),
+                max_workers=max_workers,
+                force=True,
+            )
 
     return OptimizationResult(params=best_params, score=best_score, trades_df=best_df, metrics=best_metrics)
 
