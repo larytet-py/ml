@@ -32,6 +32,7 @@ import math
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -670,6 +671,7 @@ def main() -> None:
         help="Upper bound for side-specific acceleration threshold in optimization.",
     )
     args = parser.parse_args()
+    script_name = Path(__file__).name
 
     df = load_symbol_data(args.csv, args.symbol, args.start_date, args.end_date)
 
@@ -706,7 +708,7 @@ def main() -> None:
             df=df,
             side=args.side,
             symbol=args.symbol,
-            script_path="backtest_weekly_option_roc_accel_reversal.py",
+            script_path=script_name,
             csv_path=args.csv,
             start_date=args.start_date,
             end_date=args.end_date,
@@ -745,6 +747,19 @@ def main() -> None:
         print("  expiry=this-week")
         print(f"  objective={args.opt_goal_function}")
         print(f"  objective_score={result.score:.6f}")
+        print(
+            "  cmd="
+            + _format_best_backtest_command(
+                script_path=script_name,
+                symbol=args.symbol,
+                side=args.side,
+                params=result.params,
+                csv_path=args.csv,
+                start_date=args.start_date,
+                end_date=args.end_date,
+                allow_overlap=args.allow_overlap,
+            )
+        )
     else:
         trades_df = run_backtest(
             df=df,
@@ -763,7 +778,8 @@ def main() -> None:
 
     print_summary(trades_df)
 
-    if not trades_df.empty and args.print_trades != 0:
+    show_all_trades = args.optimize
+    if not trades_df.empty and (show_all_trades or args.print_trades != 0):
         print("\nRecent trades:")
         cols = [
             "side",
@@ -780,7 +796,7 @@ def main() -> None:
             "roc_signal",
             "accel_signal",
         ]
-        trades_to_show = trades_df[cols] if args.print_trades < 0 else trades_df[cols].tail(args.print_trades)
+        trades_to_show = trades_df[cols] if (show_all_trades or args.print_trades < 0) else trades_df[cols].tail(args.print_trades)
         print(trades_to_show.to_string(index=False, justify="center"))
 
     if args.trades_out:
