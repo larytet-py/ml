@@ -123,5 +123,5 @@ Example clustered dates:
 # Unites 
 
 ```bash
-python3.11 -m unittest -q tests.test_option_signal_notifier
+python3.11 -m unittest discover -v -s tests -p "test_*.py"
 ```
