@@ -55,6 +55,10 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Volatility | `realized_vol_open_window` | Rolling std of open returns * sqrt(252), window |
 | Volatility | `downside_vol_window` | Downside rolling std (annualized), window |
 | Volatility | `upside_vol_window` | Upside rolling std (annualized), window |
+| Volatility | `realized_vol_close_ema_window` | EMA-smoothed realized close volatility |
+| Volatility | `realized_vol_open_ema_window` | EMA-smoothed realized open volatility |
+| Volatility | `downside_vol_ema_window` | EMA-smoothed downside volatility |
+| Volatility | `upside_vol_ema_window` | EMA-smoothed upside volatility |
 | Price trend | `price_momentum_window` | `open.pct_change(window)` or `close.pct_change(window)` (configurable) |
 | Price trend | `price_stddev_window` | Rolling std of price level |
 | Volume lag | `volume_lag1` | `volume.shift(1)` for entry-time safety |
@@ -85,6 +89,7 @@ Windows are range-based from config (min/max), for example:
 - `accel_shift_window_min=1`, `accel_shift_window_max=10`
 - `accel_ema_window_min=2`, `accel_ema_window_max=20`
 - `vol_window_min=5`, `vol_window_max=60`
+- `vol_ema_window_min=2`, `vol_ema_window_max=20`
 - `corr_window_min=5`, `corr_window_max=90`
 
 All window parameters are integer-valued. Bayesian optimization selects values inside these bounds.
@@ -95,6 +100,7 @@ Window lengths are also optimization parameters (not fixed constants). The optim
 - `accel_shift_window`
 - `accel_ema_window`
 - `vol_window`
+- `vol_ema_window`
 - `corr_window`
 
 Configurable threshold ranges are also optimization parameters (not fixed constants), for example:
@@ -210,6 +216,8 @@ optimization:
     accel_ema_window_max: 20
     vol_window_min: 5
     vol_window_max: 60
+    vol_ema_window_min: 2
+    vol_ema_window_max: 20
     corr_window_min: 5
     corr_window_max: 90
     roc_threshold_min: -0.40
@@ -260,6 +268,7 @@ To support robust N-dimensional connected regions:
    - `--accel-shift-window-min/--accel-shift-window-max`
    - `--accel-ema-window-min/--accel-ema-window-max`
    - `--vol-window-min/--vol-window-max`
+   - `--vol-ema-window-min/--vol-ema-window-max`
    - `--corr-window-min/--corr-window-max`
 6. Add optimization bounds for threshold parameters, for example:
    - `--roc-threshold-min/--roc-threshold-max`
