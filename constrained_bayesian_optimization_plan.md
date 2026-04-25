@@ -35,43 +35,84 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Raw volume | `volume` | Raw volume |
 | Return | `ret_1d_close` | `close.pct_change(1)` |
 | Return | `ret_1d_open` | `open.pct_change(1)` |
-| ROC | `roc_close_L` | ROC on `close` for each configured `L` |
-| ROC | `roc_open_L` | ROC on `open` for each configured `L` |
-| Acceleration | `accel_close_L_A` | `(close.pct_change(L) - close.pct_change(L).shift(A))` |
-| Acceleration | `accel_open_L_A` | `(open.pct_change(L) - open.pct_change(L).shift(A))` |
-| Volatility | `realized_vol_close_W` | Rolling std of close returns * sqrt(252), window `W` |
-| Volatility | `realized_vol_open_W` | Rolling std of open returns * sqrt(252), window `W` |
-| Volatility | `downside_vol_W` | Downside rolling std (annualized), window `W` |
-| Volatility | `upside_vol_W` | Upside rolling std (annualized), window `W` |
-| Price trend | `price_momentum_L` | `open.pct_change(L)` or `close.pct_change(L)` (configurable) |
-| Price trend | `price_stddev_W` | Rolling std of price level |
+| Window meta | `roc_window` | Window length used for ROC feature family (encoded numeric feature) |
+| Window meta | `accel_roc_window` | Base ROC window used inside acceleration formulas |
+| Window meta | `accel_shift_window` | Shift window `A` used in acceleration formulas |
+| Window meta | `vol_window` | Window length used for vol/downside/upside vol family |
+| Window meta | `corr_window` | Window length used for rolling cross-equity correlation |
+| ROC | `roc_close_window` | ROC on `close` using selected ROC window |
+| ROC | `roc_open_window` | ROC on `open` using selected ROC window |
+| Acceleration | `accel_close_window_shift` | `(close.pct_change(window) - close.pct_change(window).shift(shift))` |
+| Acceleration | `accel_open_window_shift` | `(open.pct_change(window) - open.pct_change(window).shift(shift))` |
+| Acceleration | `accel_close_ema_window` | EMA-smoothed close acceleration using accel EMA window |
+| Acceleration | `accel_open_ema_window` | EMA-smoothed open acceleration using accel EMA window |
+| Acceleration | `accel_regime_sign_window` | Rolling sign-persistence of acceleration over window |
+| Cross-equity accel | `accel_corr_to_<peer>_window` | Rolling correlation of acceleration series to each peer |
+| Cross-equity accel | `accel_nbr_mean_window` | Mean neighbor acceleration |
+| Cross-equity accel | `accel_nbr_std_window` | Std of neighbor acceleration |
+| Cross-equity accel | `delta_accel_vs_nbr_mean_window` | Symbol acceleration minus neighbor acceleration mean |
+| Volatility | `realized_vol_close_window` | Rolling std of close returns * sqrt(252), window |
+| Volatility | `realized_vol_open_window` | Rolling std of open returns * sqrt(252), window |
+| Volatility | `downside_vol_window` | Downside rolling std (annualized), window |
+| Volatility | `upside_vol_window` | Upside rolling std (annualized), window |
+| Price trend | `price_momentum_window` | `open.pct_change(window)` or `close.pct_change(window)` (configurable) |
+| Price trend | `price_stddev_window` | Rolling std of price level |
 | Volume lag | `volume_lag1` | `volume.shift(1)` for entry-time safety |
-| Volume trend | `volume_momentum_L` | `(volume.shift(1) / volume.shift(1+L)) - 1` |
-| Volume trend | `volume_roc_L` | Same as above with ROC lookback |
-| Volume vol | `volume_stddev_W` | Rolling std of lagged volume |
+| Volume trend | `volume_momentum_window` | `(volume.shift(1) / volume.shift(1+window)) - 1` |
+| Volume trend | `volume_roc_window` | Same as above with ROC lookback window |
+| Volume vol | `volume_stddev_window` | Rolling std of lagged volume |
 | Intraday shape | `high_open_over_open` | `(high - open) / open` |
 | Intraday shape | `open_low_over_open` | `(open - low) / open` |
 | Intraday shape | `high_close_over_close` | `(high - close) / close` |
 | Intraday shape | `close_low_over_low` | `(close - low) / low` |
 | Intraday shape | `high_low_over_high` | `(high - low) / high` |
 | Intraday shape | `high_low_over_low` | `(high - low) / low` |
-| Cross-equity corr | `corr_to_<peer>_W` | Rolling return correlation to each peer symbol in universe, window `W` |
-| Cross-equity summary | `corr_mean_W` | Mean correlation across peers |
-| Cross-equity summary | `corr_std_W` | Std correlation across peers |
-| Cross-equity summary | `corr_min_W` | Minimum peer correlation |
-| Cross-equity summary | `corr_max_W` | Maximum peer correlation |
-| Cross-equity summary | `corr_pos_count_W` | Count of peers with correlation > threshold |
-| Cross-equity summary | `corr_neg_count_W` | Count of peers with correlation < -threshold |
+| Cross-equity corr | `corr_to_<peer>_window` | Rolling return correlation to each peer symbol in universe, window |
+| Cross-equity summary | `corr_mean_window` | Mean correlation across peers |
+| Cross-equity summary | `corr_std_window` | Std correlation across peers |
+| Cross-equity summary | `corr_min_window` | Minimum peer correlation |
+| Cross-equity summary | `corr_max_window` | Maximum peer correlation |
+| Cross-equity summary | `corr_pos_count_window` | Count of peers with correlation > threshold |
+| Cross-equity summary | `corr_neg_count_window` | Count of peers with correlation < -threshold |
 | Neighbor aggregates | `nbr_<f>_mean` | Mean of feature `f` across correlation-selected neighbors |
 | Neighbor aggregates | `nbr_<f>_std` | Std of feature `f` across neighbors |
 | Neighbor deltas | `delta_<f>_vs_nbr_mean` | Symbol feature minus neighbor mean |
 | Neighbor meta | `nbr_count` | Number of neighbors used on that date |
 
-`L`, `A`, and `W` are lists from config, for example:
-- ROC lookbacks: `[1, 3, 5, 10, 20]`
-- Acceleration windows: `[1, 3, 5]`
-- Vol windows: `[5, 10, 21, 42]`
-- Corr windows: `[10, 21, 42]`
+Windows are range-based from config (min/max), for example:
+- `roc_window_min=1`, `roc_window_max=30`
+- `accel_roc_window_min=1`, `accel_roc_window_max=20`
+- `accel_shift_window_min=1`, `accel_shift_window_max=10`
+- `accel_ema_window_min=2`, `accel_ema_window_max=20`
+- `vol_window_min=5`, `vol_window_max=60`
+- `corr_window_min=5`, `corr_window_max=90`
+
+All window parameters are integer-valued. Bayesian optimization selects values inside these bounds.
+
+Window lengths are also optimization parameters (not fixed constants). The optimizer can search:
+- `roc_window`
+- `accel_roc_window`
+- `accel_shift_window`
+- `accel_ema_window`
+- `vol_window`
+- `corr_window`
+
+Configurable threshold ranges are also optimization parameters (not fixed constants), for example:
+- `roc_threshold_min`, `roc_threshold_max`
+- `vol_threshold_min`, `vol_threshold_max`
+- `accel_threshold_min`, `accel_threshold_max`
+
+Threshold parameters can be side-specific when needed:
+- `put_roc_threshold_min/max`, `call_roc_threshold_min/max`
+- `downside_vol_threshold_min/max`, `upside_vol_threshold_min/max`
+- `put_accel_threshold_min/max`, `call_accel_threshold_min/max`
+
+## Naming Legend
+- Use `*_window` for lookback and rolling lengths.
+- Use `*_shift` for lag offsets used by acceleration.
+- Use `*_ema_window` for smoothing lengths.
+
+Legacy placeholders like `_L_A`, `_W`, and `_AE` are not required.
 
 ## Step 1 Implementation Tasks
 1. Add a new script: `build_option_strategy_features.py`.
@@ -149,11 +190,34 @@ class Goal:
 7. BO proposes next candidate using surrogate + acquisition with constraints.
 8. Persist every trial to CSV (`data/bo_trials.csv`) for restart/reproducibility.
 
+Candidate vectors must include both threshold parameters and window parameters so BO can discover stable regions over:
+- threshold dimensions (ROC/vol/accel thresholds)
+- window dimensions (lookback windows, smoothing windows, correlation windows)
+
 ## Config Model (up to 3 goals)
 Example config section:
 
 ```yaml
 optimization:
+  search_space:
+    roc_window_min: 1
+    roc_window_max: 30
+    accel_roc_window_min: 1
+    accel_roc_window_max: 20
+    accel_shift_window_min: 1
+    accel_shift_window_max: 10
+    accel_ema_window_min: 2
+    accel_ema_window_max: 20
+    vol_window_min: 5
+    vol_window_max: 60
+    corr_window_min: 5
+    corr_window_max: 90
+    roc_threshold_min: -0.40
+    roc_threshold_max: 0.40
+    vol_threshold_min: 0.00
+    vol_threshold_max: 1.00
+    accel_threshold_min: -0.20
+    accel_threshold_max: 0.20
   goals:
     - name: itm_expiries
       kind: constraint
@@ -190,6 +254,18 @@ To support robust N-dimensional connected regions:
 2. Extract metrics computation to a reusable function if needed.
 3. Keep current optimizer as fallback mode (`--optimizer gradient|bayes`).
 4. Add flags for selected goals and goal targets.
+5. Add optimization bounds for window parameters (integer dimensions), for example:
+   - `--roc-window-min/--roc-window-max`
+   - `--accel-roc-window-min/--accel-roc-window-max`
+   - `--accel-shift-window-min/--accel-shift-window-max`
+   - `--accel-ema-window-min/--accel-ema-window-max`
+   - `--vol-window-min/--vol-window-max`
+   - `--corr-window-min/--corr-window-max`
+6. Add optimization bounds for threshold parameters, for example:
+   - `--roc-threshold-min/--roc-threshold-max`
+   - `--vol-threshold-min/--vol-threshold-max`
+   - `--accel-threshold-min/--accel-threshold-max`
+   - Optional side-specific bounds for put/call threshold variants.
 
 ## Testing Plan
 1. Unit test feature generation for one symbol and one date range.
@@ -207,4 +283,3 @@ To support robust N-dimensional connected regions:
 - Trial logging and restart support.
 - Region extraction output for robust connected parameter zones.
 - Tests for feature pipeline, goals, BO loop, and region extraction.
-
