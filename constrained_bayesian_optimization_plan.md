@@ -5,7 +5,7 @@ Build a two-step process that:
 1. Generates a large feature dataset once (disk-first, memory-safe) for symbols in `data/etfs.csv`.
 2. Runs constrained Bayesian optimization with up to 3 configurable goals, using a small-function or class-based goal API.
 
-The optimization target order remains:
+The default optimization target order:
 1. Minimize ITM expirations.
 2. Minimize drawdown.
 3. Maximize average PnL.
