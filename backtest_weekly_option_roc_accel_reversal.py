@@ -45,10 +45,15 @@ from weekly_option_backtest_common import (
     is_better_score,
     load_symbol_data,
     normalize_worker_count,
-    print_summary,
     score_from_metrics,
     shell_join,
     summarize_trades,
+)
+from weekly_option_output import (
+    build_output_line,
+    print_optimization_result,
+    print_recent_trades,
+    print_summary_with_output_line,
 )
 from weekly_option_roc_accel_core import build_roc_accel_signal_frame, compute_weekly_entry_candidates
 
@@ -724,26 +729,7 @@ def main() -> None:
     df = load_symbol_data(args.csv, args.symbol, args.start_date, args.end_date)
     replay_flags: Optional[str] = None
     commented_output = bool(args.optimize)
-
-    def output_line(message: str = "") -> None:
-        if commented_output:
-            print(f"# {message}")
-        else:
-            print(message)
-
-    def output_summary(trades: pd.DataFrame) -> None:
-        metrics = summarize_trades(trades)
-        if metrics is None:
-            output_line("No trades generated with current settings.")
-            return
-        output_line(f"Trades: {int(metrics['total'])}")
-        output_line(f"Win rate: {metrics['win_rate']:.2%}")
-        output_line(f"Expired ITM: {int(metrics['itm_expiries'])} ({metrics['itm_rate']:.2%})")
-        output_line(f"Total PnL (per 1 contract): {metrics['total_pnl']:.2f}")
-        output_line(f"Average PnL/trade (per 1 contract): {metrics['avg_pnl']:.2f}")
-        output_line(f"Median PnL/trade (per 1 contract): {metrics['median_pnl']:.2f}")
-        output_line(f"Average return on spot notional: {metrics['avg_return_on_spot']:.4%}")
-        output_line(f"Max drawdown (per 1 contract, cumulative): {metrics['max_drawdown']:.2f}")
+    output_line = build_output_line(commented_output)
 
     if args.optimize:
         if args.side == "call":
@@ -805,18 +791,19 @@ def main() -> None:
         )
 
         trades_df = result.trades_df
-        output_line("Optimization complete. Best parameters:")
-        output_line(f"  roc_lookback={int(result.params['roc_lookback'])}")
-        output_line(f"  accel_window={int(result.params['accel_window'])}")
+        parameter_lines = [
+            f"roc_lookback={int(result.params['roc_lookback'])}",
+            f"accel_window={int(result.params['accel_window'])}",
+        ]
         if args.side == "call":
-            output_line(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
-            output_line(f"  call_accel_threshold={result.params['call_accel_threshold']:.6f}")
+            parameter_lines.append(f"call_roc_threshold={result.params['call_roc_threshold']:.6f}")
+            parameter_lines.append(f"call_accel_threshold={result.params['call_accel_threshold']:.6f}")
         else:
-            output_line(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
-            output_line(f"  put_accel_threshold={result.params['put_accel_threshold']:.6f}")
-        output_line("  expiry=this-week")
-        output_line(f"  objective={args.opt_goal_function}")
-        output_line(f"  objective_score={result.score:.6f}")
+            parameter_lines.append(f"put_roc_threshold={result.params['put_roc_threshold']:.6f}")
+            parameter_lines.append(f"put_accel_threshold={result.params['put_accel_threshold']:.6f}")
+        parameter_lines.append("expiry=this-week")
+        parameter_lines.append(f"objective={args.opt_goal_function}")
+        parameter_lines.append(f"objective_score={result.score:.6f}")
         best_cmd = _format_best_backtest_command(
             script_path=script_name,
             symbol=args.symbol,
@@ -827,7 +814,13 @@ def main() -> None:
             end_date=args.end_date,
             allow_overlap=args.allow_overlap,
         )
-        output_line(f"  cmd={best_cmd}")
+        parameter_lines.append(f"cmd={best_cmd}")
+        print_optimization_result(
+            output_line=output_line,
+            parameter_lines=parameter_lines,
+            optimization_complete_line="Optimization complete. Best parameters:",
+            include_best_parameters_header=False,
+        )
         replay_flags = _format_best_backtest_flags(
             symbol=args.symbol,
             side=args.side,
@@ -853,16 +846,12 @@ def main() -> None:
             allow_overlap=args.allow_overlap,
         )
 
-    if commented_output:
-        output_summary(trades_df)
-    else:
-        print_summary(trades_df)
+    print_summary_with_output_line(trades_df, output_line)
 
     show_all_trades = args.optimize
-    if not trades_df.empty and (show_all_trades or args.print_trades != 0):
-        output_line("")
-        output_line("Recent trades:")
-        cols = [
+    print_recent_trades(
+        trades_df=trades_df,
+        columns=[
             "side",
             "entry_date",
             "exit_date",
@@ -876,14 +865,12 @@ def main() -> None:
             "time_to_expiry_days",
             "roc_signal",
             "accel_signal",
-        ]
-        trades_to_show = trades_df[cols] if (show_all_trades or args.print_trades < 0) else trades_df[cols].tail(args.print_trades)
-        trades_table_text = trades_to_show.to_string(index=False, justify="center")
-        if commented_output:
-            for line in trades_table_text.splitlines():
-                output_line(line)
-        else:
-            print(trades_table_text)
+        ],
+        output_line=output_line,
+        commented_output=commented_output,
+        show_all_trades=show_all_trades,
+        print_trades=args.print_trades,
+    )
 
     if replay_flags:
         print(replay_flags)
