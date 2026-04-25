@@ -125,3 +125,27 @@ Example clustered dates:
 ```bash
 python3.11 -m unittest discover -v -s tests -p "test_*.py"
 ```
+
+
+
+Stuff to consider
+```
+Retrofit your current optimizer (fastest, recommended first)
+Build one feature table for symbols in data/etfs.csv only.
+Reuse feature patterns from analyze_weekly_regime_with_etf_context.py (line 262) (ROC, vol, high/low ratios, neighbor deltas).
+Keep your current backtest engine, but change ranking to strict lexicographic:
+min(itm_expiries) -> min(abs(max_drawdown)) -> max(avg_pnl).
+This is the smallest change and gets you an end-to-end process quickly.
+Constrained Bayesian optimization (better search quality)
+Use Optuna/BO over thresholds + feature weights.
+Treat ITM and drawdown as constraints, optimize avg PnL only within feasible region.
+Works better than finite-difference when objective is noisy/discrete.
+Two-stage process (risk-first)
+Stage A: model probability of ITM from your features.
+Stage B: only trade when ITM risk is below threshold, then optimize drawdown/PnL.
+Best when “as few ITM as possible” is truly dominant.
+Pareto frontier (most flexible)
+Use NSGA-II/CMA-ES to generate ITM/drawdown/PnL frontier.
+Then pick final strategy by your exact order rule.
+Great for exploration, more complexity.
+```
