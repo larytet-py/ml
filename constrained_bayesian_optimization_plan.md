@@ -31,8 +31,7 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Identity | `symbol` | Ticker |
 | Identity | `date` | Trading date |
 | Identity | `side` | `put` or `call` context row (optional if creating side-specific rows) |
-| Raw price | `open` `high` `low` `close` | Raw OHLC |
-| Raw volume | `volume` | Raw volume |
+| Required market data (not optimization features) | `open` `high` `low` `close` | Required for backtest pricing/settlement logic, but excluded from optimization feature set |
 | Return | `ret_1d_close` | `close.pct_change(1)` |
 | Return | `ret_1d_open` | `open.pct_change(1)` |
 | Window meta | `roc_window` | Window length used for ROC feature family (encoded numeric feature) |
@@ -47,10 +46,7 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Acceleration | `accel_close_ema_window` | EMA-smoothed close acceleration using accel EMA window |
 | Acceleration | `accel_open_ema_window` | EMA-smoothed open acceleration using accel EMA window |
 | Acceleration | `accel_regime_sign_window` | Rolling sign-persistence of acceleration over window |
-| Cross-equity accel | `accel_corr_to_<peer>_window` | Rolling correlation of acceleration series to each peer |
-| Cross-equity accel | `accel_nbr_mean_window` | Mean neighbor acceleration |
-| Cross-equity accel | `accel_nbr_std_window` | Std of neighbor acceleration |
-| Cross-equity accel | `delta_accel_vs_nbr_mean_window` | Symbol acceleration minus neighbor acceleration mean |
+| Cross-equity accel | `accel_corr_market_window` | Rolling correlation of symbol acceleration series vs one market reference acceleration series |
 | Volatility | `realized_vol_close_window` | Rolling std of close returns * sqrt(252), window |
 | Volatility | `realized_vol_open_window` | Rolling std of open returns * sqrt(252), window |
 | Volatility | `downside_vol_window` | Downside rolling std (annualized), window |
@@ -61,7 +57,6 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Volatility | `upside_vol_ema_window` | EMA-smoothed upside volatility |
 | Price trend | `price_momentum_window` | `open.pct_change(window)` or `close.pct_change(window)` (configurable) |
 | Price trend | `price_stddev_window` | Rolling std of price level |
-| Volume lag | `volume_lag1` | `volume.shift(1)` for entry-time safety |
 | Volume trend | `volume_momentum_window` | `(volume.shift(1) / volume.shift(1+window)) - 1` |
 | Volume trend | `volume_roc_window` | Same as above with ROC lookback window |
 | Volume vol | `volume_stddev_window` | Rolling std of lagged volume |
@@ -71,17 +66,7 @@ All features are calculated per `(symbol, date)` row unless stated otherwise.
 | Intraday shape | `close_low_over_low` | `(close - low) / low` |
 | Intraday shape | `high_low_over_high` | `(high - low) / high` |
 | Intraday shape | `high_low_over_low` | `(high - low) / low` |
-| Cross-equity corr | `corr_to_<peer>_window` | Rolling return correlation to each peer symbol in universe, window |
-| Cross-equity summary | `corr_mean_window` | Mean correlation across peers |
-| Cross-equity summary | `corr_std_window` | Std correlation across peers |
-| Cross-equity summary | `corr_min_window` | Minimum peer correlation |
-| Cross-equity summary | `corr_max_window` | Maximum peer correlation |
-| Cross-equity summary | `corr_pos_count_window` | Count of peers with correlation > threshold |
-| Cross-equity summary | `corr_neg_count_window` | Count of peers with correlation < -threshold |
-| Neighbor aggregates | `nbr_<f>_mean` | Mean of feature `f` across correlation-selected neighbors |
-| Neighbor aggregates | `nbr_<f>_std` | Std of feature `f` across neighbors |
-| Neighbor deltas | `delta_<f>_vs_nbr_mean` | Symbol feature minus neighbor mean |
-| Neighbor meta | `nbr_count` | Number of neighbors used on that date |
+| Cross-equity corr | `corr_market_window` | Rolling mean return correlation to all symbols in the ETF set (excluding self), window |
 
 Windows are range-based from config (min/max), for example:
 - `roc_window_min=1`, `roc_window_max=30`
@@ -119,6 +104,12 @@ Threshold parameters can be side-specific when needed:
 - Use `*_ema_window` for smoothing lengths.
 
 Legacy placeholders like `_L_A`, `_W`, and `_AE` are not required.
+
+## Optimization Feature Scope
+- `open`, `high`, `low`, and `close` are kept in the dataset for backtest mechanics.
+- They must be excluded from optimization feature vectors (no direct raw OHLC optimization).
+- Optimization should use derived signals/features (ROC, accel, vol, ratios, cross-equity context) and tunable parameters (windows/thresholds).
+- Use only one correlation context feature by default: `corr_market_window` as an aggregate over all symbols in the ETF set (and optional accel variant `accel_corr_market_window`).
 
 ## Step 1 Implementation Tasks
 1. Add a new script: `build_option_strategy_features.py`.
