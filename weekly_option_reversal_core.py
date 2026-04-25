@@ -2,6 +2,7 @@
 import math
 from typing import Dict, TypedDict
 
+import numpy as np
 import pandas as pd
 
 
@@ -54,68 +55,66 @@ def compute_weekly_entry_candidates(
     if side not in {"put", "call"}:
         raise ValueError(f"Unsupported side '{side}'. Expected 'put' or 'call'.")
 
+    n = len(signal_df)
+    if n == 0:
+        return {}
+
     entries: Dict[int, EntryCandidate] = {}
     next_entry_idx = 0
-    blocked_until: pd.Timestamp | None = None
+    blocked_until: np.datetime64 | None = None
+
+    date_series = signal_df["date"]
+    date_values = date_series.to_numpy()
+    weekday = date_series.dt.weekday.to_numpy(dtype=int, copy=False)
+    days_to_friday = 4 - weekday
+
+    roc = signal_df["roc"].to_numpy(dtype=float, copy=False)
+    pricing_vol = signal_df["pricing_vol_annualized"].to_numpy(dtype=float, copy=False)
 
     # Use the last trading row within the same ISO week as expiry.
-    iso = signal_df["date"].dt.isocalendar()
+    iso = date_series.dt.isocalendar()
     week_key = iso["year"].astype(int) * 100 + iso["week"].astype(int)
-    week_last_idx = pd.Series(signal_df.index, index=signal_df.index).groupby(week_key).transform("max").astype(int)
+    week_last_idx = (
+        pd.Series(signal_df.index, index=signal_df.index)
+        .groupby(week_key)
+        .transform("max")
+        .to_numpy(dtype=int, copy=False)
+    )
 
-    for i in range(len(signal_df)):
-        row = signal_df.iloc[i]
-        row_date = pd.Timestamp(row["date"]).normalize()
+    base_mask = (~np.isnan(roc)) & (~np.isnan(pricing_vol)) & (days_to_friday > 0)
+    if side == "put":
+        trend = signal_df["downside_vol_annualized"].to_numpy(dtype=float, copy=False)
+        trigger_mask = base_mask & (~np.isnan(trend)) & (roc <= put_roc_threshold) & (trend >= downside_vol_threshold_annualized)
+    else:
+        trend = signal_df["upside_vol_annualized"].to_numpy(dtype=float, copy=False)
+        trigger_mask = base_mask & (~np.isnan(trend)) & (roc >= call_roc_threshold) & (trend >= upside_vol_threshold_annualized)
+
+    for i in np.flatnonzero(trigger_mask):
         if not allow_overlap:
             if require_future_week_row:
                 if i < next_entry_idx:
                     continue
             else:
+                row_date = date_values[i]
                 if blocked_until is not None and row_date <= blocked_until:
                     continue
 
-        if pd.isna(row["roc"]) or pd.isna(row["pricing_vol_annualized"]):
-            continue
-
-        if side == "put":
-            if pd.isna(row["downside_vol_annualized"]):
-                continue
-            trigger = (
-                row["roc"] <= put_roc_threshold
-                and row["downside_vol_annualized"] >= downside_vol_threshold_annualized
-            )
-            trend_vol_signal = float(row["downside_vol_annualized"])
-        else:
-            if pd.isna(row["upside_vol_annualized"]):
-                continue
-            trigger = (
-                row["roc"] >= call_roc_threshold
-                and row["upside_vol_annualized"] >= upside_vol_threshold_annualized
-            )
-            trend_vol_signal = float(row["upside_vol_annualized"])
-
-        if not trigger:
-            continue
-
-        entry_date = pd.Timestamp(row["date"])
-        days_to_friday = 4 - entry_date.weekday()
-        if days_to_friday <= 0:
-            # Skip same-day expiry signals (e.g., Friday close) in this EOD model.
-            continue
-
-        exit_idx = int(week_last_idx.iloc[i])
+        exit_idx = int(week_last_idx[i])
         if require_future_week_row:
-            if exit_idx >= len(signal_df):
-                continue
-            if exit_idx <= i:
+            if exit_idx >= n or exit_idx <= i:
                 continue
 
-        entries[i] = {"exit_idx": exit_idx, "days_to_friday": days_to_friday, "trend_vol_signal": trend_vol_signal}
+        d2f = int(days_to_friday[i])
+        entries[int(i)] = {
+            "exit_idx": exit_idx,
+            "days_to_friday": d2f,
+            "trend_vol_signal": float(trend[i]),
+        }
 
         if not allow_overlap:
             if require_future_week_row:
                 next_entry_idx = exit_idx + 1
             else:
-                blocked_until = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
+                blocked_until = date_values[i] + np.timedelta64(d2f, "D")
 
     return entries

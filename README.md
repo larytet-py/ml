@@ -20,8 +20,8 @@ docker exec -it ml-clickhouse-server clickhouse-client --receive_timeout=60000 -
 ## Python Virtual Environment and Server
 
 ```sh
-python3.11 -m venv .venv
-source .venv/bin/activate
+python3.11 -m venv .venv.local
+source .venv.local/bin/activate
 pip install -r requirements.txt  # Python 3.11
 python3 web/web.py --debug_level=DEBUG
 ```

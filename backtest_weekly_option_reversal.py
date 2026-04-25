@@ -135,13 +135,15 @@ def run_backtest(
     min_pricing_vol_annualized: float,
     contract_size: int,
     allow_overlap: bool,
+    signal_df: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     pricer = BlackScholesPricer(
         risk_free_rate=risk_free_rate,
         min_sigma=min_pricing_vol_annualized,
     )
 
-    signal_df = build_signal_frame(df, roc_lookback=roc_lookback, vol_window=vol_window)
+    if signal_df is None:
+        signal_df = build_signal_frame(df, roc_lookback=roc_lookback, vol_window=vol_window)
     entries = compute_weekly_entry_candidates(
         signal_df=signal_df,
         side=side,
@@ -151,15 +153,19 @@ def run_backtest(
         upside_vol_threshold_annualized=upside_vol_threshold_annualized,
         allow_overlap=allow_overlap,
     )
+    dates = signal_df["date"].to_numpy()
+    close = signal_df["close"].to_numpy(dtype=float, copy=False)
+    pricing_vol_arr = signal_df["pricing_vol_annualized"].to_numpy(dtype=float, copy=False)
+    roc = signal_df["roc"].to_numpy(dtype=float, copy=False)
+
     trades = []
-    for i in sorted(entries):
-        row = signal_df.iloc[i]
-        entry_close = float(row["close"])
-        entry_date = pd.Timestamp(row["date"])
+    for i, entry in entries.items():
+        entry_close = float(close[i])
+        entry_date = pd.Timestamp(dates[i])
         strike = entry_close
-        exit_idx = int(entries[i]["exit_idx"])
-        days_to_friday = int(entries[i]["days_to_friday"])
-        trend_vol_signal = float(entries[i]["trend_vol_signal"])
+        exit_idx = int(entry["exit_idx"])
+        days_to_friday = int(entry["days_to_friday"])
+        trend_vol_signal = float(entry["trend_vol_signal"])
         scheduled_expiry_date = (entry_date + pd.Timedelta(days=days_to_friday)).normalize()
         time_to_expiry_days = days_to_friday
         time_to_expiry_years = time_to_expiry_days / 365.25
@@ -167,8 +173,8 @@ def run_backtest(
         if exit_idx >= len(signal_df):
             continue
 
-        raw_pricing_vol = float(row["pricing_vol_annualized"])
-        pricing_vol = pricer.effective_sigma(raw_pricing_vol)
+        raw_pricing_vol = float(pricing_vol_arr[i])
+        used_pricing_vol = pricer.effective_sigma(raw_pricing_vol)
         premium = pricer.price(
             side=side,
             spot=entry_close,
@@ -177,8 +183,7 @@ def run_backtest(
             sigma=raw_pricing_vol,
         )
 
-        exit_row = signal_df.iloc[exit_idx]
-        exit_close = float(exit_row["close"])
+        exit_close = float(close[exit_idx])
         intrinsic = pricer.intrinsic_value(side=side, strike=strike, spot=exit_close)
         expired_itm = intrinsic > 0.0
         pnl_per_share = premium - intrinsic
@@ -186,8 +191,8 @@ def run_backtest(
         trades.append(
             Trade(
                 side=side,
-                entry_date=row["date"],
-                exit_date=exit_row["date"],
+                entry_date=pd.Timestamp(dates[i]),
+                exit_date=pd.Timestamp(dates[exit_idx]),
                 entry_close=entry_close,
                 exit_close=exit_close,
                 strike=strike,
@@ -196,9 +201,9 @@ def run_backtest(
                 expired_itm=expired_itm,
                 pnl_per_share=pnl_per_share,
                 pnl_per_contract=pnl_per_share * contract_size,
-                roc_signal=float(row["roc"]),
+                roc_signal=float(roc[i]),
                 trend_vol_signal=trend_vol_signal,
-                pricing_vol=pricing_vol,
+                pricing_vol=used_pricing_vol,
                 scheduled_expiry_date=scheduled_expiry_date,
                 time_to_expiry_days=time_to_expiry_days,
             )
@@ -263,6 +268,7 @@ def _optimize_single_start(
 ) -> Tuple[OptimizationResult, int]:
     vector_len = len(start)
     int_dims = {0, 2}
+    signal_cache: Dict[Tuple[int, int], pd.DataFrame] = {}
 
     def project(x: List[float]) -> List[float]:
         return [_clip(v, lo, hi) for v, (lo, hi) in zip(x, bounds)]
@@ -276,19 +282,28 @@ def _optimize_single_start(
             fixed_downside_vol_threshold=fixed_downside_vol_threshold,
             fixed_upside_vol_threshold=fixed_upside_vol_threshold,
         )
+        roc_lookback = int(params["roc_lookback"])
+        vol_window = int(params["vol_window"])
+        signal_key = (roc_lookback, vol_window)
+        signal_df = signal_cache.get(signal_key)
+        if signal_df is None:
+            signal_df = build_signal_frame(df, roc_lookback=roc_lookback, vol_window=vol_window)
+            signal_cache[signal_key] = signal_df
+
         trades_df = run_backtest(
             df=df,
             side=side,
-            roc_lookback=int(params["roc_lookback"]),
+            roc_lookback=roc_lookback,
             put_roc_threshold=float(params["put_roc_threshold"]),
             call_roc_threshold=float(params["call_roc_threshold"]),
-            vol_window=int(params["vol_window"]),
+            vol_window=vol_window,
             downside_vol_threshold_annualized=float(params["downside_vol_threshold_annualized"]),
             upside_vol_threshold_annualized=float(params["upside_vol_threshold_annualized"]),
             risk_free_rate=risk_free_rate,
             min_pricing_vol_annualized=min_pricing_vol_annualized,
             contract_size=contract_size,
             allow_overlap=allow_overlap,
+            signal_df=signal_df,
         )
         metrics = summarize_trades(trades_df)
         score = score_from_metrics(
@@ -728,18 +743,22 @@ def main() -> None:
         )
 
         trades_df = result.trades_df
-        print("Optimization complete. Best parameters:")
-        print(f"  roc_lookback={int(result.params['roc_lookback'])}")
-        if args.side == "call":
-            print(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
-            print(f"  upside_vol_threshold={result.params['upside_vol_threshold_annualized']:.6f}")
+        print("Optimization complete.")
+        if not result.params:
+            print("No feasible parameter set found (likely due to zero generated trades).")
         else:
-            print(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
-            print(f"  downside_vol_threshold={result.params['downside_vol_threshold_annualized']:.6f}")
-        print(f"  vol_window={int(result.params['vol_window'])}")
-        print("  expiry=this-week")
-        print(f"  objective={args.opt_goal_function}")
-        print(f"  objective_score={result.score:.6f}")
+            print("Best parameters:")
+            print(f"  roc_lookback={int(result.params['roc_lookback'])}")
+            if args.side == "call":
+                print(f"  call_roc_threshold={result.params['call_roc_threshold']:.6f}")
+                print(f"  upside_vol_threshold={result.params['upside_vol_threshold_annualized']:.6f}")
+            else:
+                print(f"  put_roc_threshold={result.params['put_roc_threshold']:.6f}")
+                print(f"  downside_vol_threshold={result.params['downside_vol_threshold_annualized']:.6f}")
+            print(f"  vol_window={int(result.params['vol_window'])}")
+            print("  expiry=this-week")
+            print(f"  objective={args.opt_goal_function}")
+            print(f"  objective_score={result.score:.6f}")
     else:
         trades_df = run_backtest(
             df=df,
