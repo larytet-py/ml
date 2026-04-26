@@ -9,7 +9,7 @@ from backtest_weekly_option_roc_accel_reversal import run_backtest as run_roc_ac
 from backtest_weekly_option_roc_accel_reversal import summarize_trades as summarize_roc_accel_trades
 
 
-CSV_PATH = "data/etfs.csv"
+CSV_PATH = "tests/fixtures/etfs_golden_small.csv"
 RISK_FREE_RATE = 0.04
 MIN_PRICING_VOL = 0.10
 CONTRACT_SIZE = 100
@@ -19,6 +19,11 @@ class BacktestTableSamplesTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.spy_df = load_symbol_data(CSV_PATH, "SPY", None, None)
+        cls.qqq_df = load_symbol_data(CSV_PATH, "QQQ", None, None)
+        if cls.spy_df.empty or cls.qqq_df.empty:
+            raise AssertionError("Golden fixture must include at least two symbols with data (SPY and QQQ).")
+        if len(cls.spy_df) < 12:
+            raise AssertionError("Golden fixture must include enough SPY rows for at least two rolling windows.")
 
     def _assert_common_metrics(
         self,
@@ -47,18 +52,16 @@ class BacktestTableSamplesTests(unittest.TestCase):
         self.assertEqual(round(metrics["max_drawdown"], 2), expected_max_drawdown)
 
     def test_reversal_sample_from_config_matches_table(self):
-        # option_signal_notifier.config sample:
-        # --symbol SPY --side call --roc-lookback 22 --vol-window 2
-        # --call-roc-threshold 0.000000 --upside-vol-threshold 0.019602
+        # Golden sample with small windows for fast unit tests.
         trades = run_roc_backtest(
             df=self.spy_df.copy(),
             side="call",
-            roc_lookback=22,
+            roc_lookback=2,
             put_roc_threshold=-0.03,
             call_roc_threshold=0.0,
             vol_window=2,
             downside_vol_threshold_annualized=0.2,
-            upside_vol_threshold_annualized=0.019602,
+            upside_vol_threshold_annualized=0.03,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
             contract_size=CONTRACT_SIZE,
@@ -69,63 +72,51 @@ class BacktestTableSamplesTests(unittest.TestCase):
         self._assert_common_metrics(
             metrics=metrics,
             trades=trades,
-            expected_trades=22,
-            expected_win_rate_pct=72.73,
-            expected_itm_count=9,
-            expected_itm_rate_pct=40.91,
-            expected_total_pnl=1564.65,
-            expected_avg_pnl=71.12,
-            expected_median_pnl=136.82,
-            expected_avg_return_pct=0.1056,
-            expected_max_drawdown=-615.06,
+            expected_trades=5,
+            expected_win_rate_pct=60.00,
+            expected_itm_count=3,
+            expected_itm_rate_pct=60.00,
+            expected_total_pnl=-1166.31,
+            expected_avg_pnl=-233.26,
+            expected_median_pnl=295.08,
+            expected_avg_return_pct=-0.3501,
+            expected_max_drawdown=-2152.44,
         )
 
         expected_recent_entry_dates = [
-            "2025-11-10",
-            "2025-12-04",
-            "2025-12-11",
-            "2026-01-05",
-            "2026-01-12",
-            "2026-01-22",
-            "2026-01-26",
             "2026-02-09",
-            "2026-04-08",
+            "2026-03-17",
+            "2026-04-01",
+            "2026-04-06",
             "2026-04-15",
         ]
         expected_recent_exit_dates = [
-            "2025-11-14",
-            "2025-12-05",
-            "2025-12-12",
-            "2026-01-09",
-            "2026-01-16",
-            "2026-01-23",
-            "2026-01-30",
             "2026-02-13",
+            "2026-03-20",
+            "2026-04-02",
             "2026-04-10",
             "2026-04-17",
         ]
         self.assertEqual(
-            [d.date().isoformat() for d in trades["entry_date"].tail(10)],
+            [d.date().isoformat() for d in trades["entry_date"].tail(5)],
             expected_recent_entry_dates,
         )
         self.assertEqual(
-            [d.date().isoformat() for d in trades["exit_date"].tail(10)],
+            [d.date().isoformat() for d in trades["exit_date"].tail(5)],
             expected_recent_exit_dates,
         )
 
     def test_acceleration_sample_from_config_matches_table(self):
-        # option_signal_notifier.config sample:
-        # --symbol SPY --side call --accel-window 53 --vol-window 14
-        # --call-accel-threshold -0.013715 --upside-vol-threshold 0.046678
+        # Golden sample with small windows for fast unit tests.
         trades = run_accel_backtest(
             df=self.spy_df.copy(),
             side="call",
-            accel_window=53,
+            accel_window=2,
             put_accel_threshold=-0.03,
-            call_accel_threshold=-0.013715,
-            vol_window=14,
+            call_accel_threshold=0.0,
+            vol_window=3,
             downside_vol_threshold_annualized=0.2,
-            upside_vol_threshold_annualized=0.046678,
+            upside_vol_threshold_annualized=0.03,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
             contract_size=CONTRACT_SIZE,
@@ -136,56 +127,48 @@ class BacktestTableSamplesTests(unittest.TestCase):
         self._assert_common_metrics(
             metrics=metrics,
             trades=trades,
-            expected_trades=8,
-            expected_win_rate_pct=87.50,
+            expected_trades=5,
+            expected_win_rate_pct=60.00,
             expected_itm_count=2,
-            expected_itm_rate_pct=25.00,
-            expected_total_pnl=1106.86,
-            expected_avg_pnl=138.36,
-            expected_median_pnl=189.48,
-            expected_avg_return_pct=0.2042,
-            expected_max_drawdown=-445.48,
+            expected_itm_rate_pct=40.00,
+            expected_total_pnl=-1256.10,
+            expected_avg_pnl=-251.22,
+            expected_median_pnl=251.15,
+            expected_avg_return_pct=-0.3757,
+            expected_max_drawdown=-2099.94,
         )
 
         self.assertEqual(
             [d.date().isoformat() for d in trades["entry_date"]],
             [
-                "2025-07-09",
-                "2025-09-02",
-                "2025-11-06",
-                "2025-11-17",
-                "2026-01-28",
-                "2026-02-11",
-                "2026-03-12",
-                "2026-03-26",
+                "2026-02-10",
+                "2026-03-18",
+                "2026-03-25",
+                "2026-04-06",
+                "2026-04-16",
             ],
         )
         self.assertEqual(
             [d.date().isoformat() for d in trades["exit_date"]],
             [
-                "2025-07-11",
-                "2025-09-05",
-                "2025-11-07",
-                "2025-11-21",
-                "2026-01-30",
                 "2026-02-13",
-                "2026-03-13",
+                "2026-03-20",
                 "2026-03-27",
+                "2026-04-10",
+                "2026-04-17",
             ],
         )
 
     def test_roc_acceleration_sample_from_config_matches_table(self):
-        # option_signal_notifier.config sample:
-        # --symbol SPY --side put --roc-lookback 44 --accel-window 19
-        # --put-roc-threshold -0.007364 --put-accel-threshold 0.008792
+        # Golden sample with small windows for fast unit tests.
         trades = run_roc_accel_backtest(
             df=self.spy_df.copy(),
             side="put",
-            roc_lookback=44,
-            accel_window=19,
-            put_roc_threshold=-0.007364,
+            roc_lookback=3,
+            accel_window=2,
+            put_roc_threshold=-0.01,
             call_roc_threshold=0.03,
-            put_accel_threshold=0.008792,
+            put_accel_threshold=0.004,
             call_accel_threshold=-0.03,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
@@ -197,24 +180,24 @@ class BacktestTableSamplesTests(unittest.TestCase):
         self._assert_common_metrics(
             metrics=metrics,
             trades=trades,
-            expected_trades=4,
-            expected_win_rate_pct=75.00,
-            expected_itm_count=1,
-            expected_itm_rate_pct=25.00,
-            expected_total_pnl=-897.47,
-            expected_avg_pnl=-224.37,
-            expected_median_pnl=354.41,
-            expected_avg_return_pct=-0.3489,
-            expected_max_drawdown=-2023.69,
+            expected_trades=5,
+            expected_win_rate_pct=40.00,
+            expected_itm_count=3,
+            expected_itm_rate_pct=60.00,
+            expected_total_pnl=-3891.58,
+            expected_avg_pnl=-778.32,
+            expected_median_pnl=-1243.86,
+            expected_avg_return_pct=-1.1654,
+            expected_max_drawdown=-4582.91,
         )
 
         self.assertEqual(
             [d.date().isoformat() for d in trades["entry_date"]],
-            ["2026-02-17", "2026-03-25", "2026-03-31", "2026-04-08"],
+            ["2026-02-17", "2026-03-09", "2026-03-16", "2026-03-24", "2026-03-30"],
         )
         self.assertEqual(
             [d.date().isoformat() for d in trades["exit_date"]],
-            ["2026-02-20", "2026-03-27", "2026-04-02", "2026-04-10"],
+            ["2026-02-20", "2026-03-13", "2026-03-20", "2026-03-27", "2026-04-02"],
         )
 
 

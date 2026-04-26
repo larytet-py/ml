@@ -1,0 +1,27 @@
+window_ranges:
+  roc_window:
+    min: 2
+    max: 60
+    step: 1
+  accel_roc_window:
+    min: 1
+    max: 20
+    step: 1
+  accel_shift_window:
+    min: 1
+    max: 10
+    step: 1
+  vol_window:
+    min: 2
+    max: 40
+    step: 1
+  corr_window:
+    min: 5
+    max: 90
+    step: 1
+
+smoothing:
+  accel_ema_window: 8
+  vol_ema_window: 8
+
+price_momentum_source: close

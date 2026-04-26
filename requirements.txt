@@ -15,6 +15,7 @@ nvidia-nccl-cu12==2.30.3
 pandas==2.3.3
 python-dateutil==2.9.0.post0
 pytz==2026.1.post1
+PyYAML==6.0.2
 requests==2.33.1
 scikit-learn==1.7.2
 scipy==1.15.3
@@ -25,3 +26,5 @@ urllib3==2.6.3
 Werkzeug==3.1.8
 xgboost==3.2.0
 zstandard==0.25.0
+
+pyarrow

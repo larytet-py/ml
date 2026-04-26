@@ -120,6 +120,16 @@ Example clustered dates:
 - `2026-03-30`: `GDX`, `IWM`, `VXX`
 - `2026-04-14`: `GDX`, `SPY`
 
+
+## Bayesian Optimization
+
+```sh
+python3.11 build_option_strategy_features.py --workers 4 --force-rebuild
+# Check the data
+# python3.11 -c "import pandas as pd; print(pd.read_parquet('data/bayesian/option_strategy_features.parquet').head(5).to_string(index=False))"
+python3.11 optimize_option_strategy_region.py --symbol VXX --side put
+```
+
 # Unites 
 
 ```bash

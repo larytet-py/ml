@@ -2,7 +2,7 @@
 
 ## Goal
 Build a two-step process that:
-1. Generates a large feature dataset once (disk-first, memory-safe) for symbols in `data/etfs.csv`.
+1. Generates a large feature dataset once (disk-first, memory-safe) for symbols in `data/etfs.parquet`.
 2. Runs constrained Bayesian optimization with up to 3 configurable goals, using a small-function or class-based goal API.
 
 The default optimization target order:
@@ -13,15 +13,23 @@ The default optimization target order:
 ## Step 1: One-Time Feature Generation (Disk-First)
 
 ## Requirements
-- Input universe must be restricted to symbols present in `data/etfs.csv`.
-- If output CSV already exists, skip regeneration and use it in Step 2.
-- Data is large, so processing must be chunked/streamed and append to CSV.
+- Input universe must be restricted to symbols present in `data/etfs.parquet`.
+- If output Parquet already exists, skip regeneration and use it in Step 2.
+- Data is large, so processing must be chunked/streamed and write row groups to Parquet.
 - Avoid in-memory full matrix joins across all symbols and all dates.
 
 ## Output
-- Primary output file: `data/bayesian/option_strategy_features.csv`
+- Primary output file: `data/bayesian/option_strategy_features.parquet`
 - Schema file: `data/bayesian/option_strategy_features.schema.json`
 - Metadata file: `data/bayesian/option_strategy_features.meta.json` (row count, symbol count, date range, feature version, lookbacks used)
+
+## Current Dataset Shape Snapshot (April 25, 2026)
+- File: `data/bayesian/option_strategy_features.parquet`
+- File size: ~786 MB (large file warning; avoid full reads in quick diagnostics)
+- Rows: 5,084 (from `option_strategy_features.meta.json`)
+- Columns: 18,983 (from `option_strategy_features.schema.json`)
+
+For large local data, prefer metadata-driven checks (`*.meta.json` + `*.schema.json`) instead of loading the full Parquet into memory.
 
 ## Feature List (Complete)
 All features are calculated per `(symbol, date)` row unless stated otherwise.
@@ -110,12 +118,12 @@ Only the sampled threshold values inside these configured bounds are optimizatio
 
 ## Step 1 Implementation Tasks
 1. Add a new script: `build_option_strategy_features.py`.
-2. Add symbol sanitization for `data/etfs.csv` (drop duplicated header rows like `symbol`).
-3. Add universe extraction from `data/etfs.csv` and filter all data to this set.
-4. Add chunk-by-symbol processing and append writes to `data/option_strategy_features.csv`.
+2. Add symbol sanitization for `data/etfs.parquet` (drop duplicated header rows like `symbol` if present in legacy imports).
+3. Add universe extraction from `data/etfs.parquet` and filter all data to this set.
+4. Add chunk-by-symbol processing and append row groups to `data/bayesian/option_strategy_features.parquet`.
 5. Add optional partition temp files in `data/_tmp_features/` and final concatenation pass if needed.
 6. Add idempotent behavior:
-7. If `data/option_strategy_features.csv` exists and `--force-rebuild` is not passed, skip compute.
+7. If `data/bayesian/option_strategy_features.parquet` exists and `--force-rebuild` is not passed, skip compute.
 8. Write schema + metadata JSON files.
 
 ## Step 1 CLI Contract
@@ -123,20 +131,20 @@ Proposed command:
 
 ```bash
 python3 build_option_strategy_features.py \
-  --input-csv data/etfs.csv \
-  --output-csv data/option_strategy_features.csv \
+  --input-parquet data/etfs.parquet \
+  --output-parquet data/bayesian/option_strategy_features.parquet \
   --feature-config option_signal_notifier.config \
   --workers 8
 ```
 
 Behavior:
-- Default: reuse existing output CSV.
+- Default: reuse existing output Parquet.
 - Rebuild mode: `--force-rebuild`.
 
 ## Step 2: Constrained Bayesian Optimization
 
 ## Requirements
-- Load features from `data/option_strategy_features.csv`.
+- Load features from `data/bayesian/option_strategy_features.parquet`.
 - Allow up to 3 goals configurable from config/CLI.
 - Make each goal easy to add as a small function.
 - If BO library needs richer interface, provide class wrappers exposing required API.
@@ -182,8 +190,10 @@ class Goal:
 5. constraint violation values,
 6. auxiliary diagnostics for logging.
 7. BO proposes next candidate using surrogate + acquisition with constraints.
-8. Persist every trial to CSV (`data/bo_trials.csv`) for restart/reproducibility.
-9. Compute region-flatness diagnostics for feasible trials (per-dimension local width, active-dimension count, component volume proxy).
+8. Persist every trial to Parquet (`data/bo_trials.parquet`) for restart/reproducibility.
+9. Persist a dedicated evaluation cache Parquet (`data/bo_eval_cache.parquet`) keyed by sampled parameter vector to avoid recomputing expensive backtests.
+10. Compute region-flatness diagnostics for feasible trials (per-dimension local width, active-dimension count, component volume proxy).
+11. Emit BO phase logs and periodic progress logs (every few seconds), including feasible count and best-so-far metrics (`avg_pnl`, `itm_expiries`, `max_drawdown`), without printing every single backtest run.
 
 Candidate vectors must include both threshold parameters and window parameters so BO can discover stable regions over:
 - threshold dimensions (ROC/vol/accel thresholds)
@@ -295,11 +305,11 @@ Component ranking rule:
 3. Integration test flatness tie-break: similar-PnL regions should select flatter component.
 
 ## Deliverables Checklist
-- `build_option_strategy_features.py` with disk-first generation and CSV reuse logic.
+- `build_option_strategy_features.py` with disk-first generation and Parquet reuse logic.
 - Feature schema + metadata outputs.
 - Goal function module and class wrapper API.
 - Constrained BO runner with pluggable goals (max 3).
-- Trial logging and restart support.
+- Trial logging (`bo_trials.parquet`), eval-cache persistence (`bo_eval_cache.parquet`), and restart support.
 - Region extraction output for robust connected parameter zones.
 - Flatness diagnostics and ranking fields in `bo_region_summary.json`.
 - Tests for feature pipeline, goals, BO loop, and region extraction.
