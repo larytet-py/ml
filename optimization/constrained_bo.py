@@ -45,6 +45,8 @@ class ConstrainedBayesianOptimizer:
         candidate_pool_size: int = 512,
         constraint_penalty: float = 1000.0,
         progress_interval_seconds: float = 5.0,
+        force_rebuild: bool = False,
+        param_name_aliases: Optional[Dict[str, str]] = None,
         logger: Optional[Callable[[str], None]] = None,
     ) -> None:
         self.search_space = search_space
@@ -57,6 +59,8 @@ class ConstrainedBayesianOptimizer:
         self.candidate_pool_size = int(candidate_pool_size)
         self.constraint_penalty = float(constraint_penalty)
         self.progress_interval_seconds = float(progress_interval_seconds)
+        self.force_rebuild = bool(force_rebuild)
+        self.param_name_aliases = dict(param_name_aliases or {})
         self.logger = logger or (lambda message: print(message, flush=True))
 
         self.rng = np.random.default_rng(self.seed)
@@ -64,10 +68,30 @@ class ConstrainedBayesianOptimizer:
         self._trial_rows: List[Dict[str, object]] = []
         self._eval_cache: Dict[str, Dict[str, float]] = {}
         self._cache_dirty = False
-        self._load_eval_cache()
+        if not self.force_rebuild:
+            self._load_eval_cache()
 
     def _log(self, message: str) -> None:
         self.logger(message)
+
+    def _format_params_for_log(self, params: Dict[str, float]) -> str:
+        label_map = {
+            "roc_window": "roc-lookback",
+            "vol_window": "vol-window",
+        }
+        label_map.update(self.param_name_aliases)
+        parts: List[str] = []
+        for name in self.param_names:
+            if name not in params:
+                continue
+            key = label_map.get(name, name.replace("_", "-"))
+            spec = self.search_space[name]
+            value = float(params[name])
+            if spec.is_int:
+                parts.append(f"{key}={int(round(value))}")
+            else:
+                parts.append(f"{key}={value:.6f}")
+        return " ".join(parts)
 
     def _normalize(self, params: Dict[str, float]) -> np.ndarray:
         out: List[float] = []
@@ -230,6 +254,8 @@ class ConstrainedBayesianOptimizer:
 
     def load_existing_trials(self) -> List[TrialResult]:
         self._trial_rows = []
+        if self.force_rebuild:
+            return []
         if not self.trials_parquet.exists():
             return []
         df = pd.read_parquet(self.trials_parquet)
@@ -263,6 +289,9 @@ class ConstrainedBayesianOptimizer:
 
     def run(self, n_trials: int) -> List[TrialResult]:
         trials = self.load_existing_trials()
+        if self.force_rebuild:
+            self._eval_cache = {}
+            self._cache_dirty = False
         start_id = len(trials)
         if not self._eval_cache:
             for trial in trials:
@@ -272,6 +301,17 @@ class ConstrainedBayesianOptimizer:
         cache_hits = 0
         feasible = [t for t in trials if t.goals.feasible]
         best_feasible = max(feasible, key=lambda t: t.goals.objective_score) if feasible else None
+        best_overall = max(trials, key=lambda t: t.penalized_score) if trials else None
+        best_near_feasible = None
+        best_near_feasible_violation = float("inf")
+        for t in trials:
+            total_violation = float(sum(max(0.0, v) for v in t.goals.violations.values()))
+            if total_violation < best_near_feasible_violation or (
+                np.isclose(total_violation, best_near_feasible_violation)
+                and (best_near_feasible is None or t.goals.objective_score > best_near_feasible.goals.objective_score)
+            ):
+                best_near_feasible = t
+                best_near_feasible_violation = total_violation
 
         for i in range(start_id, n_trials):
             model = self._fit_gp(trials)
@@ -305,14 +345,26 @@ class ConstrainedBayesianOptimizer:
             if self._cache_dirty:
                 self._persist_eval_cache()
 
+            total_violation = float(sum(max(0.0, v) for v in goals_eval.violations.values()))
+            if best_overall is None or trial.penalized_score > best_overall.penalized_score:
+                best_overall = trial
+            if total_violation < best_near_feasible_violation or (
+                np.isclose(total_violation, best_near_feasible_violation)
+                and (best_near_feasible is None or trial.goals.objective_score > best_near_feasible.goals.objective_score)
+            ):
+                best_near_feasible = trial
+                best_near_feasible_violation = total_violation
+
             if trial.goals.feasible and (best_feasible is None or trial.goals.objective_score > best_feasible.goals.objective_score):
                 best_feasible = trial
                 self._log(
                     "[bo] improvement "
                     f"trial={i + 1}/{n_trials} objective={trial.goals.objective_score:.6f} "
+                    f"total={trial.metrics.get('total', float('nan')):.1f} "
                     f"avg_pnl={trial.metrics.get('avg_pnl', float('nan')):.2f} "
                     f"itm={trial.metrics.get('itm_expiries', float('nan')):.1f} "
-                    f"max_drawdown={trial.metrics.get('max_drawdown', float('nan')):.2f}"
+                    f"max_drawdown={trial.metrics.get('max_drawdown', float('nan')):.2f} "
+                    f"params={self._format_params_for_log(trial.params)}"
                 )
 
             if self.progress_interval_seconds > 0:
@@ -321,20 +373,36 @@ class ConstrainedBayesianOptimizer:
                     elapsed = now - start_time
                     feasible_count = sum(1 for t in trials if t.goals.feasible)
                     if best_feasible is None:
-                        self._log(
-                            "[bo] progress "
-                            f"t+{elapsed:.1f}s trial={i + 1}/{n_trials} phase={phase} "
-                            f"feasible=0 cache_hits={cache_hits}"
-                        )
+                        if best_near_feasible is None:
+                            self._log(
+                                "[bo] progress "
+                                f"t+{elapsed:.1f}s trial={i + 1}/{n_trials} phase={phase} "
+                                f"feasible=0 cache_hits={cache_hits}"
+                            )
+                        else:
+                            self._log(
+                                "[bo] progress "
+                                f"t+{elapsed:.1f}s trial={i + 1}/{n_trials} phase={phase} "
+                                f"feasible=0 cache_hits={cache_hits} "
+                                f"best_violation={best_near_feasible_violation:.6f} "
+                                f"best_objective={best_near_feasible.goals.objective_score:.6f} "
+                                f"best_total={best_near_feasible.metrics.get('total', float('nan')):.1f} "
+                                f"best_avg_pnl={best_near_feasible.metrics.get('avg_pnl', float('nan')):.2f} "
+                                f"best_itm={best_near_feasible.metrics.get('itm_expiries', float('nan')):.1f} "
+                                f"best_max_drawdown={best_near_feasible.metrics.get('max_drawdown', float('nan')):.2f} "
+                                f"best_params={self._format_params_for_log(best_near_feasible.params)}"
+                            )
                     else:
                         self._log(
                             "[bo] progress "
                             f"t+{elapsed:.1f}s trial={i + 1}/{n_trials} phase={phase} "
                             f"feasible={feasible_count} cache_hits={cache_hits} "
                             f"best_objective={best_feasible.goals.objective_score:.6f} "
+                            f"best_total={best_feasible.metrics.get('total', float('nan')):.1f} "
                             f"best_avg_pnl={best_feasible.metrics.get('avg_pnl', float('nan')):.2f} "
                             f"best_itm={best_feasible.metrics.get('itm_expiries', float('nan')):.1f} "
-                            f"best_max_drawdown={best_feasible.metrics.get('max_drawdown', float('nan')):.2f}"
+                            f"best_max_drawdown={best_feasible.metrics.get('max_drawdown', float('nan')):.2f} "
+                            f"best_params={self._format_params_for_log(best_feasible.params)}"
                         )
                     last_progress_time = now
         if self._cache_dirty:
