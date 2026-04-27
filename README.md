@@ -121,16 +121,52 @@ Example clustered dates:
 - `2026-04-14`: `GDX`, `SPY`
 
 
-## Bayesian Optimization
+## Optimization (Sobol Plan)
 
 ```sh
 python3.11 build_option_strategy_features.py --workers 4 --force-rebuild
 # Check the data
-# python3.11 -c "import pandas as pd; print(pd.read_parquet('data/bayesian/option_strategy_features.parquet').head(5).to_string(index=False))"
+# python3.11 -c "import pandas as pd; print(pd.read_parquet('data/features/option_strategy_features.parquet').head(5).to_string(index=False))"
+# Current runner in repo:
 python3.11 optimize_option_strategy_region.py --symbol VXX --side put
+
+# Sobol + local-gradient plan document:
+# sobol_gradient_descent_optimization_plan.md
+# Dedicated runner:
+python3.11 optimize_option_strategy_sobol_gradient.py --symbol VXX --side put
 ```
 
-# Unites 
+Sobol scaling rule (explicit): for each optimized dimension/feature, sample `u in [0,1]`, map by resolved bounds (`min/max` from YAML for knobs or parquet-derived for feature columns) with `x = min + u * (max - min)`, and if type is integer use `round(x)` then clamp to `[min, max]`.
+
+
+## Sobol
+
+```sh
+python3.11 build_option_strategy_features.py --workers 4 --force-rebuild
+python3.11 optimize_option_strategy_sobol_gradient.py --symbol VXX --side put --start-date=2025-04-24 --sobol-samples=300000
+
+# Run only Sobol (phase 1), then run phase 2 later with a wider local search radius
+# while preserving all previous rows in the same trials parquet.
+python3.11 optimize_option_strategy_sobol_gradient.py --symbol VXX --side put --execution-mode sobol_only
+python3.11 optimize_option_strategy_sobol_gradient.py --symbol VXX --side put --execution-mode phase2_only --local-radius 0.20 --local-probe-per-seed 300
+
+
+python3.11 - <<'PY'
+import pandas as pd
+
+df = pd.read_parquet("data/sobol_gradient_trials.parquet")
+runs = df[df["metric__total"].fillna(0) > 3].copy()
+outfile = "data/sobol_gradient_runs_trades_gt_3.csv"
+runs.to_csv(outfile, index=False)
+
+print(f"rows with trades > 3: {len(runs)}")
+print(f"wrote: {outfile}")
+PY
+
+csvcut -c metric__total,metric__itm_expiries,metric__max_drawdown,metric__avg_pnl data/sobol_gradient_runs_trades_gt_3.csv
+```
+
+# Unitest
 
 ```bash
 python3.11 -m unittest discover -v -s tests -p "test_*.py"

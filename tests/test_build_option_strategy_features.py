@@ -14,7 +14,7 @@ from build_option_strategy_features import build_features
 TRADING_DAYS_PER_YEAR = 252
 EPS = 1e-12
 
-# Mirrors the feature groups defined in constrained_bayesian_optimization_plan.md.
+# Mirrors the feature groups defined in sobol_gradient_descent_optimization_plan.md.
 PLAN_FEATURE_GROUPS = [
     "ret_1d_close",
     "ret_1d_open",
