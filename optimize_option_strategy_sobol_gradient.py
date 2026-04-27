@@ -897,13 +897,39 @@ class Orchestrator:
         self._write_final_json(seed_rows)
 
 
+def _symbol_side_scoped_path(base_path: str, *, symbol: str, side: str) -> str:
+    """Return a per-symbol/per-side output path derived from a shared default path.
+
+    Example:
+        data/sobol_gradient_trials.parquet -> data/sobol_gradient_trials_put.GDX.parquet
+    """
+    path = Path(base_path)
+    clean_symbol = str(symbol).upper().strip()
+    clean_side = str(side).lower().strip()
+    return str(path.with_name(f"{path.stem}_{clean_side}.{clean_symbol}{path.suffix}"))
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Two-phase Sobol + cached gradient backtest orchestration.")
 
     parser.add_argument("--features-parquet", default="data/features/option_strategy_features.parquet")
     parser.add_argument("--window-config-yaml", default="data/option_feature_windows.yaml")
-    parser.add_argument("--trials-parquet", default="data/sobol_gradient_trials.parquet")
-    parser.add_argument("--final-results-json", default="data/sobol_gradient_top_runs.json")
+    parser.add_argument(
+        "--trials-parquet",
+        default=None,
+        help=(
+            "Trials parquet path. If omitted, a symbol/side-specific path is used, "
+            "for example data/sobol_gradient_trials_put.GDX.parquet."
+        ),
+    )
+    parser.add_argument(
+        "--final-results-json",
+        default=None,
+        help=(
+            "Final JSON path. If omitted, a symbol/side-specific path is used, "
+            "for example data/sobol_gradient_top_runs_put.GDX.json."
+        ),
+    )
 
     parser.add_argument("--symbol", required=True)
     parser.add_argument("--side", required=True, choices=["put", "call"])
@@ -946,6 +972,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--contract-size", type=int, default=100)
 
     args = parser.parse_args()
+
+    args.symbol = str(args.symbol).upper().strip()
+    args.side = str(args.side).lower().strip()
+
+    if args.trials_parquet is None:
+        args.trials_parquet = _symbol_side_scoped_path(
+            "data/sobol_gradient_trials.parquet",
+            symbol=args.symbol,
+            side=args.side,
+        )
+    if args.final_results_json is None:
+        args.final_results_json = _symbol_side_scoped_path(
+            "data/sobol_gradient_top_runs.json",
+            symbol=args.symbol,
+            side=args.side,
+        )
 
     if args.sobol_samples <= 0:
         raise ValueError("--sobol-samples must be > 0")
