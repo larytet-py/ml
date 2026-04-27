@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sobol Gradient Parquet Analysis"
+  short_description: "Analyze Sobol option-strategy parquet runs"
+  default_prompt: "Use $sobol-gradient-parquet-analysis to analyze a Sobol gradient trials parquet file and summarize profitable regions."

@@ -166,8 +166,18 @@ PY
 csvcut -c metric__total,metric__itm_expiries,metric__max_drawdown,metric__avg_pnl data/sobol_gradient_runs_trades_gt_3.csv
 ```
 
+### ToDo
+
+Remove dependency on build_option_strategy_features 
+backtest_option_strategy_sobol_gradient.py  can start using an empty parquet and populate 
+it on the go. This way the data/features/option_strategy_features.parquet behaves like a 
+cache.
+
+
 # Unitest
 
 ```bash
 python3.11 -m unittest discover -v -s tests -p "test_*.py"
 ```
+
+

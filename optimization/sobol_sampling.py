@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -9,6 +10,8 @@ import numpy as np
 from scipy.stats import qmc
 
 from .constrained_bo import ParamSpec
+
+_SOBOL_BALANCE_WARNING = r"The balance properties of Sobol' points require n to be a power of 2\."
 
 
 @dataclass(frozen=True)
@@ -48,7 +51,9 @@ class SobolSampler:
         if n_samples <= 0:
             raise ValueError("n_samples must be > 0")
         sampler = qmc.Sobol(d=self.dim, scramble=True, seed=self.seed)
-        return sampler.random(n=n_samples)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=_SOBOL_BALANCE_WARNING, category=UserWarning)
+            return sampler.random(n=n_samples)
 
     def sample_params(self, n_samples: int) -> List[Dict[str, float]]:
         points = self.sample_unit(n_samples)
