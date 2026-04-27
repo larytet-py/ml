@@ -142,7 +142,7 @@ Sobol scaling rule (explicit): for each optimized dimension/feature, sample `u i
 ## Sobol
 
 ```sh
-python3.11 build_option_strategy_features.py --workers 4 --force-rebuild
+python3.11 build_option_strategy_features.py --workers 8 --force-rebuild
 python3.11 optimize_option_strategy_sobol_gradient.py --symbol VXX --side put --start-date=2025-04-24 --sobol-samples=300000
 
 # Run only Sobol (phase 1), then run phase 2 later with a wider local search radius
