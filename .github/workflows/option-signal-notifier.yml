@@ -2,7 +2,7 @@ name: Option Signal Notifier
 
 on:
   schedule:
-    - cron: '12 22 * * 1-5' # UTC
+    - cron: '11 22 * * 1-5' # UTC
   workflow_dispatch:
 
 jobs:
