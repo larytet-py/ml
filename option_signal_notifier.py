@@ -262,7 +262,7 @@ def _load_or_refresh_cached_data(
         if "No data returned for symbol" in str(exc):
             print(
                 f"Warning: cache refresh returned no rows for {symbol.upper()} in range "
-                f"{missing_from}..{target_to}; using existing cached data."
+                f"{missing_from}..{target_to}; using existing cached data {exc}"
             )
         else:
             print(f"Cache refresh failed ({exc}); using existing cached data.")
