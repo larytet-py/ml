@@ -31,9 +31,10 @@ import argparse
 import json
 import os
 import shlex
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
 import requests
@@ -53,6 +54,290 @@ from weekly_option_roc_accel_core import (
 DEFAULT_CACHE_CSV = "data/etfs.csv"
 SIGNAL_MODEL_CHOICES = ["roc", "accel", "accel-roc", "roc-accel", "accel/roc", "roc/accel"]
 CANONICAL_DATA_COLUMNS = ["symbol", "date", "open", "close", "high", "low", "volume", "dividend_rate"]
+ATM_OPTIONS_FIELDNAMES = [
+    "symbol",
+    "date",
+    "underlying_open",
+    "underlying_high",
+    "underlying_low",
+    "underlying_close",
+    "underlying_volume",
+    "contract_type",
+    "option_ticker",
+    "expiration_date",
+    "strike_price",
+    "option_open",
+    "option_high",
+    "option_low",
+    "option_close",
+    "option_volume",
+    "option_vwap",
+    "option_transactions",
+    "missing_reason",
+]
+CONSERVATIVE_LIMIT_PREMIUM_ADJUSTMENTS: Dict[str, Dict[str, float]] = {
+    "GDX": {"call": 0.30, "put": 0.75},
+    "IBIT": {"call": 0.20, "put": 0.10},
+    "IWM": {"call": 0.20, "put": 0.75},
+    "QQQ": {"call": -0.20, "put": 0.50},
+    "SPY": {"call": -0.30, "put": 0.30},
+    "TLT": {"call": 0.05, "put": 0.15},
+    "VXX": {"call": 0.20, "put": -0.05},
+}
+CONSERVATIVE_LIMIT_TARGET_FILL_PROBABILITY = 0.50
+
+
+def _unix_to_yyyy_mm_dd(ts: Any) -> Optional[str]:
+    if ts is None:
+        return None
+    try:
+        value = int(float(ts))
+    except (TypeError, ValueError):
+        return None
+    return datetime.utcfromtimestamp(value).date().isoformat()
+
+
+def _marketdata_get(path: str, params: Optional[Dict[str, Any]] = None, timeout: int = 30) -> Dict[str, Any]:
+    token = os.getenv("MARKET_DATA_TOKEN")
+    if not token:
+        raise RuntimeError("Missing MARKET_DATA_TOKEN environment variable.")
+
+    url = f"https://api.marketdata.app{path}"
+    response = requests.get(
+        url,
+        params=params or {},
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    payload = response.json()
+
+    if isinstance(payload, dict) and payload.get("s") == "error":
+        raise RuntimeError(f"MarketData.app API error for {path}: {payload.get('errmsg', 'unknown error')}")
+    return payload
+
+
+def _marketdata_candles_rows(symbol: str, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+    payload = _marketdata_get(
+        f"/v1/stocks/candles/D/{symbol.upper()}/",
+        params={"from": start_date, "to": end_date},
+    )
+    if payload.get("s") == "no_data":
+        return []
+
+    times = payload.get("t") or []
+    opens = payload.get("o") or []
+    highs = payload.get("h") or []
+    lows = payload.get("l") or []
+    closes = payload.get("c") or []
+    volumes = payload.get("v") or []
+
+    rows: List[Dict[str, Any]] = []
+    for i, ts in enumerate(times):
+        rows.append(
+            {
+                "symbol": symbol.upper(),
+                "date": _unix_to_yyyy_mm_dd(ts),
+                "underlying_open": opens[i] if i < len(opens) else None,
+                "underlying_high": highs[i] if i < len(highs) else None,
+                "underlying_low": lows[i] if i < len(lows) else None,
+                "underlying_close": closes[i] if i < len(closes) else None,
+                "underlying_volume": volumes[i] if i < len(volumes) else None,
+            }
+        )
+    return [r for r in rows if r["date"]]
+
+
+def _choose_atm_from_chain(chain_payload: Dict[str, Any], side: str, spot: float) -> Optional[Dict[str, Any]]:
+    option_symbols = chain_payload.get("optionSymbol") or []
+    sides = chain_payload.get("side") or []
+    strikes = chain_payload.get("strike") or []
+    expirations = chain_payload.get("expiration") or []
+
+    candidates: List[Dict[str, Any]] = []
+    for i, option_symbol in enumerate(option_symbols):
+        option_side = str(sides[i]).lower() if i < len(sides) else ""
+        if option_side != side:
+            continue
+        strike = strikes[i] if i < len(strikes) else None
+        expiration = expirations[i] if i < len(expirations) else None
+        if strike is None:
+            continue
+        try:
+            strike_float = float(strike)
+        except (TypeError, ValueError):
+            continue
+
+        candidates.append(
+            {
+                "optionSymbol": option_symbol,
+                "strike": strike_float,
+                "expiration": expiration,
+                "expiration_date": _unix_to_yyyy_mm_dd(expiration),
+            }
+        )
+
+    if not candidates:
+        return None
+
+    return min(
+        candidates,
+        key=lambda c: (
+            c["expiration"] if c["expiration"] is not None else 10**18,
+            abs(c["strike"] - spot),
+            c["strike"],
+            c["optionSymbol"],
+        ),
+    )
+
+
+def _empty_atm_option_row(underlying_row: Dict[str, Any], side: str, reason: str) -> Dict[str, Any]:
+    return {
+        **underlying_row,
+        "contract_type": side,
+        "option_ticker": None,
+        "expiration_date": None,
+        "strike_price": None,
+        "option_open": None,
+        "option_high": None,
+        "option_low": None,
+        "option_close": None,
+        "option_volume": None,
+        "option_vwap": None,
+        "option_transactions": None,
+        "missing_reason": reason,
+    }
+
+
+def _fetch_marketdata_option_candle(option_symbol: str, trade_date: str) -> Optional[Dict[str, Any]]:
+    payload = _marketdata_get(
+        f"/v1/options/candles/D/{option_symbol}/",
+        params={"from": trade_date, "to": trade_date},
+    )
+    if payload.get("s") == "no_data":
+        return None
+
+    times = payload.get("t") or []
+    if not times:
+        return None
+    return {
+        "option_open": (payload.get("o") or [None])[0],
+        "option_high": (payload.get("h") or [None])[0],
+        "option_low": (payload.get("l") or [None])[0],
+        "option_close": (payload.get("c") or [None])[0],
+        "option_volume": (payload.get("v") or [None])[0],
+    }
+
+
+def _fetch_marketdata_option_quote_snapshot(option_symbol: str, trade_date: str) -> Dict[str, Any]:
+    payload = _marketdata_get(f"/v1/options/quotes/{option_symbol}/", params={"date": trade_date})
+    if payload.get("s") == "no_data":
+        return {}
+
+    return {
+        "option_vwap": (payload.get("mid") or [None])[0],
+        "option_transactions": None,
+    }
+
+
+def _update_atm_options_csv_from_marketdata(
+    symbols: Iterable[str],
+    start_date: str,
+    end_date: str,
+    out_csv_path: str = "data/atm_options.csv",
+    expiry_lookahead_days: int = 14,
+) -> pd.DataFrame:
+    """
+    Fetch ATM call/put daily option data from MarketData.app and overwrite atm options CSV.
+
+    Auth: reads bearer token from MARKET_DATA_TOKEN env var.
+    """
+    normalized_symbols = sorted({str(s).strip().upper() for s in symbols if str(s).strip()})
+    if not normalized_symbols:
+        raise ValueError("symbols cannot be empty")
+
+    output_rows: List[Dict[str, Any]] = []
+
+    for symbol in normalized_symbols:
+        underlying_rows = _marketdata_candles_rows(symbol, start_date, end_date)
+        for underlying_row in underlying_rows:
+            spot = underlying_row.get("underlying_close")
+            trade_date = underlying_row.get("date")
+            if trade_date is None:
+                continue
+            if spot is None:
+                output_rows.append(_empty_atm_option_row(underlying_row, "call", "missing_underlying_close"))
+                output_rows.append(_empty_atm_option_row(underlying_row, "put", "missing_underlying_close"))
+                continue
+
+            trade_dt = datetime.strptime(trade_date, "%Y-%m-%d").date()
+            expiration_to = (trade_dt + timedelta(days=expiry_lookahead_days)).isoformat()
+            chain = _marketdata_get(
+                f"/v1/options/chain/{symbol}/",
+                params={
+                    "date": trade_date,
+                    "from": trade_date,
+                    "to": expiration_to,
+                },
+            )
+
+            for side in ("call", "put"):
+                contract = _choose_atm_from_chain(chain, side=side, spot=float(spot))
+                if not contract:
+                    output_rows.append(_empty_atm_option_row(underlying_row, side, "no_contract_found"))
+                    continue
+
+                option_symbol = str(contract["optionSymbol"])
+                candle = _fetch_marketdata_option_candle(option_symbol, trade_date)
+                quote = _fetch_marketdata_option_quote_snapshot(option_symbol, trade_date)
+
+                if candle is None:
+                    output_rows.append(
+                        {
+                            **underlying_row,
+                            "contract_type": side,
+                            "option_ticker": option_symbol,
+                            "expiration_date": contract.get("expiration_date"),
+                            "strike_price": contract.get("strike"),
+                            "option_open": None,
+                            "option_high": None,
+                            "option_low": None,
+                            "option_close": None,
+                            "option_volume": None,
+                            "option_vwap": quote.get("option_vwap"),
+                            "option_transactions": quote.get("option_transactions"),
+                            "missing_reason": "no_option_bar",
+                        }
+                    )
+                    continue
+
+                output_rows.append(
+                    {
+                        **underlying_row,
+                        "contract_type": side,
+                        "option_ticker": option_symbol,
+                        "expiration_date": contract.get("expiration_date"),
+                        "strike_price": contract.get("strike"),
+                        "option_open": candle.get("option_open"),
+                        "option_high": candle.get("option_high"),
+                        "option_low": candle.get("option_low"),
+                        "option_close": candle.get("option_close"),
+                        "option_volume": candle.get("option_volume"),
+                        "option_vwap": quote.get("option_vwap"),
+                        "option_transactions": quote.get("option_transactions"),
+                        "missing_reason": None,
+                    }
+                )
+
+    output_df = pd.DataFrame(output_rows)
+    if output_df.empty:
+        raise RuntimeError("No rows returned from MarketData.app for the requested symbols/date range.")
+
+    output_df = output_df[ATM_OPTIONS_FIELDNAMES].sort_values(["symbol", "date", "contract_type"]).reset_index(drop=True)
+    out_path = Path(out_csv_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    output_df.to_csv(out_path, index=False)
+    return output_df
 
 
 def _normalize_signal_model(value: str) -> str:
@@ -64,6 +349,16 @@ def _normalize_signal_model(value: str) -> str:
     raise argparse.ArgumentTypeError(
         f"Invalid --signal-model '{value}'. Allowed values: {', '.join(SIGNAL_MODEL_CHOICES)}"
     )
+
+
+def _recommended_conservative_limit_premium(symbol: str, side: str, modeled_premium: float) -> Optional[float]:
+    symbol_adjustments = CONSERVATIVE_LIMIT_PREMIUM_ADJUSTMENTS.get(symbol.upper())
+    if not symbol_adjustments:
+        return None
+    side_adjustment = symbol_adjustments.get(side.lower())
+    if side_adjustment is None:
+        return None
+    return modeled_premium + side_adjustment
 
 
 @dataclass
@@ -139,6 +434,16 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
     offset = 0
     rows = []
 
+    def _request_to_curl(url: str, req_params: Dict[str, Any]) -> str:
+        curl_parts = ["curl", "-sS", shlex.quote(url)]
+        for key, value in req_params.items():
+            if key == "access_key":
+                data_value = f"{key}=$MARKET_STACK_API_KEY"
+            else:
+                data_value = f"{key}={value}"
+            curl_parts.extend(["--data-urlencode", shlex.quote(data_value)])
+        return " ".join(curl_parts)
+
     while True:
         params = {
             "access_key": api_key,
@@ -152,6 +457,7 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
         if end_date:
             params["date_to"] = end_date
 
+        print(f"[marketstack] request: {_request_to_curl(base_url, params)}")
         try:
             response = requests.get(base_url, params=params, timeout=20)
             response.raise_for_status()
@@ -159,16 +465,24 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
             raise RuntimeError(f"Failed to download daily data for {symbol} from marketstack: {exc}") from exc
 
         payload = response.json()
+        response_batch = payload.get("data", [])
+        response_pagination = payload.get("pagination", {})
+        print(
+            "[marketstack] response: "
+            f"status={response.status_code} "
+            f"rows={len(response_batch)} "
+            f"pagination={json.dumps(response_pagination, sort_keys=True)}"
+        )
         if "error" in payload:
             message = payload["error"].get("message", "Unknown marketstack error")
             raise RuntimeError(f"marketstack API error for {symbol}: {message}")
 
-        batch = payload.get("data", [])
+        batch = response_batch
         if not batch:
             break
         rows.extend(batch)
 
-        pagination = payload.get("pagination", {})
+        pagination = response_pagination
         count = int(pagination.get("count", len(batch)))
         total = int(pagination.get("total", len(rows)))
         if count == 0 or offset + count >= total:
@@ -521,9 +835,16 @@ def _evaluate_config(
 
         fired = True
         premium_per_contract = premium * contract_size
+        recommended_limit = _recommended_conservative_limit_premium(cfg.symbol, side, premium)
+        recommended_limit_text = (
+            f", recommended conservative limit={recommended_limit:.4f} per share "
+            f"(target fill probability={CONSERVATIVE_LIMIT_TARGET_FILL_PROBABILITY:.0%})"
+            if recommended_limit is not None
+            else ""
+        )
         signal_message = (
             f"ENTER {side.upper()} POSITION | {cfg.symbol} | next Friday in {days_to_expiry} days | "
-            f"estimated ATM premium={premium:.4f} per share, last close {spot:.2f}"
+            f"estimated ATM premium={premium:.4f} per share{recommended_limit_text}, last close {spot:.2f}"
         )
         messages.append(signal_message)
         fired_signals.append(
@@ -534,6 +855,11 @@ def _evaluate_config(
                 "days_to_expiry": days_to_expiry,
                 "estimated_atm_premium_per_share": premium,
                 "estimated_atm_premium_per_contract": premium_per_contract,
+                "recommended_conservative_limit_per_share": recommended_limit,
+                "recommended_aggressive_limit_per_share": recommended_limit,
+                "target_fill_probability": (
+                    CONSERVATIVE_LIMIT_TARGET_FILL_PROBABILITY if recommended_limit is not None else None
+                ),
             }
         )
 
@@ -593,6 +919,31 @@ def _evaluate_config(
     return result
 
 
+def refresh_atm_options_csv_if_enabled(
+    symbols: Iterable[str],
+    start_date: str,
+    end_date: str,
+    out_csv_path: str = "data/atm_options.csv",
+) -> None:
+    if os.getenv("MARKET_DATA_TOKEN"):
+        try:
+            updated_atm_df = _update_atm_options_csv_from_marketdata(
+                symbols=symbols,
+                start_date=start_date,
+                end_date=end_date,
+                out_csv_path=out_csv_path,
+            )
+            print(
+                f"Updated {out_csv_path} from MarketData.app: "
+                f"{len(updated_atm_df)} rows for {len(sorted({str(s).strip() for s in symbols if str(s).strip()}))} symbols "
+                f"({start_date}..{end_date})."
+            )
+        except Exception as exc:
+            print(f"Warning: failed to update {out_csv_path} from MarketData.app: {exc}")
+    else:
+        print("MARKET_DATA_TOKEN not set; skipping MarketData.app ATM options refresh.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Daily signal notifier: checks weekly reversal signal and prints put/call entry notification with estimated ATM premium."
@@ -649,10 +1000,20 @@ def main() -> None:
     args = parser.parse_args()
 
     configs = _load_configs(args)
+    unique_symbols = sorted({cfg.symbol for cfg in configs})
+
+    atm_start_date = args.start_date or (pd.Timestamp.today().normalize() - pd.Timedelta(days=14)).date().isoformat()
+    atm_end_date = args.end_date or pd.Timestamp.today().date().isoformat()
+    refresh_atm_options_csv_if_enabled(
+        symbols=unique_symbols,
+        start_date=atm_start_date,
+        end_date=atm_end_date,
+        out_csv_path="data/atm_options.csv",
+    )
 
     # Load each symbol once so we refresh cache and fetch API data minimally.
     symbol_data: Dict[str, pd.DataFrame] = {}
-    for symbol in sorted({cfg.symbol for cfg in configs}):
+    for symbol in unique_symbols:
         symbol_data[symbol] = load_symbol_data(symbol, args.start_date, args.end_date, args.csv)
 
     all_messages: List[str] = []

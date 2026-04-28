@@ -31,32 +31,33 @@ jobs:
         id: notifier
         env:
           MARKET_STACK_API_KEY: ${{ secrets.MARKET_STACK_API_KEY }}
+          MARKET_DATA_TOKEN: ${{ secrets.MARKET_DATA_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p data
           python option_signal_notifier.py --config option_signal_notifier.config --summary-json notifier_summary.json | tee notifier_output.txt
           python .github/scripts/build_notifier_excerpt.py --summary-json notifier_summary.json
 
-      - name: Commit updated ETF cache
+      - name: Commit updated market data caches
         id: commit_cache
         run: |
           set -euo pipefail
           git lfs install
 
-          if [ ! -f data/etfs.csv ]; then
+          if [ ! -f data/etfs.csv ] && [ ! -f data/atm_options.csv ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if git diff --quiet -- data/etfs.csv; then
+          if git diff --quiet -- data/etfs.csv data/atm_options.csv; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f data/etfs.csv
-          git commit -m "chore: update data/etfs.csv [skip ci]"
+          git add -f data/etfs.csv data/atm_options.csv
+          git commit -m "chore: update market data caches [skip ci]"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
 

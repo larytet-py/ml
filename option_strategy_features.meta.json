@@ -1,0 +1,42 @@
+{
+  "date_max": "2026-04-24",
+  "date_min": "2023-04-25",
+  "feature_version": "3.1-wide-parquet",
+  "output_format": "parquet",
+  "price_momentum_source": "close",
+  "row_count": 5084,
+  "smoothing": {
+    "accel_ema_window": 8,
+    "vol_ema_window": 8
+  },
+  "symbol_count": 7,
+  "universe_size": 7,
+  "window_ranges": {
+    "accel_roc_window": {
+      "max": 20,
+      "min": 1,
+      "step": 1
+    },
+    "accel_shift_window": {
+      "max": 10,
+      "min": 1,
+      "step": 1
+    },
+    "corr_window": {
+      "max": 90,
+      "min": 5,
+      "step": 1
+    },
+    "roc_window": {
+      "max": 60,
+      "min": 2,
+      "step": 1
+    },
+    "vol_window": {
+      "max": 40,
+      "min": 2,
+      "step": 1
+    }
+  },
+  "workers": 4
+}

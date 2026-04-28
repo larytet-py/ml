@@ -1,0 +1,5042 @@
+[
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "dte_calendar",
+    "coefficient": -0.7387260742403373,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "dte_trading",
+    "coefficient": 0.31447021848759193,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "price",
+    "coefficient": -0.09648890968603462,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "price_momentum",
+    "coefficient": 0.09161770904075196,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "volume",
+    "coefficient": -0.005332028298067847,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "volume_momentum",
+    "coefficient": 0.013976495426147343,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "price_roc",
+    "coefficient": -0.007659519311484982,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "volume_roc",
+    "coefficient": 0.019410953202315548,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "price_stddev",
+    "coefficient": -0.06115901989552774,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "volume_stddev",
+    "coefficient": -0.03755132131024518,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.10234482126322564,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.044585902556462456,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.19530333439494488,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.179926149965518,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.061494040726243336,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.22679482038477397,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.03278858131791475,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.2819169429080521,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_std",
+    "coefficient": 0.04479803815119226,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.12549385942567354,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.1543402998663469,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.06008748231319477,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.07070616452175321,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.182620973801351,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.09649752881033363,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.08864007006823303,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.20147058165911924,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.0473460541420602,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.0005833749569507801,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.04649368265572662,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.08013466156841023,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.3464598807192796,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.016521802985302047,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.02773297491175548,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "consolidating",
+    "feature": "nbr_count",
+    "coefficient": -0.01691393788979955,
+    "intercept": -0.09475101035187877,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "dte_calendar",
+    "coefficient": 0.20719516713977776,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "dte_trading",
+    "coefficient": 0.02833595316330977,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "price",
+    "coefficient": -0.11375886051552891,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "price_momentum",
+    "coefficient": -0.1629446371365625,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "volume",
+    "coefficient": -0.039038937414862425,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "volume_momentum",
+    "coefficient": -0.027414959440594133,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "price_roc",
+    "coefficient": 0.0026767485963953884,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "volume_roc",
+    "coefficient": 0.17208441857224852,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "price_stddev",
+    "coefficient": 0.03518145388600477,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "volume_stddev",
+    "coefficient": -0.043872520527464105,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.1153744069846998,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.13381077114650902,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.03436492011607865,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.18479964456175854,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.1711150360047087,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.27186422796746046,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.09415752003271317,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.08230274966338344,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_std",
+    "coefficient": 0.40392842542906693,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.18360780989420436,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.07857072128806537,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.06190339660687428,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.13486174241618193,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.08538952191228866,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.0038413878226377417,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.033336956172801295,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.09725124033319428,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.10939373570288995,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": -0.030583668630508296,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.05199115662305249,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.022464529153330803,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.3650462129238616,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.07307360841208839,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.040383300805268314,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_low",
+    "feature": "nbr_count",
+    "coefficient": 0.19034759180797392,
+    "intercept": 0.02832832952262237,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "dte_calendar",
+    "coefficient": 0.5315309071005581,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "dte_trading",
+    "coefficient": -0.3428061716509013,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "price",
+    "coefficient": 0.21024777020156385,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "price_momentum",
+    "coefficient": 0.07132692809580851,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "volume",
+    "coefficient": 0.04437096571293096,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "volume_momentum",
+    "coefficient": 0.013438464014448905,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "price_roc",
+    "coefficient": 0.004982770715090528,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "volume_roc",
+    "coefficient": -0.19149537177456383,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "price_stddev",
+    "coefficient": 0.025977566009521256,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "volume_stddev",
+    "coefficient": 0.08142384183770784,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_mean",
+    "coefficient": 0.2177192282479267,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.08922486859004755,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.16093841427886826,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.00487349459624162,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.10962099527846626,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.04506940758268699,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.1269461013506279,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.3642196925714375,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_std",
+    "coefficient": -0.44872646358026,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.05811395046852927,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.07576957857828086,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.12199087892006773,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.06415557789442916,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.26801049571364133,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.09265614098769637,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.12197702624103422,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.2987218219923133,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.062047681560828544,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.030000293673557967,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.005497473967327832,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.05767013241507944,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.018586332204582327,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.05655180542678507,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.06811627571702565,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "GDX",
+    "class_label": "constraining_top",
+    "feature": "nbr_count",
+    "coefficient": -0.17343365391817633,
+    "intercept": 0.06642268082925636,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "dte_calendar",
+    "coefficient": -0.040286270399621266,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "dte_trading",
+    "coefficient": -0.35335486515202813,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "price",
+    "coefficient": -0.04741803771755577,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "price_momentum",
+    "coefficient": 0.15227919384534205,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "volume",
+    "coefficient": 0.03227946684420974,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "volume_momentum",
+    "coefficient": -0.2527632639202848,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "price_roc",
+    "coefficient": -0.0205641242923008,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "volume_roc",
+    "coefficient": 0.16030585834102581,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "price_stddev",
+    "coefficient": -0.004084796660607487,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "volume_stddev",
+    "coefficient": -0.014120749586651287,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.047447856979778234,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.03261215664042908,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.0415350658617763,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.013766291827173073,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.042414148817679326,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.01473954514691957,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.21665284318044187,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.23186114614206696,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_std",
+    "coefficient": 0.14498621705908663,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.09156916443959187,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.14972652632533898,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.005976456425575306,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.010056564517390999,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.04231643344158904,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.009330499708856773,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.1912046675582881,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.010753410004231719,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.14051140799385542,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.032600490132692964,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.029303670600745485,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.04439449306462925,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.020399523069062588,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.057499243062320717,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.015498798849885536,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "consolidating",
+    "feature": "nbr_count",
+    "coefficient": -0.03252286952426327,
+    "intercept": -0.0030522934316033587,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "dte_calendar",
+    "coefficient": 0.16250185045920917,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "dte_trading",
+    "coefficient": 0.03235329826472482,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "price",
+    "coefficient": -0.2468676095410945,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "price_momentum",
+    "coefficient": -0.1147649323561861,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "volume",
+    "coefficient": -0.03831489778112494,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "volume_momentum",
+    "coefficient": -0.09756013284486725,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "price_roc",
+    "coefficient": 0.04687596659526215,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "volume_roc",
+    "coefficient": 0.10537356100373109,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "price_stddev",
+    "coefficient": 0.06672962171920271,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "volume_stddev",
+    "coefficient": -0.11625599172946854,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.24309561833659782,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.19733481411594758,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.1430672476261346,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.3869765076117717,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.053496594953023904,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.38475542552321657,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.3548456338058345,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.3521678422039453,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_std",
+    "coefficient": 0.294106632428322,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.03098580125214239,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.05733186890004839,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.26845103431778805,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.05386296511954459,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.33836508297458534,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.1699732094017703,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.40774693319989874,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.05598663435460521,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.10907974844822806,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": -0.039474078914235364,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.369108782867501,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.04432900934196047,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.37723003948797657,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.04407882012479124,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.1142785823887154,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_low",
+    "feature": "nbr_count",
+    "coefficient": -0.16929323398918716,
+    "intercept": 0.014103182093407532,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "dte_calendar",
+    "coefficient": -0.12221558005958792,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "dte_trading",
+    "coefficient": 0.3210015668873025,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "price",
+    "coefficient": 0.2942856472586481,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "price_momentum",
+    "coefficient": -0.037514261489155744,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "volume",
+    "coefficient": 0.006035430936914266,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "volume_momentum",
+    "coefficient": 0.35032339676515184,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "price_roc",
+    "coefficient": -0.026311842302958723,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "volume_roc",
+    "coefficient": -0.26567941934475936,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "price_stddev",
+    "coefficient": -0.06264482505858954,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "volume_stddev",
+    "coefficient": 0.1303767413161241,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_mean",
+    "coefficient": 0.29054347531637675,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.16472265747551582,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.18460231348790557,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.400742799438943,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.011082446135344414,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.3994949706701372,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.13819279062539266,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.12030669606187978,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_std",
+    "coefficient": -0.43909284948740634,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.06058336318744956,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.20705839522538677,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.27442749074336376,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.04380640060215219,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.38068151641617426,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.17930370911062515,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.21654226564161114,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.04523322435037035,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.03143165954562738,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.006873588781541009,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.3984124534682471,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 6.548372266945601e-05,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.39762956255703935,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.013420422937527014,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.12977738123860513,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IBIT",
+    "class_label": "constraining_top",
+    "feature": "nbr_count",
+    "coefficient": 0.2018161035134488,
+    "intercept": -0.011050888661805053,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "dte_calendar",
+    "coefficient": 0.31224548092293425,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "dte_trading",
+    "coefficient": -0.5952551990116094,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "price",
+    "coefficient": -0.13413489909191675,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "price_momentum",
+    "coefficient": 0.04995048367589557,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "volume",
+    "coefficient": 0.00516439681621262,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "volume_momentum",
+    "coefficient": -0.0012824225962328015,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "price_roc",
+    "coefficient": 0.07533985461275886,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "volume_roc",
+    "coefficient": -0.21478905438900037,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "price_stddev",
+    "coefficient": 0.002424573403361806,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "volume_stddev",
+    "coefficient": -0.16418042559858081,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.17731791315154682,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.22554919074762608,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.4979999468793773,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.035159838856609796,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.20561036821342016,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.15317819179299805,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.038764275056152125,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.19721670783726825,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_std",
+    "coefficient": 0.14165235142655186,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.22161706575982687,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.5659726000886889,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.2974373704555715,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.12118746265816396,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.5739955685410876,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.05173966342032829,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.5201272051647308,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.12560349451639033,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.18515711188292847,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.028715481531591182,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.28467652495131107,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.3276840357227451,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.13615956265735768,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.12638192135937207,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.16039903884594472,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "consolidating",
+    "feature": "nbr_count",
+    "coefficient": 0.05312329502951598,
+    "intercept": -0.08615620593195147,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "dte_calendar",
+    "coefficient": -0.3955255443605946,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "dte_trading",
+    "coefficient": 0.668266614509374,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "price",
+    "coefficient": 0.19744161814091463,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "price_momentum",
+    "coefficient": 0.011184187860951976,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "volume",
+    "coefficient": -0.13889333823265135,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "volume_momentum",
+    "coefficient": 0.005991723640376758,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "price_roc",
+    "coefficient": -0.16526061853788954,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "volume_roc",
+    "coefficient": 0.13388005181442114,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "price_stddev",
+    "coefficient": -0.062478644581377495,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "volume_stddev",
+    "coefficient": 0.2091286985919628,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_mean",
+    "coefficient": 0.23570626612910842,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.27946539829223904,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.6227406139543307,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.3248030774392883,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.07904366512349342,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.286050813773957,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.12313093573273313,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.7183183333914451,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_std",
+    "coefficient": -0.7375117736731867,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.5018870704472193,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.237545648604739,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.022128141634718938,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.1813763679204723,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.3286978711141882,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.10557497931042722,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.7111072049519903,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.04824401807211757,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.36184390937434147,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": -0.16827374761215533,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.39968966617355106,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.3094284609895122,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.29095478007617687,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.011257752844101809,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.18917391799236785,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_low",
+    "feature": "nbr_count",
+    "coefficient": -0.13036735018931842,
+    "intercept": 0.06842132229890013,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "dte_calendar",
+    "coefficient": 0.08328006343766116,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "dte_trading",
+    "coefficient": -0.07301141549776545,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "price",
+    "coefficient": -0.06330671904899758,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "price_momentum",
+    "coefficient": -0.061134671536847804,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "volume",
+    "coefficient": 0.1337289414164393,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "volume_momentum",
+    "coefficient": -0.004709301044142058,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "price_roc",
+    "coefficient": 0.08992076392513287,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "volume_roc",
+    "coefficient": 0.08090900257457848,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "price_stddev",
+    "coefficient": 0.06005407117801924,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "volume_stddev",
+    "coefficient": -0.044948272993382665,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.05838835297756039,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.05391620754461523,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.1247406670749543,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.35996291629589866,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.12656670308992612,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.13287262198095884,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.16189521078888564,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.5211016255541758,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_std",
+    "coefficient": 0.5958594222466336,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.2802700046873957,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.32842695148394946,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.27530922882085035,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.06018890526230724,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.245297697426901,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.1573146427307568,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.1909799997872615,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.07735947644427366,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.1766867974914142,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.13955826608056524,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.11501314122224071,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.01825557473323325,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.15479521741881835,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.11512416851527014,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.028774879146423522,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "IWM",
+    "class_label": "constraining_top",
+    "feature": "nbr_count",
+    "coefficient": 0.07724405515980276,
+    "intercept": 0.017734883633050574,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "dte_calendar",
+    "coefficient": -0.7607146152487139,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "dte_trading",
+    "coefficient": 0.5384421031856027,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "price",
+    "coefficient": 0.5288094763193159,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "price_momentum",
+    "coefficient": 0.5316184364139379,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "volume",
+    "coefficient": 0.0406768980183,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "volume_momentum",
+    "coefficient": -0.4252642485686896,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "price_roc",
+    "coefficient": -0.07136612023613319,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "volume_roc",
+    "coefficient": 0.15721133296277565,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "price_stddev",
+    "coefficient": -0.023964130439840754,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "volume_stddev",
+    "coefficient": 0.11826475504100731,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_mean",
+    "coefficient": 0.7576327962573233,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.19290602568215245,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.42742512211259887,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.11602499791216564,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.07324922253468742,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.36213892825992355,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.011975197678326447,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.7349505917896264,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_std",
+    "coefficient": -1.2589976793233877,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.1077480501429433,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.6758849904115491,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.060036928295158394,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.03646122815072621,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.4361233240303195,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.02143862912722523,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.4401007242717029,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.33153702716895406,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.32461028570215206,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.05393219843629502,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.22824789839274734,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.03586881150623831,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.1492062117072416,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.03273716323187782,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.14318345637381133,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "consolidating",
+    "feature": "nbr_count",
+    "coefficient": 0.7057045491506244,
+    "intercept": -0.42501500384534585,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "dte_calendar",
+    "coefficient": -0.13044356982675243,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "dte_trading",
+    "coefficient": 0.3647479503486977,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "price",
+    "coefficient": -0.16847499582124953,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "price_momentum",
+    "coefficient": -0.18229398568707367,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "volume",
+    "coefficient": 0.0675010035455908,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "volume_momentum",
+    "coefficient": 0.12936662800740972,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "price_roc",
+    "coefficient": -0.09424518483631857,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "volume_roc",
+    "coefficient": -0.1896444784744184,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "price_stddev",
+    "coefficient": -0.04072250706333218,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "volume_stddev",
+    "coefficient": 0.06286092648389838,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.0003962698895589656,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.03446470073587964,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.311861125147585,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.28095653858463904,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.0336153680766217,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.056048302745840974,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.26623216680416467,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.49000436531975666,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_std",
+    "coefficient": -0.04623320190925447,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.23078754375376298,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.32858792543534326,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.06753033006403708,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.08176098464221218,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.3212618650798108,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.14043193999223344,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.1564504501365204,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.29845357416961543,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.2750014530654802,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.06255627851080278,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.3379066622777517,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.11239887104848256,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.33489220875234416,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.1062747137495056,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.04955941456128669,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_low",
+    "feature": "nbr_count",
+    "coefficient": -0.34751138792308334,
+    "intercept": 0.26018227479090184,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "dte_calendar",
+    "coefficient": 0.8911581850754678,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "dte_trading",
+    "coefficient": -0.9031900535342997,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "price",
+    "coefficient": -0.36033448049806643,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "price_momentum",
+    "coefficient": -0.3493244507268667,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "volume",
+    "coefficient": -0.10817790156389405,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "volume_momentum",
+    "coefficient": 0.2958976205612758,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "price_roc",
+    "coefficient": 0.16561130507244715,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "volume_roc",
+    "coefficient": 0.03243314551164155,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "price_stddev",
+    "coefficient": 0.06468663750316911,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "volume_stddev",
+    "coefficient": -0.1811256815249067,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.7572365263677616,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.22737072641803258,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.11556399696501204,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.16493154067247617,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.10686459061131127,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.3060906255140791,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.2782073644824861,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.24494622646986722,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_std",
+    "coefficient": 1.3052308812326392,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.1230394936108207,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.3472970649762046,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.12756725835919633,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.11822221279293973,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.7573851891101314,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.11899331086500747,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.2836502741351818,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.0330834529993404,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.04960883263667119,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": -0.1164884769470993,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.10965876388500385,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.07653005954224441,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.4840984204595883,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.07353755051762839,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.19274287093509712,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "SPY",
+    "class_label": "constraining_top",
+    "feature": "nbr_count",
+    "coefficient": -0.35819316122753864,
+    "intercept": 0.1648327290544416,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "dte_calendar",
+    "coefficient": 0.46715285142676866,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "dte_trading",
+    "coefficient": -0.6756878684816728,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "price",
+    "coefficient": 0.006878206359439208,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "price_momentum",
+    "coefficient": 0.032079827455775624,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "volume",
+    "coefficient": 0.0676528062604291,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "volume_momentum",
+    "coefficient": 0.09315445162249791,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "price_roc",
+    "coefficient": -0.06419204473966675,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "volume_roc",
+    "coefficient": -0.08742490965271099,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "price_stddev",
+    "coefficient": -0.03925741237691358,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "volume_stddev",
+    "coefficient": -0.04842880126609179,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.009610739021786536,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.0010984335958500956,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.1328310746728366,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.09068918777602147,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.037673394848475504,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.10048755873950023,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.23582540308600652,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.379012729030055,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_std",
+    "coefficient": -0.23044620831337906,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.15601291774204493,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.5972241859772036,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.0998010187277393,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.02287819952735757,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.19923835713609114,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.08956527897160378,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.10313457298616317,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.03840869302731843,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.05324653013218806,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.06797955112943087,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.007369907068526681,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.03157886253701153,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.08857858544604452,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.11827933780384609,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.06785944078355577,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "consolidating",
+    "feature": "nbr_count",
+    "coefficient": 0.003341407882984573,
+    "intercept": 0.1541346313773797,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "dte_calendar",
+    "coefficient": -0.134666868108507,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "dte_trading",
+    "coefficient": 0.18278845459853077,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "price",
+    "coefficient": -0.17774365314862767,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "price_momentum",
+    "coefficient": 0.21688929639742865,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "volume",
+    "coefficient": 0.09886336354372312,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "volume_momentum",
+    "coefficient": -0.014627018468249748,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "price_roc",
+    "coefficient": -0.07184537508400077,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "volume_roc",
+    "coefficient": -0.09738156049800306,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "price_stddev",
+    "coefficient": -0.2243528885557512,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "volume_stddev",
+    "coefficient": -0.07973459506182408,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.3151665523694308,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.05771457146813023,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.283051244319665,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.19999977390502158,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.08742120360388947,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.06963843886362252,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.061064122885589434,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.22751880494056562,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_std",
+    "coefficient": 0.2812402401103342,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.0961660528033713,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.47946397353034237,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.4050536820979244,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.056433108085373156,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.2753187497099243,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.05118243345410329,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.4702717566275255,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.17821337578268487,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.12123314573538954,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.110637236559642,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.2130991388315376,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.1066326528157189,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.14275732192759968,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.12259162674224959,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.06729211367246225,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_low",
+    "feature": "nbr_count",
+    "coefficient": 0.18390138212793403,
+    "intercept": 0.06812271347313886,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "dte_calendar",
+    "coefficient": -0.3324859833182639,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "dte_trading",
+    "coefficient": 0.49289941388314157,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "price",
+    "coefficient": 0.17086544678918575,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "price_momentum",
+    "coefficient": -0.24896912385320105,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "volume",
+    "coefficient": -0.16651616980415124,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "volume_momentum",
+    "coefficient": -0.07852743315424937,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "price_roc",
+    "coefficient": 0.13603741982366965,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "volume_roc",
+    "coefficient": 0.18480647015071652,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "price_stddev",
+    "coefficient": 0.2636103009326639,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "volume_stddev",
+    "coefficient": 0.12816339632791438,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_mean",
+    "coefficient": 0.32477729139121575,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.056616137872279336,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.4158823189925011,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.2906889616810406,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.12509459845236098,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.17012599760312144,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.29688952597159585,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.15149392408949128,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_std",
+    "coefficient": -0.05079403179695566,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.252178970545415,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_std",
+    "coefficient": 1.0766881595075521,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.5048547008256644,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.03355490855801751,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.47455710684601304,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.14074771242570738,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.367137183641364,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.2166220688100007,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.17447967586757723,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": -0.1786167876890723,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.20572923176301022,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.1382115153527328,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.23133590737364315,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.004312288938406427,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.13515155445602092,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "TLT",
+    "class_label": "constraining_top",
+    "feature": "nbr_count",
+    "coefficient": -0.18724279001091806,
+    "intercept": -0.22225734485052176,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "dte_calendar",
+    "coefficient": -0.12019116038536783,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "dte_trading",
+    "coefficient": -0.2037249733447938,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "price",
+    "coefficient": -0.0045184934653131215,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "price_momentum",
+    "coefficient": 0.025696426762160548,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "volume",
+    "coefficient": -0.009933063671606086,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "volume_momentum",
+    "coefficient": 0.06560874666085097,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "price_roc",
+    "coefficient": -0.07273166130972294,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "volume_roc",
+    "coefficient": -0.09854797957566239,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "price_stddev",
+    "coefficient": -0.006972947776842769,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "volume_stddev",
+    "coefficient": -0.04177841582461658,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.0022505417051242337,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": 0.2699912884971772,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.2180601430331969,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.2936302211752657,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": -0.37679883110211165,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.07787581772718352,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": -0.23882775209347715,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.1899955635062335,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_std",
+    "coefficient": -0.4212050430845242,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": -0.1671727266981572,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.048223604553526374,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": -0.34672857116793765,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_roc_std",
+    "coefficient": 0.3329655334963768,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.21373661643870157,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": 0.17717499366013809,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.2259753850160054,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.15662108683061063,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.033019657024980886,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.0002968296394379991,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.15630265926816528,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.009684905217556333,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.09896324474821278,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.053000498482402715,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.03591806361527807,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "consolidating",
+    "feature": "nbr_count",
+    "coefficient": 0.08670550533936479,
+    "intercept": -0.1289371012884418,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "dte_calendar",
+    "coefficient": -0.26335414762978554,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "dte_trading",
+    "coefficient": 0.3538013296702982,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "price",
+    "coefficient": 0.02972000473773731,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "price_momentum",
+    "coefficient": 0.027250564573064153,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "volume",
+    "coefficient": -0.15234857112619066,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "volume_momentum",
+    "coefficient": 0.021354138125582536,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "price_roc",
+    "coefficient": -0.03884442909422044,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "volume_roc",
+    "coefficient": 0.2310575037171988,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "price_stddev",
+    "coefficient": 0.07370221169182631,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "volume_stddev",
+    "coefficient": 0.002055034356059043,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_mean",
+    "coefficient": 0.031533867062903495,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.1975476588865071,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_mean",
+    "coefficient": -0.52350965092027,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": -0.3219620167470565,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.16712041537919878,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": 0.14266610856226006,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.0907744907856423,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": 0.7079765103007072,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_std",
+    "coefficient": -0.6276361509378466,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.0850582758312687,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_std",
+    "coefficient": 0.5194409344128021,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.09490923877140305,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.13282583626724612,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": 0.2208029544223486,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.0161234433197446,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": -0.6778723269604404,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": -0.14719647851329645,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": 0.06509136094853983,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": -0.12602803552544603,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": 0.27810459628066586,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": -0.07219689466055897,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": 0.2447992792910345,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": 0.06971202702755562,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": -0.02053415607157891,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_low",
+    "feature": "nbr_count",
+    "coefficient": -0.5105294113533037,
+    "intercept": 0.05370261053781352,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "dte_calendar",
+    "coefficient": 0.38354530801515896,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "dte_trading",
+    "coefficient": -0.15007635632550556,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "price",
+    "coefficient": -0.02520151127242241,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "price_momentum",
+    "coefficient": -0.05294699133521842,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "volume",
+    "coefficient": 0.16228163479779553,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "volume_momentum",
+    "coefficient": -0.08696288478643525,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "price_roc",
+    "coefficient": 0.11157609040394123,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "volume_roc",
+    "coefficient": -0.1325095241415343,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "price_stddev",
+    "coefficient": -0.06672926391498177,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "volume_stddev",
+    "coefficient": 0.03972338146855591,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_mean",
+    "coefficient": -0.029283325357781644,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_mean",
+    "coefficient": -0.07244362961067337,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_mean",
+    "coefficient": 0.7415697939534679,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_mean",
+    "coefficient": 0.028331795571791038,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_mean",
+    "coefficient": 0.20967841572291213,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_mean",
+    "coefficient": -0.06479029083507835,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_mean",
+    "coefficient": 0.14805326130783752,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_mean",
+    "coefficient": -0.517980946794471,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_std",
+    "coefficient": 1.0488411940223676,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_momentum_std",
+    "coefficient": 0.08211445086688479,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_std",
+    "coefficient": -0.47121732985927345,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_momentum_std",
+    "coefficient": 0.2518193323965343,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_roc_std",
+    "coefficient": -0.2001396972291296,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_roc_std",
+    "coefficient": -0.43453957086104805,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_price_stddev_std",
+    "coefficient": -0.16105155034039248,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_volume_stddev_std",
+    "coefficient": 0.4518969419444373,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_vs_nbr_mean",
+    "coefficient": 0.30381756534390747,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_momentum_vs_nbr_mean",
+    "coefficient": -0.032071703923559576,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_vs_nbr_mean",
+    "coefficient": 0.12573120588600675,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_momentum_vs_nbr_mean",
+    "coefficient": -0.1218019370125027,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_roc_vs_nbr_mean",
+    "coefficient": 0.06251198944300657,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_roc_vs_nbr_mean",
+    "coefficient": -0.3437625240392476,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_price_stddev_vs_nbr_mean",
+    "coefficient": -0.1227125255099601,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "delta_volume_stddev_vs_nbr_mean",
+    "coefficient": 0.05645221968685677,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  },
+  {
+    "symbol": "VXX",
+    "class_label": "constraining_top",
+    "feature": "nbr_count",
+    "coefficient": 0.4238239060139374,
+    "intercept": 0.07523449075062878,
+    "model_type": "pipeline"
+  }
+]

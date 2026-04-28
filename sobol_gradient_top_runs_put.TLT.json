@@ -1,0 +1,1916 @@
+{
+  "end_date": null,
+  "ranking": [
+    "total_pnl_desc",
+    "itm_asc",
+    "drawdown_desc",
+    "trades_desc"
+  ],
+  "rows": [
+    {
+      "metrics": {
+        "avg_pnl": 22.88502497125168,
+        "itm_expiries": 7.0,
+        "max_drawdown": -87.0254855712929,
+        "total": 25.0,
+        "total_pnl": 572.1256242812921
+      },
+      "params": {
+        "roc_threshold": -0.012868798732757536,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.05049599427729845,
+        "vol_window_size": 18.0
+      },
+      "parent_trial_id": 182299,
+      "phase": "gradient",
+      "seed_rank": 7,
+      "trial_id": 306309
+    },
+    {
+      "metrics": {
+        "avg_pnl": 25.639640942576243,
+        "itm_expiries": 6.0,
+        "max_drawdown": -87.0254855712929,
+        "total": 21.0,
+        "total_pnl": 538.4324597941011
+      },
+      "params": {
+        "roc_threshold": -0.014903133511543265,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.05113308001309633,
+        "vol_window_size": 16.0
+      },
+      "parent_trial_id": 265571,
+      "phase": "phase2",
+      "seed_rank": 59,
+      "trial_id": 305799
+    },
+    {
+      "metrics": {
+        "avg_pnl": 25.572819572262855,
+        "itm_expiries": 5.0,
+        "max_drawdown": -36.681915042836295,
+        "total": 21.0,
+        "total_pnl": 537.02921101752
+      },
+      "params": {
+        "roc_threshold": -0.016659630089998267,
+        "roc_window_size": 56.0,
+        "vol_threshold": 0.05085844174027443,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 217189
+    },
+    {
+      "metrics": {
+        "avg_pnl": 22.222516051511544,
+        "itm_expiries": 8.0,
+        "max_drawdown": -87.0254855712929,
+        "total": 23.0,
+        "total_pnl": 511.1178691847655
+      },
+      "params": {
+        "roc_threshold": -0.01708039438724518,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.04630384314805269,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 76196,
+      "phase": "gradient",
+      "seed_rank": 1,
+      "trial_id": 306104
+    },
+    {
+      "metrics": {
+        "avg_pnl": 30.822359172647573,
+        "itm_expiries": 4.0,
+        "max_drawdown": -36.681915042836295,
+        "total": 16.0,
+        "total_pnl": 493.15774676236117
+      },
+      "params": {
+        "roc_threshold": -0.02262907922267915,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.047496501356363297,
+        "vol_window_size": 19.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 59581
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.82242284205481,
+        "itm_expiries": 11.0,
+        "max_drawdown": -168.76923320092772,
+        "total": 31.0,
+        "total_pnl": 490.49510810369907
+      },
+      "params": {
+        "roc_threshold": -0.005722182989120472,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.04344777390360832,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 198917
+    },
+    {
+      "metrics": {
+        "avg_pnl": 13.17701484008257,
+        "itm_expiries": 16.0,
+        "max_drawdown": -169.52797201557746,
+        "total": 37.0,
+        "total_pnl": 487.5495490830551
+      },
+      "params": {
+        "roc_threshold": 0.0060967475175857655,
+        "roc_window_size": 58.0,
+        "vol_threshold": 0.010321047157049179,
+        "vol_window_size": 5.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 55252
+    },
+    {
+      "metrics": {
+        "avg_pnl": 37.41685465911228,
+        "itm_expiries": 0.0,
+        "max_drawdown": 0.0,
+        "total": 13.0,
+        "total_pnl": 486.4191105684597
+      },
+      "params": {
+        "roc_threshold": -0.03719169619679452,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.04410044979304075,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 61628,
+      "phase": "phase2",
+      "seed_rank": 53,
+      "trial_id": 305292
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.18582782677913,
+        "itm_expiries": 12.0,
+        "max_drawdown": -171.9426613126401,
+        "total": 32.0,
+        "total_pnl": 485.94649045693217
+      },
+      "params": {
+        "roc_threshold": -0.00014548742771147705,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.045367651470005516,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 182299,
+      "phase": "phase2",
+      "seed_rank": 7,
+      "trial_id": 300692
+    },
+    {
+      "metrics": {
+        "avg_pnl": 32.041331506024726,
+        "itm_expiries": 1.0,
+        "max_drawdown": -36.681915042836295,
+        "total": 15.0,
+        "total_pnl": 480.61997259037093
+      },
+      "params": {
+        "roc_threshold": -0.02113354769349096,
+        "roc_window_size": 56.0,
+        "vol_threshold": 0.045953162163496014,
+        "vol_window_size": 19.0
+      },
+      "parent_trial_id": 299794,
+      "phase": "phase2",
+      "seed_rank": 6,
+      "trial_id": 300598
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.462559735133457,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 480.02655311346984
+      },
+      "params": {
+        "roc_threshold": -0.015544376522302616,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.029874674044549465,
+        "vol_window_size": 37.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 57950
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.462559735133457,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 480.02655311346984
+      },
+      "params": {
+        "roc_threshold": -0.016025134414434428,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 37.0
+      },
+      "parent_trial_id": 2554,
+      "phase": "phase2",
+      "seed_rank": 50,
+      "trial_id": 304983
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.324625952643892,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 476.44027476874123
+      },
+      "params": {
+        "roc_threshold": -0.013450811684131592,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.04237546343356371,
+        "vol_window_size": 33.0
+      },
+      "parent_trial_id": 186731,
+      "phase": "phase2",
+      "seed_rank": 32,
+      "trial_id": 303144
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.324625952643892,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 476.44027476874123
+      },
+      "params": {
+        "roc_threshold": -0.013553531259298257,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 30.0
+      },
+      "parent_trial_id": 74441,
+      "phase": "phase2",
+      "seed_rank": 45,
+      "trial_id": 304419
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.324625952643892,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 476.44027476874123
+      },
+      "params": {
+        "roc_threshold": -0.013788219571113591,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 265571,
+      "phase": "phase2",
+      "seed_rank": 59,
+      "trial_id": 305899
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.333016575549932,
+        "itm_expiries": 12.0,
+        "max_drawdown": -187.6455489665517,
+        "total": 31.0,
+        "total_pnl": 475.3235138420479
+      },
+      "params": {
+        "roc_threshold": -0.0020082730948924876,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.045477780289947985,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 67806,
+      "phase": "phase2",
+      "seed_rank": 57,
+      "trial_id": 305609
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.591084380196996,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 27.0,
+        "total_pnl": 474.95927826531886
+      },
+      "params": {
+        "roc_threshold": -0.012706124037504207,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.009558684192597866,
+        "vol_window_size": 32.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 228334
+    },
+    {
+      "metrics": {
+        "avg_pnl": 19.781286506334055,
+        "itm_expiries": 8.0,
+        "max_drawdown": -87.0254855712929,
+        "total": 24.0,
+        "total_pnl": 474.7508761520173
+      },
+      "params": {
+        "roc_threshold": -0.011387649953365275,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.04374982111155987,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 113919,
+      "phase": "phase2",
+      "seed_rank": 11,
+      "trial_id": 301064
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.06480040833621,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 469.6848106167415
+      },
+      "params": {
+        "roc_threshold": -0.014189086735248546,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 27.0
+      },
+      "parent_trial_id": 60201,
+      "phase": "phase2",
+      "seed_rank": 5,
+      "trial_id": 300434
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.06480040833621,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 469.6848106167415
+      },
+      "params": {
+        "roc_threshold": -0.014926776647567752,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 36.0
+      },
+      "parent_trial_id": 4714,
+      "phase": "phase2",
+      "seed_rank": 13,
+      "trial_id": 301291
+    },
+    {
+      "metrics": {
+        "avg_pnl": 29.29316673433613,
+        "itm_expiries": 2.0,
+        "max_drawdown": -22.090472784410736,
+        "total": 16.0,
+        "total_pnl": 468.69066774937806
+      },
+      "params": {
+        "roc_threshold": -0.02062251818180083,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.054199447222054005,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 76196,
+      "phase": "phase2",
+      "seed_rank": 1,
+      "trial_id": 300073
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.33809256382747,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 467.7761289680318
+      },
+      "params": {
+        "roc_threshold": -0.018696971982717525,
+        "roc_window_size": 56.0,
+        "vol_threshold": 0.00018512923270463943,
+        "vol_window_size": 23.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 6938
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.33809256382747,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 467.7761289680318
+      },
+      "params": {
+        "roc_threshold": -0.018852548301219962,
+        "roc_window_size": 56.0,
+        "vol_threshold": 0.018885337747633457,
+        "vol_window_size": 8.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 172777
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.60013906273855,
+        "itm_expiries": 10.0,
+        "max_drawdown": -66.05120238714056,
+        "total": 25.0,
+        "total_pnl": 465.0034765684637
+      },
+      "params": {
+        "roc_threshold": -0.007444859296083461,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.027716458775103092,
+        "vol_window_size": 5.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 90663
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.049325682725495,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 27.0,
+        "total_pnl": 460.33179343358836
+      },
+      "params": {
+        "roc_threshold": -0.013386767953634249,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.019233130030333997,
+        "vol_window_size": 8.0
+      },
+      "parent_trial_id": 100738,
+      "phase": "phase2",
+      "seed_rank": 4,
+      "trial_id": 300341
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.049325682725495,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 27.0,
+        "total_pnl": 460.33179343358836
+      },
+      "params": {
+        "roc_threshold": -0.013168165147304511,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.02035870522260666,
+        "vol_window_size": 8.0
+      },
+      "parent_trial_id": 34677,
+      "phase": "phase2",
+      "seed_rank": 54,
+      "trial_id": 305351
+    },
+    {
+      "metrics": {
+        "avg_pnl": 19.896622882958635,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 457.6223263080486
+      },
+      "params": {
+        "roc_threshold": -0.014793533831834793,
+        "roc_window_size": 35.0,
+        "vol_threshold": 0.024386649951338768,
+        "vol_window_size": 27.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 124429
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.775141172483892,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 457.47909400203287
+      },
+      "params": {
+        "roc_threshold": -0.006638403832912476,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.021276938356459142,
+        "vol_window_size": 14.0
+      },
+      "parent_trial_id": 176138,
+      "phase": "phase2",
+      "seed_rank": 8,
+      "trial_id": 300708
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.775141172483892,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 457.47909400203287
+      },
+      "params": {
+        "roc_threshold": -0.006380277931690215,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 290891,
+      "phase": "phase2",
+      "seed_rank": 27,
+      "trial_id": 302615
+    },
+    {
+      "metrics": {
+        "avg_pnl": 22.853029730068638,
+        "itm_expiries": 4.0,
+        "max_drawdown": -69.13632726953767,
+        "total": 20.0,
+        "total_pnl": 457.06059460137277
+      },
+      "params": {
+        "roc_threshold": -0.016529694944620144,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.04562081631273031,
+        "vol_window_size": 15.0
+      },
+      "parent_trial_id": 158852,
+      "phase": "phase2",
+      "seed_rank": 23,
+      "trial_id": 302239
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.691813808156569,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 455.0626004365405
+      },
+      "params": {
+        "roc_threshold": -0.009300532191991784,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.0205945810303092,
+        "vol_window_size": 31.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 39490
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.691813808156569,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 455.0626004365405
+      },
+      "params": {
+        "roc_threshold": -0.007469505757093375,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.015299314558506014,
+        "vol_window_size": 16.0
+      },
+      "parent_trial_id": 213773,
+      "phase": "phase2",
+      "seed_rank": 41,
+      "trial_id": 304031
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.691813808156569,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 455.0626004365405
+      },
+      "params": {
+        "roc_threshold": -0.007994340866804117,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 13.0
+      },
+      "parent_trial_id": 67806,
+      "phase": "phase2",
+      "seed_rank": 57,
+      "trial_id": 305616
+    },
+    {
+      "metrics": {
+        "avg_pnl": 28.36630183458788,
+        "itm_expiries": 5.0,
+        "max_drawdown": -44.07076430298534,
+        "total": 16.0,
+        "total_pnl": 453.8608293534061
+      },
+      "params": {
+        "roc_threshold": -0.0214406161606312,
+        "roc_window_size": 33.0,
+        "vol_threshold": 0.04514123033732176,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 294482,
+      "phase": "phase2",
+      "seed_rank": 16,
+      "trial_id": 301505
+    },
+    {
+      "metrics": {
+        "avg_pnl": 25.063869256353794,
+        "itm_expiries": 6.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 18.0,
+        "total_pnl": 451.1496466143683
+      },
+      "params": {
+        "roc_threshold": -0.02552661111950877,
+        "roc_window_size": 36.0,
+        "vol_threshold": 0.034720688052475454,
+        "vol_window_size": 12.0
+      },
+      "parent_trial_id": 149200,
+      "phase": "phase2",
+      "seed_rank": 21,
+      "trial_id": 301995
+    },
+    {
+      "metrics": {
+        "avg_pnl": 22.349151522104762,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 20.0,
+        "total_pnl": 446.98303044209524
+      },
+      "params": {
+        "roc_threshold": -0.020814752489328403,
+        "roc_window_size": 35.0,
+        "vol_threshold": 0.05232667151838541,
+        "vol_window_size": 35.0
+      },
+      "parent_trial_id": 215035,
+      "phase": "phase2",
+      "seed_rank": 34,
+      "trial_id": 303371
+    },
+    {
+      "metrics": {
+        "avg_pnl": 13.942159313116221,
+        "itm_expiries": 12.0,
+        "max_drawdown": -187.6455489665517,
+        "total": 32.0,
+        "total_pnl": 446.1490980197191
+      },
+      "params": {
+        "roc_threshold": 0.0022681007087230753,
+        "roc_window_size": 52.0,
+        "vol_threshold": 0.04910765431821346,
+        "vol_window_size": 18.0
+      },
+      "parent_trial_id": 19492,
+      "phase": "phase2",
+      "seed_rank": 18,
+      "trial_id": 301759
+    },
+    {
+      "metrics": {
+        "avg_pnl": 22.255760919736325,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 20.0,
+        "total_pnl": 445.1152183947265
+      },
+      "params": {
+        "roc_threshold": -0.020270936816930762,
+        "roc_window_size": 35.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 7.0
+      },
+      "parent_trial_id": 296719,
+      "phase": "phase2",
+      "seed_rank": 10,
+      "trial_id": 300957
+    },
+    {
+      "metrics": {
+        "avg_pnl": 12.656772030979145,
+        "itm_expiries": 14.0,
+        "max_drawdown": -171.9426613126401,
+        "total": 35.0,
+        "total_pnl": 442.98702108427005
+      },
+      "params": {
+        "roc_threshold": -0.0009796865880489225,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 5.0
+      },
+      "parent_trial_id": 100738,
+      "phase": "phase2",
+      "seed_rank": 4,
+      "trial_id": 300344
+    },
+    {
+      "metrics": {
+        "avg_pnl": 12.656772030979145,
+        "itm_expiries": 14.0,
+        "max_drawdown": -171.9426613126401,
+        "total": 35.0,
+        "total_pnl": 442.98702108427005
+      },
+      "params": {
+        "roc_threshold": -0.0015053160786628328,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.016990234591066838,
+        "vol_window_size": 9.0
+      },
+      "parent_trial_id": 264667,
+      "phase": "phase2",
+      "seed_rank": 30,
+      "trial_id": 302910
+    },
+    {
+      "metrics": {
+        "avg_pnl": 12.656772030979145,
+        "itm_expiries": 14.0,
+        "max_drawdown": -171.9426613126401,
+        "total": 35.0,
+        "total_pnl": 442.98702108427005
+      },
+      "params": {
+        "roc_threshold": -0.0014455045163631608,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.015247854776680468,
+        "vol_window_size": 32.0
+      },
+      "parent_trial_id": 2554,
+      "phase": "phase2",
+      "seed_rank": 50,
+      "trial_id": 304914
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.647221644694014,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 25.0,
+        "total_pnl": 441.18054111735034
+      },
+      "params": {
+        "roc_threshold": -0.012102328568696974,
+        "roc_window_size": 35.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 14.0
+      },
+      "parent_trial_id": 294482,
+      "phase": "phase2",
+      "seed_rank": 16,
+      "trial_id": 301538
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.647221644694014,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 25.0,
+        "total_pnl": 441.18054111735034
+      },
+      "params": {
+        "roc_threshold": -0.01099282220005987,
+        "roc_window_size": 35.0,
+        "vol_threshold": 0.027109855003654957,
+        "vol_window_size": 12.0
+      },
+      "parent_trial_id": 149200,
+      "phase": "phase2",
+      "seed_rank": 21,
+      "trial_id": 302030
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.339845593292882,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 27.0,
+        "total_pnl": 441.17583101890784
+      },
+      "params": {
+        "roc_threshold": -0.014680054843425716,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.02501676484942436,
+        "vol_window_size": 34.0
+      },
+      "parent_trial_id": 37562,
+      "phase": "phase2",
+      "seed_rank": 40,
+      "trial_id": 303961
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.339845593292882,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 27.0,
+        "total_pnl": 441.17583101890784
+      },
+      "params": {
+        "roc_threshold": -0.014198701828718185,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 25.0
+      },
+      "parent_trial_id": 123089,
+      "phase": "phase2",
+      "seed_rank": 49,
+      "trial_id": 304876
+    },
+    {
+      "metrics": {
+        "avg_pnl": 24.49294769012877,
+        "itm_expiries": 6.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 18.0,
+        "total_pnl": 440.87305842231785
+      },
+      "params": {
+        "roc_threshold": -0.02671884298324584,
+        "roc_window_size": 36.0,
+        "vol_threshold": 0.027658834122121334,
+        "vol_window_size": 14.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 272178
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.7370485146435,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 28.0,
+        "total_pnl": 440.637358410018
+      },
+      "params": {
+        "roc_threshold": -0.012520047038793558,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.01504479695111513,
+        "vol_window_size": 17.0
+      },
+      "parent_trial_id": 67806,
+      "phase": "phase2",
+      "seed_rank": 57,
+      "trial_id": 305654
+    },
+    {
+      "metrics": {
+        "avg_pnl": 19.11338165985033,
+        "itm_expiries": 5.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 439.6077781765576
+      },
+      "params": {
+        "roc_threshold": -0.016248054355382846,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.041023208312690254,
+        "vol_window_size": 37.0
+      },
+      "parent_trial_id": 61747,
+      "phase": "phase2",
+      "seed_rank": 24,
+      "trial_id": 302361
+    },
+    {
+      "metrics": {
+        "avg_pnl": 19.11338165985033,
+        "itm_expiries": 5.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 439.6077781765576
+      },
+      "params": {
+        "roc_threshold": -0.01649796459078784,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.015943821258842944,
+        "vol_window_size": 22.0
+      },
+      "parent_trial_id": 24724,
+      "phase": "phase2",
+      "seed_rank": 37,
+      "trial_id": 303659
+    },
+    {
+      "metrics": {
+        "avg_pnl": 19.11338165985033,
+        "itm_expiries": 5.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 439.6077781765576
+      },
+      "params": {
+        "roc_threshold": -0.017371280342340478,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 22.0
+      },
+      "parent_trial_id": 61628,
+      "phase": "phase2",
+      "seed_rank": 53,
+      "trial_id": 305240
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.794333757883678,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 436.65267770497564
+      },
+      "params": {
+        "roc_threshold": -0.01255825236439706,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.020779267884790897,
+        "vol_window_size": 24.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 191216
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.794333757883678,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 436.65267770497564
+      },
+      "params": {
+        "roc_threshold": -0.012491252124309571,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 149708,
+      "phase": "phase2",
+      "seed_rank": 31,
+      "trial_id": 303070
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.794333757883678,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 26.0,
+        "total_pnl": 436.65267770497564
+      },
+      "params": {
+        "roc_threshold": -0.012941129654645889,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 28.0
+      },
+      "parent_trial_id": 121345,
+      "phase": "phase2",
+      "seed_rank": 39,
+      "trial_id": 303864
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.548363604455878,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 30.0,
+        "total_pnl": 436.4509081336763
+      },
+      "params": {
+        "roc_threshold": -0.008009371161460888,
+        "roc_window_size": 51.0,
+        "vol_threshold": 0.03765716217458248,
+        "vol_window_size": 35.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 274596
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.069886482396683,
+        "itm_expiries": 12.0,
+        "max_drawdown": -118.9168432829938,
+        "total": 31.0,
+        "total_pnl": 436.1664809542972
+      },
+      "params": {
+        "roc_threshold": -0.007914998382329952,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.010982559062540531,
+        "vol_window_size": 10.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 195461
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.069886482396683,
+        "itm_expiries": 12.0,
+        "max_drawdown": -118.9168432829938,
+        "total": 31.0,
+        "total_pnl": 436.1664809542972
+      },
+      "params": {
+        "roc_threshold": -0.008033377289772048,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.011578877456486225,
+        "vol_window_size": 16.0
+      },
+      "parent_trial_id": 76196,
+      "phase": "phase2",
+      "seed_rank": 1,
+      "trial_id": 300027
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.069886482396683,
+        "itm_expiries": 12.0,
+        "max_drawdown": -118.9168432829938,
+        "total": 31.0,
+        "total_pnl": 436.1664809542972
+      },
+      "params": {
+        "roc_threshold": -0.007805144906044004,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 24.0
+      },
+      "parent_trial_id": 129913,
+      "phase": "phase2",
+      "seed_rank": 20,
+      "trial_id": 301921
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.568207499562751,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 28.0,
+        "total_pnl": 435.90980998775706
+      },
+      "params": {
+        "roc_threshold": -0.012908835053443923,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 21.0
+      },
+      "parent_trial_id": 182299,
+      "phase": "phase2",
+      "seed_rank": 7,
+      "trial_id": 300630
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.31719550151422,
+        "itm_expiries": 9.0,
+        "max_drawdown": -99.08228126983474,
+        "total": 25.0,
+        "total_pnl": 432.9298875378555
+      },
+      "params": {
+        "roc_threshold": -0.013818901002407014,
+        "roc_window_size": 26.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 30.0
+      },
+      "parent_trial_id": 225801,
+      "phase": "phase2",
+      "seed_rank": 48,
+      "trial_id": 304744
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.0341000490063,
+        "itm_expiries": 8.0,
+        "max_drawdown": -108.16574107508217,
+        "total": 27.0,
+        "total_pnl": 432.9207013231702
+      },
+      "params": {
+        "roc_threshold": -0.00786933785676952,
+        "roc_window_size": 27.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 29.0
+      },
+      "parent_trial_id": 225801,
+      "phase": "phase2",
+      "seed_rank": 48,
+      "trial_id": 304747
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.57341468488457,
+        "itm_expiries": 8.0,
+        "max_drawdown": -69.13632726953767,
+        "total": 21.0,
+        "total_pnl": 432.04170838257596
+      },
+      "params": {
+        "roc_threshold": -0.014217813521623601,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.06339468527585268,
+        "vol_window_size": 25.0
+      },
+      "parent_trial_id": 257274,
+      "phase": "gradient",
+      "seed_rank": 12,
+      "trial_id": 306484
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.26867750451811,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 25.0,
+        "total_pnl": 431.71693761295273
+      },
+      "params": {
+        "roc_threshold": -0.015917333573102987,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 6.0
+      },
+      "parent_trial_id": 100738,
+      "phase": "phase2",
+      "seed_rank": 4,
+      "trial_id": 300361
+    },
+    {
+      "metrics": {
+        "avg_pnl": 13.468743942375337,
+        "itm_expiries": 10.0,
+        "max_drawdown": -190.27651780495637,
+        "total": 32.0,
+        "total_pnl": 430.9998061560108
+      },
+      "params": {
+        "roc_threshold": -0.004977376520633681,
+        "roc_window_size": 24.0,
+        "vol_threshold": 0.025599279999732973,
+        "vol_window_size": 27.0
+      },
+      "parent_trial_id": 225801,
+      "phase": "phase2",
+      "seed_rank": 48,
+      "trial_id": 304725
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.311180027938308,
+        "itm_expiries": 12.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 30.0,
+        "total_pnl": 429.3354008381492
+      },
+      "params": {
+        "roc_threshold": -0.01116627421975136,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 19.0
+      },
+      "parent_trial_id": 174997,
+      "phase": "phase2",
+      "seed_rank": 3,
+      "trial_id": 300245
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.311180027938308,
+        "itm_expiries": 12.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 30.0,
+        "total_pnl": 429.3354008381492
+      },
+      "params": {
+        "roc_threshold": -0.010943142414092999,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.037751248702406884,
+        "vol_window_size": 34.0
+      },
+      "parent_trial_id": 4714,
+      "phase": "phase2",
+      "seed_rank": 13,
+      "trial_id": 301251
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.776770513568662,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 428.5263448934912
+      },
+      "params": {
+        "roc_threshold": -0.010421550899744003,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 21.0
+      },
+      "parent_trial_id": 19492,
+      "phase": "phase2",
+      "seed_rank": 18,
+      "trial_id": 301769
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.390732896928483,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 21.0,
+        "total_pnl": 428.2053908354982
+      },
+      "params": {
+        "roc_threshold": -0.017447069466114073,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.022216143868863582,
+        "vol_window_size": 22.0
+      },
+      "parent_trial_id": 149708,
+      "phase": "phase2",
+      "seed_rank": 31,
+      "trial_id": 303088
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.390732896928483,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 21.0,
+        "total_pnl": 428.2053908354982
+      },
+      "params": {
+        "roc_threshold": -0.017474132686853383,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.034408802427351476,
+        "vol_window_size": 27.0
+      },
+      "parent_trial_id": 165035,
+      "phase": "phase2",
+      "seed_rank": 36,
+      "trial_id": 303591
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.390732896928483,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 21.0,
+        "total_pnl": 428.2053908354982
+      },
+      "params": {
+        "roc_threshold": -0.01773239785432812,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.00744823098182678,
+        "vol_window_size": 21.0
+      },
+      "parent_trial_id": 172217,
+      "phase": "phase2",
+      "seed_rank": 44,
+      "trial_id": 304370
+    },
+    {
+      "metrics": {
+        "avg_pnl": 32.79717966137154,
+        "itm_expiries": 1.0,
+        "max_drawdown": -36.681915042836295,
+        "total": 13.0,
+        "total_pnl": 426.36333559783
+      },
+      "params": {
+        "roc_threshold": -0.020906958431005485,
+        "roc_window_size": 56.0,
+        "vol_threshold": 0.054407294541597366,
+        "vol_window_size": 16.0
+      },
+      "parent_trial_id": 142147,
+      "phase": "phase2",
+      "seed_rank": 33,
+      "trial_id": 303202
+    },
+    {
+      "metrics": {
+        "avg_pnl": 16.993672284041168,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 25.0,
+        "total_pnl": 424.8418071010292
+      },
+      "params": {
+        "roc_threshold": -0.015846271067857742,
+        "roc_window_size": 53.0,
+        "vol_threshold": 0.022881281562149525,
+        "vol_window_size": 28.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 230075
+    },
+    {
+      "metrics": {
+        "avg_pnl": 24.976763289707257,
+        "itm_expiries": 5.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 17.0,
+        "total_pnl": 424.6049759250234
+      },
+      "params": {
+        "roc_threshold": -0.02895261698961249,
+        "roc_window_size": 36.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 28.0
+      },
+      "parent_trial_id": 298477,
+      "phase": "phase2",
+      "seed_rank": 22,
+      "trial_id": 302142
+    },
+    {
+      "metrics": {
+        "avg_pnl": 35.34305904048889,
+        "itm_expiries": 0.0,
+        "max_drawdown": 0.0,
+        "total": 12.0,
+        "total_pnl": 424.11670848586664
+      },
+      "params": {
+        "roc_threshold": -0.033758347898721675,
+        "roc_window_size": 57.0,
+        "vol_threshold": 0.04919216353446245,
+        "vol_window_size": 18.0
+      },
+      "parent_trial_id": 282936,
+      "phase": "phase2",
+      "seed_rank": 46,
+      "trial_id": 304574
+    },
+    {
+      "metrics": {
+        "avg_pnl": 15.116911314680872,
+        "itm_expiries": 10.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 28.0,
+        "total_pnl": 423.2735168110644
+      },
+      "params": {
+        "roc_threshold": -0.009602504223585107,
+        "roc_window_size": 51.0,
+        "vol_threshold": 0.028259177692234516,
+        "vol_window_size": 22.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 260770
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.009835886210203149,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.032944800332188606,
+        "vol_window_size": 30.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 84409
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.010955888301134142,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 299794,
+      "phase": "phase2",
+      "seed_rank": 6,
+      "trial_id": 300512
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.009521890431642532,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.03675664223730564,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 19492,
+      "phase": "phase2",
+      "seed_rank": 18,
+      "trial_id": 301733
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.010364443004131307,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.04938872743397951,
+        "vol_window_size": 35.0
+      },
+      "parent_trial_id": 186731,
+      "phase": "phase2",
+      "seed_rank": 32,
+      "trial_id": 303200
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.010173025012016335,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.014914892576634885,
+        "vol_window_size": 11.0
+      },
+      "parent_trial_id": 48149,
+      "phase": "phase2",
+      "seed_rank": 38,
+      "trial_id": 303758
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.010953475654125189,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 35.0
+      },
+      "parent_trial_id": 37562,
+      "phase": "phase2",
+      "seed_rank": 40,
+      "trial_id": 303911
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.011553289830684654,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 31.0
+      },
+      "parent_trial_id": 37562,
+      "phase": "phase2",
+      "seed_rank": 40,
+      "trial_id": 303991
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.01028882214426996,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 13.0
+      },
+      "parent_trial_id": 39005,
+      "phase": "phase2",
+      "seed_rank": 43,
+      "trial_id": 304241
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.560209760649345,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 422.246083058831
+      },
+      "params": {
+        "roc_threshold": -0.009937735170125972,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.006851481683552263,
+        "vol_window_size": 37.0
+      },
+      "parent_trial_id": 2554,
+      "phase": "phase2",
+      "seed_rank": 50,
+      "trial_id": 304973
+    },
+    {
+      "metrics": {
+        "avg_pnl": 35.166587382904765,
+        "itm_expiries": 0.0,
+        "max_drawdown": 0.0,
+        "total": 12.0,
+        "total_pnl": 421.9990485948572
+      },
+      "params": {
+        "roc_threshold": -0.038512873977422646,
+        "roc_window_size": 56.0,
+        "vol_threshold": 0.047379219420254234,
+        "vol_window_size": 18.0
+      },
+      "parent_trial_id": 24724,
+      "phase": "phase2",
+      "seed_rank": 37,
+      "trial_id": 303664
+    },
+    {
+      "metrics": {
+        "avg_pnl": 30.13602836119123,
+        "itm_expiries": 3.0,
+        "max_drawdown": -2.082922337208288,
+        "total": 14.0,
+        "total_pnl": 421.9043970566772
+      },
+      "params": {
+        "roc_threshold": -0.01951927989721297,
+        "roc_window_size": 50.0,
+        "vol_threshold": 0.0449413787573576,
+        "vol_window_size": 5.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 4606
+    },
+    {
+      "metrics": {
+        "avg_pnl": 38.32502350691716,
+        "itm_expiries": 0.0,
+        "max_drawdown": 0.0,
+        "total": 11.0,
+        "total_pnl": 421.5752585760888
+      },
+      "params": {
+        "roc_threshold": -0.03686879873275756,
+        "roc_window_size": 55.0,
+        "vol_threshold": 0.05049599427729845,
+        "vol_window_size": 18.0
+      },
+      "parent_trial_id": 182299,
+      "phase": "gradient",
+      "seed_rank": 7,
+      "trial_id": 306305
+    },
+    {
+      "metrics": {
+        "avg_pnl": 10.789846591206807,
+        "itm_expiries": 15.0,
+        "max_drawdown": -169.52797201557746,
+        "total": 39.0,
+        "total_pnl": 420.8040170570655
+      },
+      "params": {
+        "roc_threshold": 0.0028778836131095886,
+        "roc_window_size": 20.0,
+        "vol_threshold": 0.02971225045621395,
+        "vol_window_size": 31.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 87255
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.481202300906657,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 419.95486672629306
+      },
+      "params": {
+        "roc_threshold": -0.00881627455353734,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.005745336934924126,
+        "vol_window_size": 22.0
+      },
+      "parent_trial_id": 174997,
+      "phase": "phase2",
+      "seed_rank": 3,
+      "trial_id": 300282
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.481202300906657,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 419.95486672629306
+      },
+      "params": {
+        "roc_threshold": -0.00880966275930406,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.008627849966287612,
+        "vol_window_size": 26.0
+      },
+      "parent_trial_id": 60201,
+      "phase": "phase2",
+      "seed_rank": 5,
+      "trial_id": 300470
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.481202300906657,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 419.95486672629306
+      },
+      "params": {
+        "roc_threshold": -0.009041385889053288,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.03291230201721192,
+        "vol_window_size": 26.0
+      },
+      "parent_trial_id": 129913,
+      "phase": "phase2",
+      "seed_rank": 20,
+      "trial_id": 301959
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.481202300906657,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 419.95486672629306
+      },
+      "params": {
+        "roc_threshold": -0.009104772061109545,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 16.0
+      },
+      "parent_trial_id": 142147,
+      "phase": "phase2",
+      "seed_rank": 33,
+      "trial_id": 303238
+    },
+    {
+      "metrics": {
+        "avg_pnl": 14.481202300906657,
+        "itm_expiries": 11.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 29.0,
+        "total_pnl": 419.95486672629306
+      },
+      "params": {
+        "roc_threshold": -0.009232718080282198,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 22.0
+      },
+      "parent_trial_id": 123089,
+      "phase": "phase2",
+      "seed_rank": 49,
+      "trial_id": 304817
+    },
+    {
+      "metrics": {
+        "avg_pnl": 24.655037873925448,
+        "itm_expiries": 5.0,
+        "max_drawdown": -69.13632726953767,
+        "total": 17.0,
+        "total_pnl": 419.1356438567326
+      },
+      "params": {
+        "roc_threshold": -0.021736576735973345,
+        "roc_window_size": 49.0,
+        "vol_threshold": 0.044479380287230016,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 290891,
+      "phase": "phase2",
+      "seed_rank": 27,
+      "trial_id": 302637
+    },
+    {
+      "metrics": {
+        "avg_pnl": 24.62250236053449,
+        "itm_expiries": 5.0,
+        "max_drawdown": -36.681915042836295,
+        "total": 17.0,
+        "total_pnl": 418.58254012908634
+      },
+      "params": {
+        "roc_threshold": -0.016149952828884095,
+        "roc_window_size": 51.0,
+        "vol_threshold": 0.05672466795891523,
+        "vol_window_size": 15.0
+      },
+      "parent_trial_id": 297088,
+      "phase": "phase2",
+      "seed_rank": 51,
+      "trial_id": 305003
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.416661508544532,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 24.0,
+        "total_pnl": 417.99987620506874
+      },
+      "params": {
+        "roc_threshold": -0.01569859907031057,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.011599923484027386,
+        "vol_window_size": 38.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 136114
+    },
+    {
+      "metrics": {
+        "avg_pnl": 17.416661508544532,
+        "itm_expiries": 9.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 24.0,
+        "total_pnl": 417.99987620506874
+      },
+      "params": {
+        "roc_threshold": -0.01546420437097551,
+        "roc_window_size": 48.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 20.0
+      },
+      "parent_trial_id": 290891,
+      "phase": "phase2",
+      "seed_rank": 27,
+      "trial_id": 302686
+    },
+    {
+      "metrics": {
+        "avg_pnl": 21.993770918198074,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 19.0,
+        "total_pnl": 417.8816474457634
+      },
+      "params": {
+        "roc_threshold": -0.02155186831951139,
+        "roc_window_size": 36.0,
+        "vol_threshold": 0.03233982715755701,
+        "vol_window_size": 23.0
+      },
+      "parent_trial_id": null,
+      "phase": "phase1",
+      "seed_rank": null,
+      "trial_id": 60878
+    },
+    {
+      "metrics": {
+        "avg_pnl": 21.993770918198074,
+        "itm_expiries": 7.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 19.0,
+        "total_pnl": 417.8816474457634
+      },
+      "params": {
+        "roc_threshold": -0.023747006714344043,
+        "roc_window_size": 36.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 23.0
+      },
+      "parent_trial_id": 1646,
+      "phase": "phase2",
+      "seed_rank": 15,
+      "trial_id": 301455
+    },
+    {
+      "metrics": {
+        "avg_pnl": 20.87711257519693,
+        "itm_expiries": 6.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 20.0,
+        "total_pnl": 417.5422515039386
+      },
+      "params": {
+        "roc_threshold": -0.018986453145742377,
+        "roc_window_size": 47.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 37.0
+      },
+      "parent_trial_id": 61747,
+      "phase": "phase2",
+      "seed_rank": 24,
+      "trial_id": 302323
+    },
+    {
+      "metrics": {
+        "avg_pnl": 18.131625096757322,
+        "itm_expiries": 8.0,
+        "max_drawdown": -105.66056901232486,
+        "total": 23.0,
+        "total_pnl": 417.0273772254184
+      },
+      "params": {
+        "roc_threshold": -0.01736550197005271,
+        "roc_window_size": 54.0,
+        "vol_threshold": 0.0,
+        "vol_window_size": 38.0
+      },
+      "parent_trial_id": 2554,
+      "phase": "phase2",
+      "seed_rank": 50,
+      "trial_id": 304941
+    }
+  ],
+  "seed_area_radius": 0.08,
+  "side": "put",
+  "start_date": "2025-04-24",
+  "symbol": "TLT",
+  "top_n": 100
+}
