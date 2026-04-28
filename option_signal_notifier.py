@@ -134,7 +134,7 @@ def _fetch_marketstack_daily(symbol: str, start_date: Optional[str], end_date: O
     if not api_key:
         raise RuntimeError("Missing MARKET_STACK_API_KEY environment variable.")
 
-    base_url = "http://api.marketstack.com/v1/eod"
+    base_url = "http://api.marketstack.com/v2/eod"
     limit = 1000
     offset = 0
     rows = []
