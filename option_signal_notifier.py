@@ -16,7 +16,6 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
   --side put \
-  --signal-model roc \
   --roc-window-size 18 \
   --vol-window-size 20 \
   --roc-comparator below \
@@ -28,7 +27,7 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --config option_signal_configs.txt
 
 Example option_signal_configs.txt rows:
---symbol SPY --signal-model roc --side put --roc-window-size 18 --vol-window-size 20 --roc-comparator below --roc-threshold -0.005000 --vol-comparator above --vol-threshold 0.094507
+--symbol SPY --side put --roc-window-size 18 --vol-window-size 20 --roc-comparator below --roc-threshold -0.005000 --vol-comparator above --vol-threshold 0.094507
 --symbol SPY --signal-model accel --side call --accel-window 20 --vol-window-size 17 --accel-comparator below --accel-threshold -0.052641 --vol-comparator above --vol-threshold 0.085369
 """
 import argparse
