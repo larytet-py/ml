@@ -1,4 +1,5 @@
 clickhouse/*
+# Ignore data artifacts by default; unignore specific source files below.
 data/*
 !data/
 !data/etfs.csv
