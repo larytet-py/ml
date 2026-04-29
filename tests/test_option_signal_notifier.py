@@ -209,7 +209,7 @@ class EvaluateConfigRocAccelParityTests(unittest.TestCase):
 class ConfigParsingTests(unittest.TestCase):
     def test_config_accepts_accel_threshold_flags(self):
         cfg_text = (
-            "--symbol SPY --side put --signal-model accel --accel-window 9 --vol-window 21 "
+            "--symbol SPY --side put --signal-model accel --accel-window 9 --vol-window-size 21 "
             "--accel-comparator above --accel-threshold -0.012 --vol-comparator above --vol-threshold 0.07\n"
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -220,9 +220,9 @@ class ConfigParsingTests(unittest.TestCase):
                 symbol="SPY",
                 side="both",
                 signal_model="roc",
-                roc_lookback=5,
+                roc_window_size=5,
                 accel_window=5,
-                vol_window=20,
+                vol_window_size=20,
                 roc_comparator=None,
                 roc_threshold=None,
                 accel_comparator=None,
@@ -244,7 +244,7 @@ class ConfigParsingTests(unittest.TestCase):
 
     def test_config_accepts_accel_roc_alias_and_normalizes(self):
         cfg_text = (
-            "--symbol SPY --side put --signal-model accel/roc --roc-lookback 7 --accel-window 11 "
+            "--symbol SPY --side put --signal-model accel/roc --roc-window-size 7 --accel-window 11 "
             "--roc-comparator below --roc-threshold -0.02 --accel-comparator below --accel-threshold -0.01\n"
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -255,9 +255,9 @@ class ConfigParsingTests(unittest.TestCase):
                 symbol="SPY",
                 side="both",
                 signal_model="roc",
-                roc_lookback=5,
+                roc_window_size=5,
                 accel_window=5,
-                vol_window=20,
+                vol_window_size=20,
                 roc_comparator=None,
                 roc_threshold=None,
                 accel_comparator=None,

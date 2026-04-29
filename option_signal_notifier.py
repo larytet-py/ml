@@ -7,7 +7,7 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --side call \
   --signal-model accel \
   --accel-window 20 \
-  --vol-window 17 \
+  --vol-window-size 17 \
   --accel-comparator below \
   --accel-threshold -0.052641 \
   --vol-comparator above \
@@ -17,8 +17,8 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
   --side put \
   --signal-model roc \
-  --roc-lookback 18 \
-  --vol-window 20 \
+  --roc-window-size 18 \
+  --vol-window-size 20 \
   --roc-comparator below \
   --roc-threshold -0.005000 \
   --vol-comparator above \
@@ -28,8 +28,8 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --config option_signal_configs.txt
 
 Example option_signal_configs.txt rows:
---symbol SPY --signal-model roc --side put --roc-lookback 18 --vol-window 20 --roc-comparator below --roc-threshold -0.005000 --vol-comparator above --vol-threshold 0.094507
---symbol SPY --signal-model accel --side call --accel-window 20 --vol-window 17 --accel-comparator below --accel-threshold -0.052641 --vol-comparator above --vol-threshold 0.085369
+--symbol SPY --signal-model roc --side put --roc-window-size 18 --vol-window-size 20 --roc-comparator below --roc-threshold -0.005000 --vol-comparator above --vol-threshold 0.094507
+--symbol SPY --signal-model accel --side call --accel-window 20 --vol-window-size 17 --accel-comparator below --accel-threshold -0.052641 --vol-comparator above --vol-threshold 0.085369
 """
 import argparse
 import json
@@ -801,9 +801,9 @@ def _make_config_row_parser() -> argparse.ArgumentParser:
     row_parser.add_argument("--symbol", required=True)
     row_parser.add_argument("--side", choices=["put", "call", "both"], default="both")
     row_parser.add_argument("--signal-model", type=_normalize_signal_model, default="roc")
-    row_parser.add_argument("--roc-lookback", type=int, default=5)
+    row_parser.add_argument("--roc-window-size", type=int, default=5)
     row_parser.add_argument("--accel-window", type=int, default=5)
-    row_parser.add_argument("--vol-window", type=int, default=20)
+    row_parser.add_argument("--vol-window-size", type=int, default=20)
     row_parser.add_argument("--roc-comparator", choices=["above", "below"], default=None)
     row_parser.add_argument("--roc-threshold", type=float, default=None)
     row_parser.add_argument("--accel-comparator", choices=["above", "below"], default=None)
@@ -842,9 +842,9 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
             symbol=args.symbol.upper(),
             side=args.side,
             signal_model=args.signal_model,
-            roc_lookback=args.roc_lookback,
+            roc_lookback=args.roc_window_size,
             accel_window=args.accel_window,
-            vol_window=args.vol_window,
+            vol_window=args.vol_window_size,
             roc_comparator=args.roc_comparator,
             roc_threshold=args.roc_threshold,
             accel_comparator=args.accel_comparator,
@@ -875,9 +875,9 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
             symbol=row.symbol.upper(),
             side=row.side,
             signal_model=row.signal_model,
-            roc_lookback=row.roc_lookback,
+            roc_lookback=row.roc_window_size,
             accel_window=row.accel_window,
-            vol_window=row.vol_window,
+            vol_window=row.vol_window_size,
             roc_comparator=row.roc_comparator,
             roc_threshold=row.roc_threshold,
             accel_comparator=row.accel_comparator,
@@ -1165,7 +1165,7 @@ def main() -> None:
         default="option_signal_notifier.config",
         help=(
             "Optional config text file. One non-empty, non-comment line per setup using CLI-style flags, "
-            "for example: --symbol SPY --signal-model accel --side put --accel-window 18 --vol-window 20 --accel-comparator above --accel-threshold 0.005 --vol-comparator above --vol-threshold 0.094507"
+            "for example: --symbol SPY --signal-model accel --side put --accel-window 18 --vol-window-size 20 --accel-comparator above --accel-threshold 0.005 --vol-comparator above --vol-threshold 0.094507"
         ),
     )
     parser.add_argument(
@@ -1184,9 +1184,9 @@ def main() -> None:
         default="roc",
         help="Signal type: roc/vol, accel/vol, or accel/roc.",
     )
-    parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
+    parser.add_argument("--roc-window-size", type=int, default=5, help="Days for ROC.")
     parser.add_argument("--accel-window", type=int, default=5, help="Days for acceleration signal.")
-    parser.add_argument("--vol-window", type=int, default=20, help="Rolling window for volatility.")
+    parser.add_argument("--vol-window-size", type=int, default=20, help="Rolling window for volatility.")
     parser.add_argument("--roc-comparator", choices=["above", "below"], default=None, help="ROC comparator.")
     parser.add_argument("--roc-threshold", type=float, default=None, help="ROC threshold.")
     parser.add_argument("--accel-comparator", choices=["above", "below"], default=None, help="Acceleration comparator.")
