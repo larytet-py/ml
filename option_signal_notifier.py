@@ -38,7 +38,7 @@ import shlex
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
 import requests
@@ -101,14 +101,52 @@ def _marketdata_get(path: str, params: Optional[Dict[str, Any]] = None, timeout:
         raise RuntimeError("Missing MARKET_DATA_TOKEN environment variable.")
 
     url = f"https://api.marketdata.app{path}"
+    req_params = params or {}
+
+    def _request_to_curl(req_url: str, query_params: Dict[str, Any]) -> str:
+        curl_parts = ["curl", "-sS", shlex.quote(req_url), "-H", shlex.quote("Authorization: Bearer $MARKET_DATA_TOKEN")]
+        curl_parts.extend(["-H", shlex.quote("Accept: application/json")])
+        for key, value in query_params.items():
+            curl_parts.extend(["--data-urlencode", shlex.quote(f"{key}={value}")])
+        return " ".join(curl_parts)
+
+    print(f"[marketdata] request: {_request_to_curl(url, req_params)}")
     response = requests.get(
         url,
-        params=params or {},
+        params=req_params,
         headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         timeout=timeout,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError:
+        body_preview = response.text[:240].replace("\n", " ")
+        print(
+            "[marketdata] response: "
+            f"status={response.status_code} error_body={json.dumps(body_preview)}"
+        )
+        raise
     payload = response.json()
+    if isinstance(payload, dict):
+        row_count = len(payload.get("t") or [])
+        if row_count == 0:
+            for list_key in ("optionSymbol", "strike", "expiration", "side"):
+                values = payload.get(list_key)
+                if isinstance(values, list):
+                    row_count = len(values)
+                    break
+        summary = {
+            "s": payload.get("s"),
+            "keys": sorted(payload.keys()),
+            "rows": row_count,
+        }
+        print(
+            "[marketdata] response: "
+            f"status={response.status_code} "
+            f"summary={json.dumps(summary, sort_keys=True)}"
+        )
+    else:
+        print(f"[marketdata] response: status={response.status_code} payload_type={type(payload).__name__}")
 
     if isinstance(payload, dict) and payload.get("s") == "error":
         raise RuntimeError(f"MarketData.app API error for {path}: {payload.get('errmsg', 'unknown error')}")
@@ -146,11 +184,23 @@ def _marketdata_candles_rows(symbol: str, start_date: str, end_date: str) -> Lis
     return [r for r in rows if r["date"]]
 
 
-def _choose_atm_from_chain(chain_payload: Dict[str, Any], side: str, spot: float) -> Optional[Dict[str, Any]]:
+def _choose_atm_from_chain(
+    chain_payload: Dict[str, Any],
+    side: str,
+    spot: float,
+    trade_date: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     option_symbols = chain_payload.get("optionSymbol") or []
     sides = chain_payload.get("side") or []
     strikes = chain_payload.get("strike") or []
     expirations = chain_payload.get("expiration") or []
+
+    trade_date_obj = None
+    if trade_date:
+        try:
+            trade_date_obj = datetime.strptime(trade_date, "%Y-%m-%d").date()
+        except ValueError:
+            trade_date_obj = None
 
     candidates: List[Dict[str, Any]] = []
     for i, option_symbol in enumerate(option_symbols):
@@ -166,12 +216,22 @@ def _choose_atm_from_chain(chain_payload: Dict[str, Any], side: str, spot: float
         except (TypeError, ValueError):
             continue
 
+        expiration_date = _unix_to_yyyy_mm_dd(expiration)
+        if trade_date_obj and expiration_date:
+            try:
+                expiration_date_obj = datetime.strptime(expiration_date, "%Y-%m-%d").date()
+            except ValueError:
+                expiration_date_obj = None
+            # Prefer unexpired contracts for snapshot/candle requests made after market close.
+            if expiration_date_obj is not None and expiration_date_obj <= trade_date_obj:
+                continue
+
         candidates.append(
             {
                 "optionSymbol": option_symbol,
                 "strike": strike_float,
                 "expiration": expiration,
-                "expiration_date": _unix_to_yyyy_mm_dd(expiration),
+                "expiration_date": expiration_date,
             }
         )
 
@@ -207,11 +267,39 @@ def _empty_atm_option_row(underlying_row: Dict[str, Any], side: str, reason: str
     }
 
 
+def _nearest_strike_reference(price: float) -> float:
+    # Use half-up rounding so .5 always rounds away from zero.
+    return float(int(price + 0.5)) if price >= 0 else float(int(price - 0.5))
+
+
+def _previous_close_on_or_before(cache_df: pd.DataFrame, trade_date: str) -> Optional[float]:
+    if cache_df.empty:
+        return None
+    trade_ts = pd.to_datetime(trade_date, errors="coerce")
+    if pd.isna(trade_ts):
+        return None
+    eligible = cache_df[cache_df["date"] < trade_ts]
+    if eligible.empty:
+        return None
+    value = eligible.iloc[-1].get("close")
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return numeric if numeric > 0 else None
+
+
 def _fetch_marketdata_option_candle(option_symbol: str, trade_date: str) -> Optional[Dict[str, Any]]:
-    payload = _marketdata_get(
-        f"/v1/options/candles/D/{option_symbol}/",
-        params={"from": trade_date, "to": trade_date},
-    )
+    try:
+        payload = _marketdata_get(
+            f"/v1/options/candles/D/{option_symbol}/",
+            params={"from": trade_date, "to": trade_date},
+        )
+    except requests.HTTPError as exc:
+        response = getattr(exc, "response", None)
+        if response is not None and response.status_code == 404:
+            return None
+        raise
     if payload.get("s") == "no_data":
         return None
 
@@ -228,7 +316,23 @@ def _fetch_marketdata_option_candle(option_symbol: str, trade_date: str) -> Opti
 
 
 def _fetch_marketdata_option_quote_snapshot(option_symbol: str, trade_date: str) -> Dict[str, Any]:
-    payload = _marketdata_get(f"/v1/options/quotes/{option_symbol}/", params={"date": trade_date})
+    try:
+        payload = _marketdata_get(f"/v1/options/quotes/{option_symbol}/", params={"date": trade_date})
+    except requests.HTTPError as exc:
+        response = getattr(exc, "response", None)
+        body = ""
+        if response is not None:
+            try:
+                body = (response.text or "").lower()
+            except Exception:
+                body = ""
+        if response is not None and response.status_code == 404:
+            return {}
+        # Some entitlements reject historical quote requests using `date`.
+        if response is not None and response.status_code == 400 and "date parameter is used for historical queries" in body:
+            payload = _marketdata_get(f"/v1/options/quotes/{option_symbol}/")
+        else:
+            raise
     if payload.get("s") == "no_data":
         return {}
 
@@ -238,13 +342,27 @@ def _fetch_marketdata_option_quote_snapshot(option_symbol: str, trade_date: str)
     }
 
 
+def _fetch_marketdata_option_chain(symbol: str, trade_date: str, expiration_to: str) -> Dict[str, Any]:
+    # MarketData can reject `date` for non-historical accounts; fetch a filtered current chain instead.
+    return _marketdata_get(
+        f"/v1/options/chain/{symbol}/",
+        params={
+            "from": trade_date,
+            "to": expiration_to,
+            "weekly": "true",
+            "monthly": "true",
+            "quarterly": "true",
+        },
+    )
+
+
 def _update_atm_options_csv_from_marketdata(
     symbols: Iterable[str],
     start_date: str,
     end_date: str,
     out_csv_path: str = "data/atm_options.csv",
     expiry_lookahead_days: int = 14,
-) -> pd.DataFrame:
+) -> Dict[str, Any]:
     """
     Fetch ATM call/put daily option data from MarketData.app and overwrite atm options CSV.
 
@@ -257,7 +375,20 @@ def _update_atm_options_csv_from_marketdata(
     output_rows: List[Dict[str, Any]] = []
 
     for symbol in normalized_symbols:
-        underlying_rows = _marketdata_candles_rows(symbol, start_date, end_date)
+        symbol_cache_df = pd.DataFrame(columns=CANONICAL_DATA_COLUMNS)
+        cache_path = Path(DEFAULT_CACHE_CSV)
+        if cache_path.exists():
+            try:
+                symbol_cache_df = load_symbol_data_from_csv(DEFAULT_CACHE_CSV, symbol, None, None)
+                symbol_cache_df = symbol_cache_df.sort_values("date").reset_index(drop=True)
+            except Exception:
+                symbol_cache_df = pd.DataFrame(columns=CANONICAL_DATA_COLUMNS)
+
+        try:
+            underlying_rows = _marketdata_candles_rows(symbol, start_date, end_date)
+        except Exception as exc:
+            print(f"Warning: skipping {symbol} ATM refresh due to underlying candles error: {exc}")
+            continue
         for underlying_row in underlying_rows:
             spot = underlying_row.get("underlying_close")
             trade_date = underlying_row.get("date")
@@ -270,17 +401,24 @@ def _update_atm_options_csv_from_marketdata(
 
             trade_dt = datetime.strptime(trade_date, "%Y-%m-%d").date()
             expiration_to = (trade_dt + timedelta(days=expiry_lookahead_days)).isoformat()
-            chain = _marketdata_get(
-                f"/v1/options/chain/{symbol}/",
-                params={
-                    "date": trade_date,
-                    "from": trade_date,
-                    "to": expiration_to,
-                },
-            )
+            try:
+                chain = _fetch_marketdata_option_chain(symbol, trade_date=trade_date, expiration_to=expiration_to)
+            except Exception:
+                output_rows.append(_empty_atm_option_row(underlying_row, "call", "chain_request_failed"))
+                output_rows.append(_empty_atm_option_row(underlying_row, "put", "chain_request_failed"))
+                continue
+            reference_spot = _previous_close_on_or_before(symbol_cache_df, trade_date)
+            if reference_spot is None:
+                reference_spot = float(spot)
+            rounded_reference_spot = _nearest_strike_reference(reference_spot)
 
             for side in ("call", "put"):
-                contract = _choose_atm_from_chain(chain, side=side, spot=float(spot))
+                contract = _choose_atm_from_chain(
+                    chain,
+                    side=side,
+                    spot=rounded_reference_spot,
+                    trade_date=trade_date,
+                )
                 if not contract:
                     output_rows.append(_empty_atm_option_row(underlying_row, side, "no_contract_found"))
                     continue
@@ -334,8 +472,30 @@ def _update_atm_options_csv_from_marketdata(
     output_df = output_df[ATM_OPTIONS_FIELDNAMES].sort_values(["symbol", "date", "contract_type"]).reset_index(drop=True)
     out_path = Path(out_csv_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    output_df.to_csv(out_path, index=False)
-    return output_df
+    if out_path.exists():
+        try:
+            existing_df = pd.read_csv(out_path)
+            for col in ATM_OPTIONS_FIELDNAMES:
+                if col not in existing_df.columns:
+                    existing_df[col] = pd.NA
+            existing_df = existing_df[ATM_OPTIONS_FIELDNAMES]
+        except Exception:
+            existing_df = pd.DataFrame(columns=ATM_OPTIONS_FIELDNAMES)
+    else:
+        existing_df = pd.DataFrame(columns=ATM_OPTIONS_FIELDNAMES)
+
+    existing_by_key = existing_df.set_index(["symbol", "date", "contract_type"], drop=False)
+    output_by_key = output_df.set_index(["symbol", "date", "contract_type"], drop=False)
+    existing_by_key.update(output_by_key)
+    new_rows = output_by_key.loc[~output_by_key.index.isin(existing_by_key.index)]
+    merged_df = pd.concat([existing_by_key, new_rows], ignore_index=True)
+    merged_df = merged_df.sort_values(["symbol", "date", "contract_type"]).reset_index(drop=True)
+    merged_df.to_csv(out_path, index=False)
+    return {
+        "merged_df": merged_df,
+        "fetched_rows": len(output_df),
+        "total_rows": len(merged_df),
+    }
 
 
 def _normalize_signal_model(value: str) -> str:
@@ -926,7 +1086,7 @@ def _evaluate_config(
     return result
 
 
-def refresh_atm_options_csv_if_enabled(
+def refresh_atm_options_csv(
     symbols: Iterable[str],
     start_date: str,
     end_date: str,
@@ -934,7 +1094,7 @@ def refresh_atm_options_csv_if_enabled(
 ) -> None:
     if os.getenv("MARKET_DATA_TOKEN"):
         try:
-            updated_atm_df = _update_atm_options_csv_from_marketdata(
+            update_result = _update_atm_options_csv_from_marketdata(
                 symbols=symbols,
                 start_date=start_date,
                 end_date=end_date,
@@ -942,13 +1102,56 @@ def refresh_atm_options_csv_if_enabled(
             )
             print(
                 f"Updated {out_csv_path} from MarketData.app: "
-                f"{len(updated_atm_df)} rows for {len(sorted({str(s).strip() for s in symbols if str(s).strip()}))} symbols "
+                f"fetched={int(update_result['fetched_rows'])}, total_after_merge={int(update_result['total_rows'])} "
+                f"for {len(sorted({str(s).strip() for s in symbols if str(s).strip()}))} symbols "
                 f"({start_date}..{end_date})."
             )
         except Exception as exc:
             print(f"Warning: failed to update {out_csv_path} from MarketData.app: {exc}")
     else:
         print("MARKET_DATA_TOKEN not set; skipping MarketData.app ATM options refresh.")
+
+
+def _resolve_atm_refresh_window(
+    symbols: Iterable[str],
+    requested_start_date: Optional[str],
+    requested_end_date: Optional[str],
+    out_csv_path: str,
+) -> Tuple[str, str]:
+    default_end = (pd.Timestamp.today().normalize() - pd.offsets.BDay(1)).date().isoformat()
+    end_date = requested_end_date or default_end
+    if requested_start_date:
+        return requested_start_date, end_date
+
+    default_start = (pd.Timestamp.today().normalize() - pd.Timedelta(days=14)).date().isoformat()
+    atm_path = Path(out_csv_path)
+    if not atm_path.exists():
+        return default_start, end_date
+
+    try:
+        existing = pd.read_csv(out_csv_path)
+    except Exception:
+        return default_start, end_date
+
+    if existing.empty or "date" not in existing.columns:
+        return default_start, end_date
+
+    normalized_symbols = {str(s).strip().upper() for s in symbols if str(s).strip()}
+    if normalized_symbols and "symbol" in existing.columns:
+        existing = existing[existing["symbol"].astype(str).str.upper().isin(normalized_symbols)]
+
+    if existing.empty:
+        return default_start, end_date
+
+    dates = pd.to_datetime(existing["date"], errors="coerce").dropna()
+    if dates.empty:
+        return default_start, end_date
+
+    latest_existing = dates.max().normalize()
+    incremental_start = (latest_existing + pd.Timedelta(days=1)).date().isoformat()
+    if pd.to_datetime(incremental_start) > pd.to_datetime(end_date):
+        incremental_start = end_date
+    return incremental_start, end_date
 
 
 def main() -> None:
@@ -1009,19 +1212,23 @@ def main() -> None:
     configs = _load_configs(args)
     unique_symbols = sorted({cfg.symbol for cfg in configs})
 
-    atm_start_date = args.start_date or (pd.Timestamp.today().normalize() - pd.Timedelta(days=14)).date().isoformat()
-    atm_end_date = args.end_date or pd.Timestamp.today().date().isoformat()
-    refresh_atm_options_csv_if_enabled(
+    # Load each symbol once so we refresh cache and fetch API data minimally.
+    symbol_data: Dict[str, pd.DataFrame] = {}
+    for symbol in unique_symbols:
+        symbol_data[symbol] = load_symbol_data(symbol, args.start_date, args.end_date, args.csv)
+
+    atm_start_date, atm_end_date = _resolve_atm_refresh_window(
+        symbols=unique_symbols,
+        requested_start_date=args.start_date,
+        requested_end_date=args.end_date,
+        out_csv_path="data/atm_options.csv",
+    )
+    refresh_atm_options_csv(
         symbols=unique_symbols,
         start_date=atm_start_date,
         end_date=atm_end_date,
         out_csv_path="data/atm_options.csv",
     )
-
-    # Load each symbol once so we refresh cache and fetch API data minimally.
-    symbol_data: Dict[str, pd.DataFrame] = {}
-    for symbol in unique_symbols:
-        symbol_data[symbol] = load_symbol_data(symbol, args.start_date, args.end_date, args.csv)
 
     all_messages: List[str] = []
     config_summaries: List[Dict[str, Any]] = []

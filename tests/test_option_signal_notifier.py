@@ -2,11 +2,21 @@ import argparse
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
+import requests
 from backtest_weekly_option_acceleration_reversal import run_backtest as run_accel_backtest
 from backtest_weekly_option_roc_accel_reversal import run_backtest as run_roc_accel_backtest
 from backtest_weekly_option_reversal import run_backtest as run_roc_backtest
-from option_signal_notifier import SignalConfig, _evaluate_config, _load_configs, load_symbol_data_from_csv
+from option_signal_notifier import (
+    SignalConfig,
+    _choose_atm_from_chain,
+    _evaluate_config,
+    _fetch_marketdata_option_candle,
+    _fetch_marketdata_option_quote_snapshot,
+    _load_configs,
+    load_symbol_data_from_csv,
+)
 
 
 CSV_PATH = "data/etfs.csv"
@@ -263,6 +273,35 @@ class ConfigParsingTests(unittest.TestCase):
         self.assertEqual(cfg.signal_model, "accel-roc")
         self.assertEqual(cfg.roc_lookback, 7)
         self.assertEqual(cfg.accel_window, 11)
+
+
+class MarketData404HandlingTests(unittest.TestCase):
+    def test_option_candle_404_returns_none(self):
+        response = Mock()
+        response.status_code = 404
+        with patch("option_signal_notifier._marketdata_get", side_effect=requests.HTTPError(response=response)):
+            candle = _fetch_marketdata_option_candle("GDX260417C00098000", "2026-04-15")
+        self.assertIsNone(candle)
+
+    def test_option_quote_404_returns_empty_dict(self):
+        response = Mock()
+        response.status_code = 404
+        with patch("option_signal_notifier._marketdata_get", side_effect=requests.HTTPError(response=response)):
+            quote = _fetch_marketdata_option_quote_snapshot("GDX260417C00098000", "2026-04-15")
+        self.assertEqual(quote, {})
+
+
+class MarketDataChainSelectionTests(unittest.TestCase):
+    def test_choose_atm_skips_same_day_expiration_when_trade_date_provided(self):
+        chain_payload = {
+            "optionSymbol": ["IWM260428C00277000", "IWM260429C00277000"],
+            "side": ["call", "call"],
+            "strike": [277, 277],
+            "expiration": [1777334400, 1777420800],  # 2026-04-28, 2026-04-29
+        }
+        chosen = _choose_atm_from_chain(chain_payload, side="call", spot=277.0, trade_date="2026-04-28")
+        self.assertIsNotNone(chosen)
+        self.assertEqual(chosen["optionSymbol"], "IWM260429C00277000")
 
 
 if __name__ == "__main__":
