@@ -8,6 +8,8 @@ from pathlib import Path
 def _compact_config(config: dict) -> dict:
     compact = {
         "config_index": config.get("config_index"),
+        "strategy_name": config.get("strategy_name"),
+        "strategy_note": config.get("strategy_note"),
         "symbol": config.get("symbol"),
         "configured_side": config.get("configured_side"),
         "date": config.get("date"),

@@ -1,0 +1,143 @@
+strategy_sets:
+  - symbol: IBIT
+    side: call
+    bucket: prioritized
+    strategies:
+      - name: ibit_call
+        note: Very broad and stable quality, with 91.5% positive rate among usable rows and 5,839 robust cells.
+        roc_window_size: 23
+        roc_comparator: below
+        roc_threshold: -0.077453
+        vol_window_size: 7
+        vol_comparator: above
+        vol_threshold: 0.325709
+
+  - symbol: TLT
+    side: call
+    bucket: prioritized
+    strategies:
+      - name: tlt_call
+        note: Broad and stable quality, with 76.5% positive rate among usable rows and 813 robust cells.
+        roc_window_size: 8
+        roc_comparator: below
+        roc_threshold: -0.021312
+        vol_window_size: 27
+        vol_comparator: above
+        vol_threshold: 0.016817
+
+  - symbol: VXX
+    side: put
+    bucket: prioritized
+    strategies:
+      - name: vxx_put
+        note: Broad quality with one dominant region, with 71.7% positive rate among usable rows and 6,982 robust cells.
+        roc_window_size: 50
+        roc_comparator: below
+        roc_threshold: 0.028323
+        vol_window_size: 15
+        vol_comparator: above
+        vol_threshold: 0.450429
+
+  - symbol: IBIT
+    side: put
+    bucket: prioritized
+    strategies:
+      - name: ibit_put
+        note: Mixed quality but one dominant area, with 46.4% positive rate among usable rows and 2,277 robust cells.
+        roc_window_size: 34
+        roc_comparator: below
+        roc_threshold: -0.203980
+        vol_window_size: 10
+        vol_comparator: above
+        vol_threshold: 0.130603
+
+  - symbol: IWM
+    side: put
+    bucket: prioritized
+    strategies:
+      - name: iwm_put
+        note: Very broad and stable quality, with 88.4% positive rate among usable rows and 2,073 robust cells.
+        roc_window_size: 60
+        roc_comparator: below
+        roc_threshold: 0.157740
+        vol_window_size: 22
+        vol_comparator: above
+        vol_threshold: 0.134024
+
+  - symbol: SPY
+    side: put
+    bucket: prioritized
+    strategies:
+      - name: spy_put
+        note: Broad quality but drawdowns can be large, with 82.9% positive rate among usable rows and 1,191 robust cells.
+        roc_window_size: 49
+        roc_comparator: below
+        roc_threshold: 0.023452
+        vol_window_size: 24
+        vol_comparator: above
+        vol_threshold: 0.093480
+
+  - symbol: TLT
+    side: put
+    bucket: prioritized
+    strategies:
+      - name: tlt_put
+        note: Smaller but coherent quality, with 36.2% positive rate among usable rows and 183 robust cells.
+        roc_window_size: 46
+        roc_comparator: below
+        roc_threshold: -0.038882
+        vol_window_size: 5
+        vol_comparator: above
+        vol_threshold: 0.042164
+
+  - symbol: GDX
+    side: put
+    bucket: prioritized
+    strategies:
+      - name: gdx_put
+        note: Promising but rougher quality, with 34.1% positive rate among usable rows and 1,544 robust cells.
+        roc_window_size: 19
+        roc_comparator: below
+        roc_threshold: 0.037118
+        vol_window_size: 18
+        vol_comparator: above
+        vol_threshold: 0.460170
+
+  - symbol: GDX
+    side: call
+    bucket: deprioritized
+    strategies:
+      - name: gdx_call
+        note: Very sparse quality, with 4.3% positive rate among usable rows and 24 robust cells.
+        roc_window_size: 7
+        roc_comparator: below
+        roc_threshold: -0.043516
+        vol_window_size: 27
+        vol_comparator: above
+        vol_threshold: 0.253052
+
+  - symbol: IWM
+    side: call
+    bucket: deprioritized
+    strategies:
+      - name: iwm_call
+        note: Sparse and selective quality, with 11.1% positive rate among usable rows and 56 robust cells.
+        roc_window_size: 6
+        roc_comparator: below
+        roc_threshold: 0.085586
+        vol_window_size: 2
+        vol_comparator: above
+        vol_threshold: 0.105586
+
+  - symbol: SPY
+    side: call
+    bucket: deprioritized
+    strategies:
+      - name: spy_call
+        note: Too thin to trust much, with 5.0% positive rate among usable rows and 1 robust cell.
+        roc_window_size: 7
+        roc_comparator: below
+        roc_threshold: 0.025305
+        vol_window_size: 3
+        vol_comparator: above
+        vol_threshold: 0.065588

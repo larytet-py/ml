@@ -10,6 +10,7 @@ from typing import Dict, Optional
 import numpy as np
 import pandas as pd
 
+from option_signal_config import load_signal_strategy_dicts, select_signal_strategy
 from option_pricing import BlackScholesPricer
 from weekly_option_backtest_common import summarize_trades
 
@@ -388,22 +389,25 @@ def parse_args() -> argparse.Namespace:
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         epilog=(
-            "Example (emulate reversal-style put rule):\n"
+            "Example:\n"
             "  python3 backtest_option_strategy_sobol_gradient.py "
-            "--symbol VXX --side put --roc-window-size 11 --roc-comparator below "
-            "--roc-threshold -0.081758 --vol-window-size 21 --vol-comparator above "
-            "--vol-threshold 0.379078"
+            "--strategy ibit_call"
         ),
+    )
+    parser.add_argument(
+        "--config",
+        default="data/option_signal_notifier.yaml",
+        help="YAML config file containing strategy definitions.",
+    )
+    parser.add_argument(
+        "--strategy",
+        default=None,
+        help="Strategy name from the YAML config. Optional only when the config has one enabled strategy.",
     )
     parser.add_argument(
         "--features-parquet",
         default="data/features/option_strategy_features.parquet",
         help="Path to precomputed features parquet produced by build_option_strategy_features.py.",
-    )
-    parser.add_argument(
-        "--symbol",
-        required=True,
-        help="Ticker/symbol to backtest (case-insensitive).",
     )
     parser.add_argument(
         "--start-date",
@@ -414,84 +418,6 @@ def parse_args() -> argparse.Namespace:
         "--end-date",
         default=None,
         help="Inclusive end date filter (YYYY-MM-DD).",
-    )
-    parser.add_argument(
-        "--side",
-        choices=["put", "call"],
-        required=True,
-        help="Option side to short at entry.",
-    )
-    parser.add_argument(
-        "--roc-window-size",
-        type=int,
-        required=True,
-        help="ROC lookback window used to select feature column roc_close_w{window}.",
-    )
-    parser.add_argument(
-        "--roc-comparator",
-        choices=["above", "below"],
-        default="below",
-        help="Comparator for ROC threshold rule when --roc-range-enabled=0.",
-    )
-    parser.add_argument(
-        "--roc-threshold",
-        type=float,
-        default=0.0,
-        help="ROC threshold used when --roc-range-enabled=0.",
-    )
-    parser.add_argument(
-        "--roc-range-enabled",
-        type=int,
-        default=0,
-        help="Set to 1 to use ROC interval trigger [low, high] and ignore comparator/threshold; 0 to disable.",
-    )
-    parser.add_argument(
-        "--roc-range-low",
-        type=float,
-        default=0.0,
-        help="Lower bound for ROC interval trigger when --roc-range-enabled=1.",
-    )
-    parser.add_argument(
-        "--roc-range-high",
-        type=float,
-        default=0.0,
-        help="Upper bound for ROC interval trigger when --roc-range-enabled=1.",
-    )
-    parser.add_argument(
-        "--vol-window-size",
-        type=int,
-        required=True,
-        help="Volatility window used to select trend-vol feature column (downside_vol_w* for put, upside_vol_w* for call).",
-    )
-    parser.add_argument(
-        "--vol-comparator",
-        choices=["above", "below"],
-        default="above",
-        help="Comparator for vol threshold rule when --vol-range-enabled=0.",
-    )
-    parser.add_argument(
-        "--vol-threshold",
-        type=float,
-        default=0.0,
-        help="Trend-vol threshold used when --vol-range-enabled=0.",
-    )
-    parser.add_argument(
-        "--vol-range-enabled",
-        type=int,
-        default=0,
-        help="Set to 1 to use vol interval trigger [low, high] and ignore comparator/threshold; 0 to disable.",
-    )
-    parser.add_argument(
-        "--vol-range-low",
-        type=float,
-        default=0.0,
-        help="Lower bound for vol interval trigger when --vol-range-enabled=1.",
-    )
-    parser.add_argument(
-        "--vol-range-high",
-        type=float,
-        default=0.0,
-        help="Upper bound for vol interval trigger when --vol-range-enabled=1.",
     )
     parser.add_argument(
         "--risk-free-rate",
@@ -521,24 +447,29 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    strategy = select_signal_strategy(load_signal_strategy_dicts(args.config), args.strategy)
+    if strategy["side"] == "both":
+        raise ValueError(
+            f"Strategy '{strategy['name']}' uses side=both; backtests need a concrete side, put or call."
+        )
     backtester = PrecomputedFeatureBacktester.from_parquet(args.features_parquet)
     result = backtester.evaluate(
         knobs_input={
-            "side": args.side,
-            "roc_window_size": args.roc_window_size,
-            "roc_comparator": args.roc_comparator,
-            "roc_threshold": args.roc_threshold,
-            "roc_range_enabled": args.roc_range_enabled,
-            "roc_range_low": args.roc_range_low,
-            "roc_range_high": args.roc_range_high,
-            "vol_window_size": args.vol_window_size,
-            "vol_comparator": args.vol_comparator,
-            "vol_threshold": args.vol_threshold,
-            "vol_range_enabled": args.vol_range_enabled,
-            "vol_range_low": args.vol_range_low,
-            "vol_range_high": args.vol_range_high,
+            "side": strategy["side"],
+            "roc_window_size": strategy["roc_window_size"],
+            "roc_comparator": strategy["roc_comparator"],
+            "roc_threshold": strategy["roc_threshold"],
+            "roc_range_enabled": strategy["roc_range_enabled"],
+            "roc_range_low": strategy["roc_range_low"],
+            "roc_range_high": strategy["roc_range_high"],
+            "vol_window_size": strategy["vol_window_size"],
+            "vol_comparator": strategy["vol_comparator"],
+            "vol_threshold": strategy["vol_threshold"],
+            "vol_range_enabled": strategy["vol_range_enabled"],
+            "vol_range_low": strategy["vol_range_low"],
+            "vol_range_high": strategy["vol_range_high"],
         },
-        symbol=args.symbol,
+        symbol=strategy["symbol"],
         start_date=args.start_date,
         end_date=args.end_date,
         risk_free_rate=args.risk_free_rate,
@@ -557,6 +488,9 @@ def main() -> None:
                 "feasible": bool(result.feasible),
                 "infeasible_reason": result.infeasible_reason,
                 "metrics": result.metrics,
+                "strategy": strategy["name"],
+                "note": strategy.get("note"),
+                "symbol": strategy["symbol"],
                 "trade_count": int(len(result.trades_df)),
                 "resolved_knobs": result.resolved_knobs,
                 "feature_data_version": backtester.feature_data_version,

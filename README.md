@@ -101,9 +101,35 @@ python3 weekly_atm_worthless_scan.py
 analyze_weekly_regime_with_etf_context.py
 ```
 
-# Option Signal Date Clustering (from config comments)
+# Option Signal Config
 
-Using the commented `Recent trades` blocks in `option_signal_notifier.config`, `entry_date` values tend to cluster across assets (same date appears in multiple symbols).
+Strategy definitions live in `data/option_signal_notifier.yaml`.
+
+```sh
+python3.11 build_option_strategy_features.py --workers 4
+python3.11 backtest_option_strategy_sobol_gradient.py --strategy ibit_call
+python3 option_signal_notifier.py
+```
+
+The YAML groups variants by symbol and side, so a set like `VXX`/`put` can contain multiple named strategies:
+
+```yaml
+strategy_sets:
+  - symbol: VXX
+    side: put
+    strategies:
+      - name: vxx_put
+        roc_window_size: 50
+        roc_comparator: below
+        roc_threshold: 0.028323
+        vol_window_size: 15
+        vol_comparator: above
+        vol_threshold: 0.450429
+```
+
+# Option Signal Date Clustering (from config notes)
+
+Using the strategy notes in `data/option_signal_notifier.yaml`, `entry_date` values tend to cluster across assets (same date appears in multiple symbols).
 
 - Clustered dates (distinct symbols >= 2): 33
 - Total distinct `entry_date` values: 83
@@ -180,5 +206,3 @@ cache.
 ```bash
 python3.11 -m unittest discover -v -s tests -p "test_*.py"
 ```
-
-

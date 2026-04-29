@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data
-          python option_signal_notifier.py --config option_signal_notifier.config --summary-json notifier_summary.json | tee notifier_output.txt
+          python option_signal_notifier.py --config data/option_signal_notifier.yaml --summary-json notifier_summary.json | tee notifier_output.txt
           python .github/scripts/build_notifier_excerpt.py --summary-json notifier_summary.json
 
       - name: Commit updated market data caches

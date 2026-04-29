@@ -4,6 +4,7 @@ data/*
 !data/
 !data/etfs.csv
 !data/atm_options.csv
+!data/option_signal_notifier.yaml
 __pycache__/
 .venv
 .venv*

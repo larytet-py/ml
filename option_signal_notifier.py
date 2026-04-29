@@ -2,33 +2,10 @@
 """
 Usage:
 
-MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
-  --symbol SPY \
-  --side call \
-  --signal-model accel \
-  --accel-window 20 \
-  --vol-window-size 17 \
-  --accel-comparator below \
-  --accel-threshold -0.052641 \
-  --vol-comparator above \
-  --vol-threshold 0.085369
+MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py
 
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
-  --symbol SPY \
-  --side put \
-  --roc-window-size 18 \
-  --vol-window-size 20 \
-  --roc-comparator below \
-  --roc-threshold -0.005000 \
-  --vol-comparator above \
-  --vol-threshold 0.094507
-
-MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
-  --config option_signal_configs.txt
-
-Example option_signal_configs.txt rows:
---symbol SPY --side put --roc-window-size 18 --vol-window-size 20 --roc-comparator below --roc-threshold -0.005000 --vol-comparator above --vol-threshold 0.094507
---symbol SPY --signal-model accel --side call --accel-window 20 --vol-window-size 17 --accel-comparator below --accel-threshold -0.052641 --vol-comparator above --vol-threshold 0.085369
+  --config data/option_signal_notifier.yaml
 """
 import argparse
 import json
@@ -42,6 +19,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import pandas as pd
 import requests
 
+from option_signal_config import load_signal_strategy_dicts
 from option_pricing import black_scholes_call_price, black_scholes_put_price
 from weekly_option_reversal_core import build_signal_frame
 from weekly_option_acceleration_core import build_acceleration_signal_frame
@@ -49,7 +27,6 @@ from weekly_option_roc_accel_core import build_roc_accel_signal_frame
 
 
 DEFAULT_CACHE_CSV = "data/etfs.csv"
-SIGNAL_MODEL_CHOICES = ["roc", "accel", "accel-roc", "roc-accel", "accel/roc", "roc/accel"]
 CANONICAL_DATA_COLUMNS = ["symbol", "date", "open", "close", "high", "low", "volume", "dividend_rate"]
 ATM_OPTIONS_FIELDNAMES = [
     "symbol",
@@ -497,17 +474,6 @@ def _update_atm_options_csv_from_marketdata(
     }
 
 
-def _normalize_signal_model(value: str) -> str:
-    normalized = value.strip().lower()
-    if normalized in {"roc", "accel"}:
-        return normalized
-    if normalized in {"accel-roc", "roc-accel", "accel/roc", "roc/accel"}:
-        return "accel-roc"
-    raise argparse.ArgumentTypeError(
-        f"Invalid --signal-model '{value}'. Allowed values: {', '.join(SIGNAL_MODEL_CHOICES)}"
-    )
-
-
 def _recommended_conservative_limit_premium(symbol: str, side: str, modeled_premium: float) -> Optional[float]:
     symbol_adjustments = CONSERVATIVE_LIMIT_PREMIUM_ADJUSTMENTS.get(symbol.upper())
     if not symbol_adjustments:
@@ -520,6 +486,8 @@ def _recommended_conservative_limit_premium(symbol: str, side: str, modeled_prem
 
 @dataclass
 class SignalConfig:
+    name: str
+    note: Optional[str]
     symbol: str
     side: str
     signal_model: str
@@ -795,23 +763,6 @@ def load_symbol_data(symbol: str, start_date: Optional[str], end_date: Optional[
     return df.reset_index(drop=True)
 
 
-def _make_config_row_parser() -> argparse.ArgumentParser:
-    row_parser = argparse.ArgumentParser(add_help=False)
-    row_parser.add_argument("--symbol", required=True)
-    row_parser.add_argument("--side", choices=["put", "call", "both"], default="both")
-    row_parser.add_argument("--signal-model", type=_normalize_signal_model, default="roc")
-    row_parser.add_argument("--roc-window-size", type=int, default=5)
-    row_parser.add_argument("--accel-window", type=int, default=5)
-    row_parser.add_argument("--vol-window-size", type=int, default=20)
-    row_parser.add_argument("--roc-comparator", choices=["above", "below"], default=None)
-    row_parser.add_argument("--roc-threshold", type=float, default=None)
-    row_parser.add_argument("--accel-comparator", choices=["above", "below"], default=None)
-    row_parser.add_argument("--accel-threshold", type=float, default=None)
-    row_parser.add_argument("--vol-comparator", choices=["above", "below"], default=None)
-    row_parser.add_argument("--vol-threshold", type=float, default=None)
-    return row_parser
-
-
 def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
     def _validate_metric_tuples(cfg: SignalConfig) -> None:
         tuples = [
@@ -836,59 +787,27 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
         if cfg.signal_model == "accel" and cfg.roc_comparator is not None:
             raise ValueError(f"{cfg.symbol} {cfg.side}: roc tuple is not valid for signal-model=accel.")
 
-    if not args.config:
-        cfg = SignalConfig(
-            symbol=args.symbol.upper(),
-            side=args.side,
-            signal_model=args.signal_model,
-            roc_lookback=args.roc_window_size,
-            accel_window=args.accel_window,
-            vol_window=args.vol_window_size,
-            roc_comparator=args.roc_comparator,
-            roc_threshold=args.roc_threshold,
-            accel_comparator=args.accel_comparator,
-            accel_threshold=args.accel_threshold,
-            vol_comparator=args.vol_comparator,
-            vol_threshold=args.vol_threshold,
-        )
-        _validate_metric_tuples(cfg)
-        return [cfg]
-
-    path = Path(args.config)
-    if not path.exists():
-        raise FileNotFoundError(f"Config file not found: {args.config}")
-
-    row_parser = _make_config_row_parser()
     configs: List[SignalConfig] = []
-    for line_no, raw_line in enumerate(path.read_text().splitlines(), start=1):
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = shlex.split(line)
-        try:
-            row = row_parser.parse_args(parts)
-        except SystemExit as exc:
-            raise ValueError(f"Invalid config row at line {line_no}: {raw_line}") from exc
-
+    for row in load_signal_strategy_dicts(args.config):
         cfg = SignalConfig(
-            symbol=row.symbol.upper(),
-            side=row.side,
-            signal_model=row.signal_model,
-            roc_lookback=row.roc_window_size,
-            accel_window=row.accel_window,
-            vol_window=row.vol_window_size,
-            roc_comparator=row.roc_comparator,
-            roc_threshold=row.roc_threshold,
-            accel_comparator=row.accel_comparator,
-            accel_threshold=row.accel_threshold,
-            vol_comparator=row.vol_comparator,
-            vol_threshold=row.vol_threshold,
+            name=row["name"],
+            note=row.get("note"),
+            symbol=row["symbol"],
+            side=row["side"],
+            signal_model="roc",
+            roc_lookback=row["roc_window_size"],
+            accel_window=row["accel_window"],
+            vol_window=row["vol_window_size"],
+            roc_comparator=row["roc_comparator"],
+            roc_threshold=row["roc_threshold"],
+            accel_comparator=row["accel_comparator"],
+            accel_threshold=row["accel_threshold"],
+            vol_comparator=row["vol_comparator"],
+            vol_threshold=row["vol_threshold"],
         )
         _validate_metric_tuples(cfg)
         configs.append(cfg)
 
-    if not configs:
-        raise ValueError(f"No usable config rows in {args.config}")
     return configs
 
 
@@ -1034,6 +953,8 @@ def _evaluate_config(
 
     result: Dict[str, Any] = {
         "messages": messages,
+        "strategy_name": cfg.name,
+        "strategy_note": cfg.note,
         "symbol": cfg.symbol,
         "configured_side": cfg.side,
         "signal_model": cfg.signal_model,
@@ -1157,15 +1078,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Daily signal notifier: checks weekly reversal signal and prints put/call entry notification with estimated ATM premium."
     )
-    parser.add_argument("--symbol", default="SPY", help="Ticker symbol, e.g. SPY (used when --config is not set).")
-    parser.add_argument("--side", choices=["put", "call", "both"], default="both", help="Which side(s) to evaluate.")
     parser.add_argument(
         "--config",
-        default="option_signal_notifier.config",
-        help=(
-            "Optional config text file. One non-empty, non-comment line per setup using CLI-style flags, "
-            "for example: --symbol SPY --signal-model accel --side put --accel-window 18 --vol-window-size 20 --accel-comparator above --accel-threshold 0.005 --vol-comparator above --vol-threshold 0.094507"
-        ),
+        default="data/option_signal_notifier.yaml",
+        help="YAML config file containing strategy definitions.",
     )
     parser.add_argument(
         "--csv",
@@ -1177,21 +1093,6 @@ def main() -> None:
     )
     parser.add_argument("--start-date", default=None, help="Optional date filter, YYYY-MM-DD.")
     parser.add_argument("--end-date", default=None, help="Optional date filter, YYYY-MM-DD.")
-    parser.add_argument(
-        "--signal-model",
-        type=_normalize_signal_model,
-        default="roc",
-        help="Signal type: roc/vol, accel/vol, or accel/roc.",
-    )
-    parser.add_argument("--roc-window-size", type=int, default=5, help="Days for ROC.")
-    parser.add_argument("--accel-window", type=int, default=5, help="Days for acceleration signal.")
-    parser.add_argument("--vol-window-size", type=int, default=20, help="Rolling window for volatility.")
-    parser.add_argument("--roc-comparator", choices=["above", "below"], default=None, help="ROC comparator.")
-    parser.add_argument("--roc-threshold", type=float, default=None, help="ROC threshold.")
-    parser.add_argument("--accel-comparator", choices=["above", "below"], default=None, help="Acceleration comparator.")
-    parser.add_argument("--accel-threshold", type=float, default=None, help="Acceleration threshold.")
-    parser.add_argument("--vol-comparator", choices=["above", "below"], default=None, help="Volatility comparator.")
-    parser.add_argument("--vol-threshold", type=float, default=None, help="Volatility threshold.")
     parser.add_argument("--risk-free-rate", type=float, default=0.04, help="Risk-free rate for Black-Scholes.")
     parser.add_argument("--min-pricing-vol", type=float, default=0.10, help="Vol floor (annualized) used in option pricing.")
     parser.add_argument("--contract-size", type=int, default=100, help="Shares per option contract.")
@@ -1233,7 +1134,8 @@ def main() -> None:
     config_summaries: List[Dict[str, Any]] = []
     for idx, cfg in enumerate(configs, start=1):
         df = symbol_data[cfg.symbol]
-        all_messages.append(f"\n=== Config #{idx} ===")
+        header = f"\n=== Config #{idx}: {cfg.name} ({cfg.symbol} {cfg.side}) ==="
+        all_messages.append(header)
         evaluation = _evaluate_config(
             cfg=cfg,
             symbol_df=df,
@@ -1241,6 +1143,8 @@ def main() -> None:
             min_pricing_vol=args.min_pricing_vol,
             contract_size=args.contract_size,
         )
+        if cfg.note and evaluation["fired_signals"]:
+            all_messages.append(f"{cfg.name}: {cfg.note}")
         all_messages.extend(evaluation["messages"])
         config_summaries.append({"config_index": idx, **evaluation})
 
