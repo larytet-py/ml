@@ -8,3 +8,5 @@ tests/__pycache__/
 !models/weekly_regime_model.joblib
 .venv
 .venv*
+
+*.parquet
