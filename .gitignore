@@ -2,6 +2,7 @@ clickhouse/*
 data/*
 !data/
 !data/etfs.csv
+!data/atm_options.csv
 __pycache__/
 .venv
 .venv*
