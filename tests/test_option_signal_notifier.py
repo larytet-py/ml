@@ -22,12 +22,12 @@ def _spy_put_roc_config() -> SignalConfig:
         roc_lookback=3,
         accel_window=5,
         vol_window=23,
-        put_roc_threshold=-0.015766,
-        call_roc_threshold=0.03,
-        put_accel_threshold=-0.03,
-        call_accel_threshold=0.03,
-        downside_vol_threshold=0.051323,
-        upside_vol_threshold=0.20,
+        roc_comparator="below",
+        roc_threshold=-0.015766,
+        accel_comparator=None,
+        accel_threshold=None,
+        vol_comparator="above",
+        vol_threshold=0.051323,
     )
 
 
@@ -39,12 +39,12 @@ def _spy_call_accel_config() -> SignalConfig:
         roc_lookback=3,
         accel_window=53,
         vol_window=14,
-        put_roc_threshold=-0.03,
-        call_roc_threshold=0.03,
-        put_accel_threshold=-0.009787,
-        call_accel_threshold=-0.013715,
-        downside_vol_threshold=0.086187,
-        upside_vol_threshold=0.046678,
+        roc_comparator=None,
+        roc_threshold=None,
+        accel_comparator="below",
+        accel_threshold=-0.013715,
+        vol_comparator="above",
+        vol_threshold=0.046678,
     )
 
 
@@ -56,12 +56,12 @@ def _spy_put_roc_accel_config() -> SignalConfig:
         roc_lookback=3,
         accel_window=4,
         vol_window=23,
-        put_roc_threshold=-0.015766,
-        call_roc_threshold=0.03,
-        put_accel_threshold=-0.009787,
-        call_accel_threshold=0.03,
-        downside_vol_threshold=0.051323,
-        upside_vol_threshold=0.20,
+        roc_comparator="below",
+        roc_threshold=-0.015766,
+        accel_comparator="above",
+        accel_threshold=-0.009787,
+        vol_comparator=None,
+        vol_threshold=None,
     )
 
 
@@ -84,11 +84,11 @@ class EvaluateConfigRocParityTests(unittest.TestCase):
             df=full_df.copy(),
             side="put",
             roc_lookback=cfg.roc_lookback,
-            put_roc_threshold=cfg.put_roc_threshold,
-            call_roc_threshold=cfg.call_roc_threshold,
+            put_roc_threshold=cfg.roc_threshold,
+            call_roc_threshold=0.03,
             vol_window=cfg.vol_window,
-            downside_vol_threshold_annualized=cfg.downside_vol_threshold,
-            upside_vol_threshold_annualized=cfg.upside_vol_threshold,
+            downside_vol_threshold_annualized=cfg.vol_threshold,
+            upside_vol_threshold_annualized=0.20,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
             contract_size=CONTRACT_SIZE,
@@ -121,11 +121,11 @@ class EvaluateConfigRocParityTests(unittest.TestCase):
             df=full_df.copy(),
             side="put",
             roc_lookback=cfg.roc_lookback,
-            put_roc_threshold=cfg.put_roc_threshold,
-            call_roc_threshold=cfg.call_roc_threshold,
+            put_roc_threshold=cfg.roc_threshold,
+            call_roc_threshold=0.03,
             vol_window=cfg.vol_window,
-            downside_vol_threshold_annualized=cfg.downside_vol_threshold,
-            upside_vol_threshold_annualized=cfg.upside_vol_threshold,
+            downside_vol_threshold_annualized=cfg.vol_threshold,
+            upside_vol_threshold_annualized=0.20,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
             contract_size=CONTRACT_SIZE,
@@ -144,11 +144,11 @@ class EvaluateConfigAccelParityTests(unittest.TestCase):
             df=full_df.copy(),
             side="call",
             accel_window=cfg.accel_window,
-            put_accel_threshold=cfg.put_accel_threshold,
-            call_accel_threshold=cfg.call_accel_threshold,
+            put_accel_threshold=-0.009787,
+            call_accel_threshold=cfg.accel_threshold,
             vol_window=cfg.vol_window,
-            downside_vol_threshold_annualized=cfg.downside_vol_threshold,
-            upside_vol_threshold_annualized=cfg.upside_vol_threshold,
+            downside_vol_threshold_annualized=0.086187,
+            upside_vol_threshold_annualized=cfg.vol_threshold,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
             contract_size=CONTRACT_SIZE,
@@ -175,10 +175,10 @@ class EvaluateConfigRocAccelParityTests(unittest.TestCase):
             side="put",
             roc_lookback=cfg.roc_lookback,
             accel_window=cfg.accel_window,
-            put_roc_threshold=cfg.put_roc_threshold,
-            call_roc_threshold=cfg.call_roc_threshold,
-            put_accel_threshold=cfg.put_accel_threshold,
-            call_accel_threshold=cfg.call_accel_threshold,
+            put_roc_threshold=cfg.roc_threshold,
+            call_roc_threshold=0.03,
+            put_accel_threshold=-0.009787,
+            call_accel_threshold=0.03,
             risk_free_rate=RISK_FREE_RATE,
             min_pricing_vol_annualized=MIN_PRICING_VOL,
             contract_size=CONTRACT_SIZE,
@@ -200,7 +200,7 @@ class ConfigParsingTests(unittest.TestCase):
     def test_config_accepts_accel_threshold_flags(self):
         cfg_text = (
             "--symbol SPY --side put --signal-model accel --accel-window 9 --vol-window 21 "
-            "--put-accel-threshold -0.012 --downside-vol-threshold 0.07\n"
+            "--accel-comparator above --accel-threshold -0.012 --vol-comparator above --vol-threshold 0.07\n"
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
             cfg_path = Path(tmp_dir) / "notifier.config"
@@ -213,12 +213,12 @@ class ConfigParsingTests(unittest.TestCase):
                 roc_lookback=5,
                 accel_window=5,
                 vol_window=20,
-                put_roc_threshold=-0.03,
-                call_roc_threshold=0.03,
-                put_accel_threshold=-0.03,
-                call_accel_threshold=0.03,
-                downside_vol_threshold=0.20,
-                upside_vol_threshold=0.20,
+                roc_comparator=None,
+                roc_threshold=None,
+                accel_comparator=None,
+                accel_threshold=None,
+                vol_comparator=None,
+                vol_threshold=None,
                 allow_friday_close_entry=False,
             )
             configs = _load_configs(args)
@@ -227,13 +227,15 @@ class ConfigParsingTests(unittest.TestCase):
         cfg = configs[0]
         self.assertEqual(cfg.signal_model, "accel")
         self.assertEqual(cfg.accel_window, 9)
-        self.assertAlmostEqual(cfg.put_accel_threshold, -0.012)
-        self.assertAlmostEqual(cfg.downside_vol_threshold, 0.07)
+        self.assertEqual(cfg.accel_comparator, "above")
+        self.assertAlmostEqual(cfg.accel_threshold, -0.012)
+        self.assertEqual(cfg.vol_comparator, "above")
+        self.assertAlmostEqual(cfg.vol_threshold, 0.07)
 
     def test_config_accepts_accel_roc_alias_and_normalizes(self):
         cfg_text = (
             "--symbol SPY --side put --signal-model accel/roc --roc-lookback 7 --accel-window 11 "
-            "--put-roc-threshold -0.02 --put-accel-threshold -0.01\n"
+            "--roc-comparator below --roc-threshold -0.02 --accel-comparator below --accel-threshold -0.01\n"
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
             cfg_path = Path(tmp_dir) / "notifier.config"
@@ -246,12 +248,12 @@ class ConfigParsingTests(unittest.TestCase):
                 roc_lookback=5,
                 accel_window=5,
                 vol_window=20,
-                put_roc_threshold=-0.03,
-                call_roc_threshold=0.03,
-                put_accel_threshold=-0.03,
-                call_accel_threshold=0.03,
-                downside_vol_threshold=0.20,
-                upside_vol_threshold=0.20,
+                roc_comparator=None,
+                roc_threshold=None,
+                accel_comparator=None,
+                accel_threshold=None,
+                vol_comparator=None,
+                vol_threshold=None,
                 allow_friday_close_entry=False,
             )
             configs = _load_configs(args)

@@ -8,8 +8,10 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --signal-model accel \
   --accel-window 20 \
   --vol-window 17 \
-  --call-accel-threshold -0.052641 \
-  --upside-vol-threshold 0.085369
+  --accel-comparator below \
+  --accel-threshold -0.052641 \
+  --vol-comparator above \
+  --vol-threshold 0.085369
 
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --symbol SPY \
@@ -17,15 +19,17 @@ MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --signal-model roc \
   --roc-lookback 18 \
   --vol-window 20 \
-  --put-roc-threshold -0.005000 \
-  --downside-vol-threshold 0.094507
+  --roc-comparator below \
+  --roc-threshold -0.005000 \
+  --vol-comparator above \
+  --vol-threshold 0.094507
 
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
   --config option_signal_configs.txt
 
 Example option_signal_configs.txt rows:
---symbol SPY --signal-model roc --side put --roc-lookback 18 --vol-window 20 --put-roc-threshold -0.005000 --downside-vol-threshold 0.094507
---symbol SPY --signal-model accel --side call --accel-window 20 --vol-window 17 --call-accel-threshold -0.052641 --upside-vol-threshold 0.085369
+--symbol SPY --signal-model roc --side put --roc-lookback 18 --vol-window 20 --roc-comparator below --roc-threshold -0.005000 --vol-comparator above --vol-threshold 0.094507
+--symbol SPY --signal-model accel --side call --accel-window 20 --vol-window 17 --accel-comparator below --accel-threshold -0.052641 --vol-comparator above --vol-threshold 0.085369
 """
 import argparse
 import json
@@ -40,15 +44,9 @@ import pandas as pd
 import requests
 
 from option_pricing import black_scholes_call_price, black_scholes_put_price
-from weekly_option_reversal_core import build_signal_frame, compute_weekly_entry_candidates
-from weekly_option_acceleration_core import (
-    build_acceleration_signal_frame,
-    compute_weekly_entry_candidates as compute_weekly_acceleration_entry_candidates,
-)
-from weekly_option_roc_accel_core import (
-    build_roc_accel_signal_frame,
-    compute_weekly_entry_candidates as compute_weekly_roc_accel_entry_candidates,
-)
+from weekly_option_reversal_core import build_signal_frame
+from weekly_option_acceleration_core import build_acceleration_signal_frame
+from weekly_option_roc_accel_core import build_roc_accel_signal_frame
 
 
 DEFAULT_CACHE_CSV = "data/etfs.csv"
@@ -369,12 +367,22 @@ class SignalConfig:
     roc_lookback: int
     accel_window: int
     vol_window: int
-    put_roc_threshold: float
-    call_roc_threshold: float
-    put_accel_threshold: float
-    call_accel_threshold: float
-    downside_vol_threshold: float
-    upside_vol_threshold: float
+    roc_comparator: Optional[str]
+    roc_threshold: Optional[float]
+    accel_comparator: Optional[str]
+    accel_threshold: Optional[float]
+    vol_comparator: Optional[str]
+    vol_threshold: Optional[float]
+
+
+def _compare(value: Optional[float], comparator: Optional[str], threshold: Optional[float]) -> bool:
+    if comparator is None or threshold is None:
+        return True
+    if value is None:
+        return False
+    if comparator == "above":
+        return value >= threshold
+    return value <= threshold
 
 
 def _normalize_market_data_columns(df: pd.DataFrame, symbol_hint: Optional[str] = None) -> pd.DataFrame:
@@ -636,33 +644,56 @@ def _make_config_row_parser() -> argparse.ArgumentParser:
     row_parser.add_argument("--roc-lookback", type=int, default=5)
     row_parser.add_argument("--accel-window", type=int, default=5)
     row_parser.add_argument("--vol-window", type=int, default=20)
-    row_parser.add_argument("--put-roc-threshold", type=float, default=-0.03)
-    row_parser.add_argument("--call-roc-threshold", type=float, default=0.03)
-    row_parser.add_argument("--put-accel-threshold", type=float, default=0.03)
-    row_parser.add_argument("--call-accel-threshold", type=float, default=-0.03)
-    row_parser.add_argument("--downside-vol-threshold", type=float, default=0.20)
-    row_parser.add_argument("--upside-vol-threshold", type=float, default=0.20)
+    row_parser.add_argument("--roc-comparator", choices=["above", "below"], default=None)
+    row_parser.add_argument("--roc-threshold", type=float, default=None)
+    row_parser.add_argument("--accel-comparator", choices=["above", "below"], default=None)
+    row_parser.add_argument("--accel-threshold", type=float, default=None)
+    row_parser.add_argument("--vol-comparator", choices=["above", "below"], default=None)
+    row_parser.add_argument("--vol-threshold", type=float, default=None)
     return row_parser
 
 
 def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
-    if not args.config:
-        return [
-            SignalConfig(
-                symbol=args.symbol.upper(),
-                side=args.side,
-                signal_model=args.signal_model,
-                roc_lookback=args.roc_lookback,
-                accel_window=args.accel_window,
-                vol_window=args.vol_window,
-                put_roc_threshold=args.put_roc_threshold,
-                call_roc_threshold=args.call_roc_threshold,
-                put_accel_threshold=args.put_accel_threshold,
-                call_accel_threshold=args.call_accel_threshold,
-                downside_vol_threshold=args.downside_vol_threshold,
-                upside_vol_threshold=args.upside_vol_threshold,
-            )
+    def _validate_metric_tuples(cfg: SignalConfig) -> None:
+        tuples = [
+            ("roc", cfg.roc_comparator, cfg.roc_threshold),
+            ("accel", cfg.accel_comparator, cfg.accel_threshold),
+            ("vol", cfg.vol_comparator, cfg.vol_threshold),
         ]
+        complete = 0
+        for metric, comp, thr in tuples:
+            if (comp is None) ^ (thr is None):
+                raise ValueError(
+                    f"{cfg.symbol} {cfg.side}: {metric} comparator/threshold must be provided together."
+                )
+            if comp is not None and thr is not None:
+                complete += 1
+        if complete == 0:
+            raise ValueError(
+                f"{cfg.symbol} {cfg.side}: specify at least one tuple like --roc-comparator above --roc-threshold 0.3."
+            )
+        if cfg.signal_model == "roc" and cfg.accel_comparator is not None:
+            raise ValueError(f"{cfg.symbol} {cfg.side}: accel tuple is not valid for signal-model=roc.")
+        if cfg.signal_model == "accel" and cfg.roc_comparator is not None:
+            raise ValueError(f"{cfg.symbol} {cfg.side}: roc tuple is not valid for signal-model=accel.")
+
+    if not args.config:
+        cfg = SignalConfig(
+            symbol=args.symbol.upper(),
+            side=args.side,
+            signal_model=args.signal_model,
+            roc_lookback=args.roc_lookback,
+            accel_window=args.accel_window,
+            vol_window=args.vol_window,
+            roc_comparator=args.roc_comparator,
+            roc_threshold=args.roc_threshold,
+            accel_comparator=args.accel_comparator,
+            accel_threshold=args.accel_threshold,
+            vol_comparator=args.vol_comparator,
+            vol_threshold=args.vol_threshold,
+        )
+        _validate_metric_tuples(cfg)
+        return [cfg]
 
     path = Path(args.config)
     if not path.exists():
@@ -680,22 +711,22 @@ def _load_configs(args: argparse.Namespace) -> List[SignalConfig]:
         except SystemExit as exc:
             raise ValueError(f"Invalid config row at line {line_no}: {raw_line}") from exc
 
-        configs.append(
-            SignalConfig(
-                symbol=row.symbol.upper(),
-                side=row.side,
-                signal_model=row.signal_model,
-                roc_lookback=row.roc_lookback,
-                accel_window=row.accel_window,
-                vol_window=row.vol_window,
-                put_roc_threshold=row.put_roc_threshold,
-                call_roc_threshold=row.call_roc_threshold,
-                put_accel_threshold=row.put_accel_threshold,
-                call_accel_threshold=row.call_accel_threshold,
-                downside_vol_threshold=row.downside_vol_threshold,
-                upside_vol_threshold=row.upside_vol_threshold,
-            )
+        cfg = SignalConfig(
+            symbol=row.symbol.upper(),
+            side=row.side,
+            signal_model=row.signal_model,
+            roc_lookback=row.roc_lookback,
+            accel_window=row.accel_window,
+            vol_window=row.vol_window,
+            roc_comparator=row.roc_comparator,
+            roc_threshold=row.roc_threshold,
+            accel_comparator=row.accel_comparator,
+            accel_threshold=row.accel_threshold,
+            vol_comparator=row.vol_comparator,
+            vol_threshold=row.vol_threshold,
         )
+        _validate_metric_tuples(cfg)
+        configs.append(cfg)
 
     if not configs:
         raise ValueError(f"No usable config rows in {args.config}")
@@ -725,8 +756,6 @@ def _evaluate_config(
         signal_df = build_roc_accel_signal_frame(symbol_df, cfg.roc_lookback, cfg.accel_window)
 
     latest = signal_df.iloc[-1]
-    latest_idx = len(signal_df) - 1
-
     latest_roc = float(latest["roc"]) if "roc" in signal_df.columns and not pd.isna(latest["roc"]) else None
     latest_acceleration = (
         float(latest["acceleration"])
@@ -767,44 +796,23 @@ def _evaluate_config(
     latest_pricing_vol = float(latest_pricing_vol_value)
     pricing_vol = max(latest_pricing_vol, min_pricing_vol)
 
-    entry_candidates: Dict[str, Dict[int, Dict[str, float]]] = {}
-    for side in selected_sides:
-        if cfg.signal_model == "accel":
-            entry_candidates[side] = compute_weekly_acceleration_entry_candidates(
-                signal_df=signal_df,
-                side=side,
-                put_accel_threshold=cfg.put_accel_threshold,
-                call_accel_threshold=cfg.call_accel_threshold,
-                downside_vol_threshold_annualized=cfg.downside_vol_threshold,
-                upside_vol_threshold_annualized=cfg.upside_vol_threshold,
-                allow_overlap=False,
-                require_future_week_row=False,
-            )
-        elif cfg.signal_model == "roc":
-            entry_candidates[side] = compute_weekly_entry_candidates(
-                signal_df=signal_df,
-                side=side,
-                put_roc_threshold=cfg.put_roc_threshold,
-                call_roc_threshold=cfg.call_roc_threshold,
-                downside_vol_threshold_annualized=cfg.downside_vol_threshold,
-                upside_vol_threshold_annualized=cfg.upside_vol_threshold,
-                allow_overlap=False,
-                require_future_week_row=False,
-            )
-        else:
-            entry_candidates[side] = compute_weekly_roc_accel_entry_candidates(
-                signal_df=signal_df,
-                side=side,
-                put_roc_threshold=cfg.put_roc_threshold,
-                call_roc_threshold=cfg.call_roc_threshold,
-                put_accel_threshold=cfg.put_accel_threshold,
-                call_accel_threshold=cfg.call_accel_threshold,
-                allow_overlap=False,
-                require_future_week_row=False,
-            )
-
-    put_trigger = "put" in entry_candidates and latest_idx in entry_candidates["put"]
-    call_trigger = "call" in entry_candidates and latest_idx in entry_candidates["call"]
+    weekday = latest_date.weekday()
+    days_to_expiry = 4 - weekday
+    has_time = days_to_expiry > 0
+    put_trigger = False
+    call_trigger = False
+    if has_time and "put" in selected_sides:
+        put_trigger = (
+            _compare(latest_roc, cfg.roc_comparator, cfg.roc_threshold)
+            and _compare(latest_acceleration, cfg.accel_comparator, cfg.accel_threshold)
+            and _compare(latest_downside_vol, cfg.vol_comparator, cfg.vol_threshold)
+        )
+    if has_time and "call" in selected_sides:
+        call_trigger = (
+            _compare(latest_roc, cfg.roc_comparator, cfg.roc_threshold)
+            and _compare(latest_acceleration, cfg.accel_comparator, cfg.accel_threshold)
+            and _compare(latest_upside_vol, cfg.vol_comparator, cfg.vol_threshold)
+        )
 
     messages: List[str] = []
     fired_signals: List[Dict[str, Any]] = []
@@ -813,7 +821,6 @@ def _evaluate_config(
         is_triggered = put_trigger if side == "put" else call_trigger
         if not is_triggered:
             continue
-        days_to_expiry = int(entry_candidates[side][latest_idx]["days_to_friday"])
         time_to_expiry_years = days_to_expiry / 365.25
 
         if side == "put":
@@ -890,31 +897,31 @@ def _evaluate_config(
 
     if "put" in selected_sides:
         put_fields: Dict[str, Any] = {
-            "downside_vol_threshold": cfg.downside_vol_threshold,
             "downside_vol_annualized": latest_downside_vol,
             "put_trigger": put_trigger,
+            "vol_comparator": cfg.vol_comparator,
+            "vol_threshold": cfg.vol_threshold,
         }
-        if cfg.signal_model == "accel":
-            put_fields["put_accel_threshold"] = cfg.put_accel_threshold
-        elif cfg.signal_model == "roc":
-            put_fields["put_roc_threshold"] = cfg.put_roc_threshold
-        else:
-            put_fields["put_roc_threshold"] = cfg.put_roc_threshold
-            put_fields["put_accel_threshold"] = cfg.put_accel_threshold
+        if cfg.roc_comparator is not None:
+            put_fields["roc_comparator"] = cfg.roc_comparator
+            put_fields["roc_threshold"] = cfg.roc_threshold
+        if cfg.accel_comparator is not None:
+            put_fields["accel_comparator"] = cfg.accel_comparator
+            put_fields["accel_threshold"] = cfg.accel_threshold
         result.update(put_fields)
     if "call" in selected_sides:
         call_fields: Dict[str, Any] = {
-            "upside_vol_threshold": cfg.upside_vol_threshold,
             "upside_vol_annualized": latest_upside_vol,
             "call_trigger": call_trigger,
+            "vol_comparator": cfg.vol_comparator,
+            "vol_threshold": cfg.vol_threshold,
         }
-        if cfg.signal_model == "accel":
-            call_fields["call_accel_threshold"] = cfg.call_accel_threshold
-        elif cfg.signal_model == "roc":
-            call_fields["call_roc_threshold"] = cfg.call_roc_threshold
-        else:
-            call_fields["call_roc_threshold"] = cfg.call_roc_threshold
-            call_fields["call_accel_threshold"] = cfg.call_accel_threshold
+        if cfg.roc_comparator is not None:
+            call_fields["roc_comparator"] = cfg.roc_comparator
+            call_fields["roc_threshold"] = cfg.roc_threshold
+        if cfg.accel_comparator is not None:
+            call_fields["accel_comparator"] = cfg.accel_comparator
+            call_fields["accel_threshold"] = cfg.accel_threshold
         result.update(call_fields)
     return result
 
@@ -955,7 +962,7 @@ def main() -> None:
         default="option_signal_notifier.config",
         help=(
             "Optional config text file. One non-empty, non-comment line per setup using CLI-style flags, "
-            "for example: --symbol SPY --signal-model accel --side put --accel-window 18 --vol-window 20 --put-accel-threshold 0.005 --downside-vol-threshold 0.094507"
+            "for example: --symbol SPY --signal-model accel --side put --accel-window 18 --vol-window 20 --accel-comparator above --accel-threshold 0.005 --vol-comparator above --vol-threshold 0.094507"
         ),
     )
     parser.add_argument(
@@ -977,12 +984,12 @@ def main() -> None:
     parser.add_argument("--roc-lookback", type=int, default=5, help="Days for ROC.")
     parser.add_argument("--accel-window", type=int, default=5, help="Days for acceleration signal.")
     parser.add_argument("--vol-window", type=int, default=20, help="Rolling window for volatility.")
-    parser.add_argument("--put-roc-threshold", type=float, default=-0.03, help="Put trigger: ROC <= threshold.")
-    parser.add_argument("--call-roc-threshold", type=float, default=0.03, help="Call trigger: ROC >= threshold.")
-    parser.add_argument("--put-accel-threshold", type=float, default=0.03, help="Put trigger: acceleration >= threshold.")
-    parser.add_argument("--call-accel-threshold", type=float, default=-0.03, help="Call trigger: acceleration <= threshold.")
-    parser.add_argument("--downside-vol-threshold", type=float, default=0.20, help="Annualized downside volatility threshold.")
-    parser.add_argument("--upside-vol-threshold", type=float, default=0.20, help="Annualized upside volatility threshold.")
+    parser.add_argument("--roc-comparator", choices=["above", "below"], default=None, help="ROC comparator.")
+    parser.add_argument("--roc-threshold", type=float, default=None, help="ROC threshold.")
+    parser.add_argument("--accel-comparator", choices=["above", "below"], default=None, help="Acceleration comparator.")
+    parser.add_argument("--accel-threshold", type=float, default=None, help="Acceleration threshold.")
+    parser.add_argument("--vol-comparator", choices=["above", "below"], default=None, help="Volatility comparator.")
+    parser.add_argument("--vol-threshold", type=float, default=None, help="Volatility threshold.")
     parser.add_argument("--risk-free-rate", type=float, default=0.04, help="Risk-free rate for Black-Scholes.")
     parser.add_argument("--min-pricing-vol", type=float, default=0.10, help="Vol floor (annualized) used in option pricing.")
     parser.add_argument("--contract-size", type=int, default=100, help="Shares per option contract.")
@@ -1065,12 +1072,12 @@ def main() -> None:
         printable = signal_df.copy()
         if cfg.signal_model == "accel":
             printable["put_signal"] = (
-                (printable["acceleration"] >= cfg.put_accel_threshold)
-                & (printable["downside_vol_annualized"] >= cfg.downside_vol_threshold)
+                printable["acceleration"].map(lambda v: _compare(v, cfg.accel_comparator, cfg.accel_threshold))
+                & printable["downside_vol_annualized"].map(lambda v: _compare(v, cfg.vol_comparator, cfg.vol_threshold))
             )
             printable["call_signal"] = (
-                (printable["acceleration"] <= cfg.call_accel_threshold)
-                & (printable["upside_vol_annualized"] >= cfg.upside_vol_threshold)
+                printable["acceleration"].map(lambda v: _compare(v, cfg.accel_comparator, cfg.accel_threshold))
+                & printable["upside_vol_annualized"].map(lambda v: _compare(v, cfg.vol_comparator, cfg.vol_threshold))
             )
             signal_col = "acceleration"
             cols = [
@@ -1085,12 +1092,12 @@ def main() -> None:
             ]
         elif cfg.signal_model == "roc":
             printable["put_signal"] = (
-                (printable["roc"] <= cfg.put_roc_threshold)
-                & (printable["downside_vol_annualized"] >= cfg.downside_vol_threshold)
+                printable["roc"].map(lambda v: _compare(v, cfg.roc_comparator, cfg.roc_threshold))
+                & printable["downside_vol_annualized"].map(lambda v: _compare(v, cfg.vol_comparator, cfg.vol_threshold))
             )
             printable["call_signal"] = (
-                (printable["roc"] >= cfg.call_roc_threshold)
-                & (printable["upside_vol_annualized"] >= cfg.upside_vol_threshold)
+                printable["roc"].map(lambda v: _compare(v, cfg.roc_comparator, cfg.roc_threshold))
+                & printable["upside_vol_annualized"].map(lambda v: _compare(v, cfg.vol_comparator, cfg.vol_threshold))
             )
             signal_col = "roc"
             cols = [
@@ -1105,12 +1112,12 @@ def main() -> None:
             ]
         else:
             printable["put_signal"] = (
-                (printable["roc"] <= cfg.put_roc_threshold)
-                & (printable["acceleration"] >= cfg.put_accel_threshold)
+                printable["roc"].map(lambda v: _compare(v, cfg.roc_comparator, cfg.roc_threshold))
+                & printable["acceleration"].map(lambda v: _compare(v, cfg.accel_comparator, cfg.accel_threshold))
             )
             printable["call_signal"] = (
-                (printable["roc"] >= cfg.call_roc_threshold)
-                & (printable["acceleration"] <= cfg.call_accel_threshold)
+                printable["roc"].map(lambda v: _compare(v, cfg.roc_comparator, cfg.roc_threshold))
+                & printable["acceleration"].map(lambda v: _compare(v, cfg.accel_comparator, cfg.accel_threshold))
             )
             cols = [
                 "date",
