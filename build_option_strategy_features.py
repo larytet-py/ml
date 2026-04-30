@@ -499,7 +499,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-parquet", default="data/features/option_strategy_features.parquet")
     parser.add_argument("--schema-json", default="data/option_strategy_features.schema.json")
     parser.add_argument("--meta-json", default="data/option_strategy_features.meta.json")
-    parser.add_argument("--window-config-yaml", default="data/option_feature_windows.yaml")
+    parser.add_argument("--window-config-yaml", default="data/option_feature_windows.yml")
     parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--chunksize", type=int, default=200000)
     parser.add_argument("--force-rebuild", action="store_true")

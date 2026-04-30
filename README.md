@@ -103,7 +103,7 @@ analyze_weekly_regime_with_etf_context.py
 
 # Option Signal Config
 
-Strategy definitions live in `data/option_signal_notifier.yaml`.
+Strategy definitions live in `data/option_signal_notifier.yml`.
 
 ```sh
 python3.11 build_option_strategy_features.py --workers 4
@@ -129,7 +129,7 @@ strategy_sets:
 
 # Option Signal Date Clustering (from config notes)
 
-Using the strategy notes in `data/option_signal_notifier.yaml`, `entry_date` values tend to cluster across assets (same date appears in multiple symbols).
+Using the strategy notes in `data/option_signal_notifier.yml`, `entry_date` values tend to cluster across assets (same date appears in multiple symbols).
 
 - Clustered dates (distinct symbols >= 2): 33
 - Total distinct `entry_date` values: 83

@@ -5,7 +5,7 @@ Usage:
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py
 
 MARKET_STACK_API_KEY=1fd.. python3 option_signal_notifier.py \
-  --config data/option_signal_notifier.yaml
+  --config data/option_signal_notifier.yml
 """
 import argparse
 import json
@@ -1080,7 +1080,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--config",
-        default="data/option_signal_notifier.yaml",
+        default="data/option_signal_notifier.yml",
         help="YAML config file containing strategy definitions.",
     )
     parser.add_argument(

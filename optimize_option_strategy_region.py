@@ -261,7 +261,7 @@ def _evaluate_candidate_factory(df: pd.DataFrame, args: argparse.Namespace, side
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Constrained Bayesian optimization for weekly option strategy with region-flatness diagnostics.")
     parser.add_argument("--features-parquet", default="data/bayesian/option_strategy_features.parquet")
-    parser.add_argument("--window-config-yaml", default="data/bayesian/option_feature_windows.yaml")
+    parser.add_argument("--window-config-yaml", default="data/option_feature_windows.yml")
     parser.add_argument("--symbol", required=True)
     parser.add_argument("--side", choices=["put", "call"], required=True)
     parser.add_argument("--start-date", "--stare-date", dest="start_date", default=None)

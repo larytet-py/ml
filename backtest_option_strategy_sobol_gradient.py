@@ -396,7 +396,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--config",
-        default="data/option_signal_notifier.yaml",
+        default="data/option_signal_notifier.yml",
         help="YAML config file containing strategy definitions.",
     )
     parser.add_argument(
