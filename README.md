@@ -181,7 +181,7 @@ python3.11 optimize_option_strategy_sobol_gradient.py --symbol VXX --side put --
 python3.11 - <<'PY'
 import pandas as pd
 
-df = pd.read_parquet("data/sobol_gradient_trials.parquet")
+df = pd.read_parquet("data/sobol_gradient_trials_put.VXX.weekly_single_leg.parquet")
 runs = df[df["metric__total"].fillna(0) > 3].copy()
 outfile = "data/sobol_gradient_runs_trades_gt_3.csv"
 runs.to_csv(outfile, index=False)

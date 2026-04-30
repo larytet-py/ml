@@ -33,7 +33,7 @@ METRIC_KEYS: Tuple[str, ...] = (
     "max_drawdown",
 )
 
-DEFAULT_BACKTEST_NAME = "weekly-single-leg"
+DEFAULT_BACKTEST_NAME = "weekly_single_leg"
 DEFAULT_BACKTEST_CLASS = "backtest_option_strategy_sobol_gradient.PrecomputedFeatureBacktester"
 DEFAULT_DIMENSIONS: Dict[str, Dict[str, Any]] = {
     "roc_window_size": {"min": 2, "max": 60, "type": "int"},
@@ -1110,16 +1110,35 @@ class Orchestrator:
         self._write_final_json(seed_rows)
 
 
-def _symbol_side_scoped_path(base_path: str, *, symbol: str, side: str) -> str:
+def _clean_path_token(value: str, *, default: str) -> str:
+    token = str(value).strip()
+    cleaned = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in token)
+    cleaned = cleaned.strip("-_")
+    return cleaned or default
+
+
+def _resolve_backtest_name(config_path: Optional[str]) -> str:
+    config = _load_yaml_config(config_path)
+    raw = config.get("backtest", {}) if isinstance(config, dict) else {}
+    if not isinstance(raw, dict):
+        return DEFAULT_BACKTEST_NAME
+    name = str(raw.get("name", DEFAULT_BACKTEST_NAME)).strip()
+    return name or DEFAULT_BACKTEST_NAME
+
+
+def _symbol_side_scoped_path(base_path: str, *, symbol: str, side: str, backtest: Optional[str] = None) -> str:
     """Return a per-symbol/per-side output path derived from a shared default path.
 
     Example:
-        data/sobol_gradient_trials.parquet -> data/sobol_gradient_trials_put.GDX.parquet
+        data/sobol_gradient_trials.parquet -> data/sobol_gradient_trials_put.GDX.weekly_single_leg.parquet
     """
     path = Path(base_path)
-    clean_symbol = str(symbol).upper().strip()
-    clean_side = str(side).lower().strip()
-    return str(path.with_name(f"{path.stem}_{clean_side}.{clean_symbol}{path.suffix}"))
+    clean_symbol = _clean_path_token(str(symbol).upper(), default="SYMBOL")
+    clean_side = _clean_path_token(str(side).lower(), default="side")
+    parts = [f"{path.stem}_{clean_side}", clean_symbol]
+    if backtest is not None:
+        parts.append(_clean_path_token(backtest, default=DEFAULT_BACKTEST_NAME))
+    return str(path.with_name(f"{'.'.join(parts)}{path.suffix}"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -1132,7 +1151,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Trials parquet path. If omitted, a symbol/side-specific path is used, "
-            "for example data/sobol_gradient_trials_put.GDX.parquet."
+            "for example data/sobol_gradient_trials_put.GDX.weekly_single_leg.parquet."
         ),
     )
     parser.add_argument(
@@ -1140,7 +1159,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Final JSON path. If omitted, a symbol/side-specific path is used, "
-            "for example data/sobol_gradient_top_runs_put.GDX.json."
+            "for example data/sobol_gradient_top_runs_put.GDX.weekly_single_leg.json."
         ),
     )
 
@@ -1197,17 +1216,21 @@ def parse_args() -> argparse.Namespace:
     args.symbol = str(args.symbol).upper().strip()
     args.side = str(args.side).lower().strip()
 
+    backtest_name = _resolve_backtest_name(args.window_config_yaml)
+
     if args.trials_parquet is None:
         args.trials_parquet = _symbol_side_scoped_path(
             "data/sobol_gradient_trials.parquet",
             symbol=args.symbol,
             side=args.side,
+            backtest=backtest_name,
         )
     if args.final_results_json is None:
         args.final_results_json = _symbol_side_scoped_path(
             "data/sobol_gradient_top_runs.json",
             symbol=args.symbol,
             side=args.side,
+            backtest=backtest_name,
         )
 
     if args.sobol_samples <= 0:

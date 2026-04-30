@@ -1,5 +1,5 @@
 backtest:
-  name: weekly-single-leg
+  name: weekly_single_leg
   class: backtest_option_strategy_sobol_gradient.PrecomputedFeatureBacktester
   dimensions:
     roc_window_size:
