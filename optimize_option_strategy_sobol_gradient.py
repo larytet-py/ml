@@ -786,6 +786,69 @@ class Orchestrator:
         self._log_progress(prefix="gradient")
         return row
 
+    def _evaluate_gradient_batch_cached(
+        self,
+        *,
+        requests: Sequence[Tuple[Dict[str, float], int, int]],
+        executor: ProcessPoolExecutor,
+    ) -> List[Dict[str, Any]]:
+        rows_by_key: Dict[str, Dict[str, Any]] = {}
+        futures: Dict[Future[Any], Tuple[Dict[str, float], int, int, str]] = {}
+        ordered_keys: List[str] = []
+        cache_hits = 0
+
+        for params_in, parent_trial_id, seed_rank in requests:
+            params = dict(params_in)
+            key = self._cache_key(params)
+            ordered_keys.append(key)
+            if key in rows_by_key:
+                cache_hits += 1
+                continue
+            trial_id = self.key_to_trial_id.get(key)
+            if trial_id is not None:
+                row = self._find_row_by_trial_id(trial_id)
+                if row is not None:
+                    rows_by_key[key] = row
+                    cache_hits += 1
+                    continue
+            future = executor.submit(_process_worker_backtest, params)
+            futures[future] = (params, parent_trial_id, seed_rank, key)
+
+        while futures:
+            done, _ = wait(list(futures.keys()), timeout=0.2, return_when=FIRST_COMPLETED)
+            if not done:
+                self._maybe_checkpoint(force=False)
+                self._log_progress(prefix="gradient")
+                continue
+            for future in done:
+                params, parent_trial_id, seed_rank, key = futures.pop(future)
+                feasible, metrics = future.result()
+                row = self._row_from_worker_result(
+                    params=params,
+                    phase="gradient",
+                    parent_trial_id=parent_trial_id,
+                    seed_rank=seed_rank,
+                    feasible=feasible,
+                    metrics=metrics,
+                    objective_score=float(self._objective_from_metrics(metrics)),
+                )
+                self.pending_rows.append(row)
+                self._update_best(row)
+                rows_by_key[key] = row
+            self._maybe_checkpoint(force=False)
+            self._log_progress(prefix="gradient")
+
+        self._maybe_checkpoint(force=False)
+        self._log_progress(prefix="gradient")
+        if cache_hits:
+            # Keep the accounting visible without turning every cached probe into a progress line.
+            pass
+        return [rows_by_key[key] for key in ordered_keys]
+
+    def _row_objective(self, row: Dict[str, Any]) -> float:
+        metrics = {k: float(row.get(f"metric__{k}", 0.0)) for k in METRIC_KEYS}
+        return self._objective_from_metrics(metrics)
+
     def _run_gradient(self, seed_rows: List[Dict[str, Any]]) -> None:
         if int(self.args.gradient_steps) <= 0 or not seed_rows:
             print("[gradient] skipped", flush=True)
@@ -797,31 +860,53 @@ class Orchestrator:
             flush=True,
         )
 
-        for seed_idx, seed_row in enumerate(seed_rows, start=1):
-            seed_tid = int(seed_row["trial_id"])
-            start_params = self._row_params(seed_row)
+        steps = int(self.args.gradient_steps)
+        step_size = float(self.args.gradient_step_size)
+        learning_rate = float(self.args.gradient_learning_rate)
+        dim = len(self.dim_specs)
 
-            def objective_fn(params: Dict[str, float]) -> float:
-                row = self._evaluate_sync_cached(
-                    params=params,
-                    phase="gradient",
-                    parent_trial_id=seed_tid,
-                    seed_rank=seed_idx,
-                )
-                metrics = {
-                    k: float(row.get(f"metric__{k}", 0.0))
-                    for k in METRIC_KEYS
-                }
-                return self._objective_from_metrics(metrics)
+        with ProcessPoolExecutor(
+            max_workers=self.workers,
+            mp_context=mp.get_context("fork"),
+            initializer=_process_worker_initializer,
+        ) as executor:
+            for seed_idx, seed_row in enumerate(seed_rows, start=1):
+                seed_tid = int(seed_row["trial_id"])
+                x = self._normalize_params(self._row_params(seed_row))
 
-            gd = FiniteDifferenceGradientDescent(
-                search_space=self.search_space,
-                objective_fn=objective_fn,
-                gradient_step_size=float(self.args.gradient_step_size),
-                learning_rate=float(self.args.gradient_learning_rate),
-                seed=int(self.args.seed) + seed_idx,
-            )
-            gd.run(start_params=start_params, steps=int(self.args.gradient_steps))
+                for step_index in range(steps + 1):
+                    requests: List[Tuple[Dict[str, float], int, int]] = [
+                        (self._denormalize_params(x), seed_tid, seed_idx)
+                    ]
+                    probe_pairs: List[Tuple[int, int, int]] = []
+
+                    if step_index < steps:
+                        for dim_index in range(dim):
+                            offset = np.zeros(dim, dtype=float)
+                            offset[dim_index] = step_size
+                            plus_idx = len(requests)
+                            requests.append((self._denormalize_params(np.clip(x + offset, 0.0, 1.0)), seed_tid, seed_idx))
+                            minus_idx = len(requests)
+                            requests.append((self._denormalize_params(np.clip(x - offset, 0.0, 1.0)), seed_tid, seed_idx))
+                            probe_pairs.append((dim_index, plus_idx, minus_idx))
+
+                    rows = self._evaluate_gradient_batch_cached(requests=requests, executor=executor)
+
+                    if step_index == steps:
+                        break
+
+                    gradient = np.zeros(dim, dtype=float)
+                    denominator = max(2.0 * step_size, 1e-12)
+                    for dim_index, plus_idx, minus_idx in probe_pairs:
+                        y_plus = self._row_objective(rows[plus_idx])
+                        y_minus = self._row_objective(rows[minus_idx])
+                        gradient[dim_index] = (y_plus - y_minus) / denominator
+
+                    gradient_norm = float(np.linalg.norm(gradient))
+                    if gradient_norm <= 0:
+                        break
+
+                    x = np.clip(x + learning_rate * (gradient / gradient_norm), 0.0, 1.0)
 
         self._maybe_checkpoint(force=True)
         self._log_progress(force=True, prefix="gradient")
