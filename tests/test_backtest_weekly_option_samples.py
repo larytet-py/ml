@@ -5,6 +5,7 @@ from backtest_weekly_option_acceleration_reversal import summarize_trades as sum
 from backtest_weekly_option_reversal import load_symbol_data
 from backtest_weekly_option_reversal import run_backtest as run_roc_backtest
 from backtest_weekly_option_reversal import summarize_trades as summarize_roc_trades
+from backtest_weekly_option_reversal_weekend import run_backtest as run_weekend_roc_backtest
 from backtest_weekly_option_roc_accel_reversal import run_backtest as run_roc_accel_backtest
 from backtest_weekly_option_roc_accel_reversal import summarize_trades as summarize_roc_accel_trades
 
@@ -104,6 +105,67 @@ class BacktestTableSamplesTests(unittest.TestCase):
         self.assertEqual(
             [d.date().isoformat() for d in trades["exit_date"].tail(5)],
             expected_recent_exit_dates,
+        )
+
+    def test_weekend_reversal_enters_friday_and_exits_next_friday(self):
+        trades = run_weekend_roc_backtest(
+            df=self.spy_df.copy(),
+            side="call",
+            roc_lookback=2,
+            put_roc_threshold=-0.03,
+            call_roc_threshold=-1.0,
+            vol_window=2,
+            downside_vol_threshold_annualized=0.2,
+            upside_vol_threshold_annualized=0.0,
+            risk_free_rate=RISK_FREE_RATE,
+            min_pricing_vol_annualized=MIN_PRICING_VOL,
+            contract_size=CONTRACT_SIZE,
+            allow_overlap=False,
+        )
+        metrics = summarize_roc_trades(trades)
+
+        self._assert_common_metrics(
+            metrics=metrics,
+            trades=trades,
+            expected_trades=8,
+            expected_win_rate_pct=75.00,
+            expected_itm_count=2,
+            expected_itm_rate_pct=25.00,
+            expected_total_pnl=425.36,
+            expected_avg_pnl=53.17,
+            expected_median_pnl=480.48,
+            expected_avg_return_pct=0.0824,
+            expected_max_drawdown=-2301.75,
+        )
+
+        self.assertEqual([d.weekday() for d in trades["entry_date"]], [4] * len(trades))
+        self.assertEqual([d.weekday() for d in trades["exit_date"]], [4] * len(trades))
+        self.assertEqual(trades["time_to_expiry_days"].tolist(), [7] * len(trades))
+        self.assertEqual(
+            [d.date().isoformat() for d in trades["entry_date"]],
+            [
+                "2026-02-06",
+                "2026-02-13",
+                "2026-02-20",
+                "2026-02-27",
+                "2026-03-06",
+                "2026-03-13",
+                "2026-03-20",
+                "2026-04-10",
+            ],
+        )
+        self.assertEqual(
+            [d.date().isoformat() for d in trades["exit_date"]],
+            [
+                "2026-02-13",
+                "2026-02-20",
+                "2026-02-27",
+                "2026-03-06",
+                "2026-03-13",
+                "2026-03-20",
+                "2026-03-27",
+                "2026-04-17",
+            ],
         )
 
     def test_acceleration_sample_from_config_matches_table(self):
