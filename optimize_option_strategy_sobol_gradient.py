@@ -18,7 +18,6 @@ import yaml
 
 from backtest_option_strategy_sobol_gradient import PrecomputedFeatureBacktester
 from optimization.constrained_bo import ParamSpec
-from optimization.gradient_descent import FiniteDifferenceGradientDescent
 from optimization.sobol_sampling import SobolSampler
 
 METRIC_KEYS: Tuple[str, ...] = (
@@ -194,6 +193,8 @@ class Orchestrator:
         self.pending_rows: List[Dict[str, Any]] = []
         self.last_progress_at = 0.0
         self.last_checkpoint_at = time.monotonic()
+        self.gradient_submitted = 0
+        self.gradient_cache_hits = 0
 
         self.best_row: Optional[Dict[str, Any]] = self._compute_best_from_df(self.df)
 
@@ -399,6 +400,9 @@ class Orchestrator:
         self.df = pd.DataFrame(records)
 
     def _find_row_by_trial_id(self, trial_id: int) -> Optional[Dict[str, Any]]:
+        for row in reversed(self.pending_rows):
+            if int(row.get("trial_id", -1)) == int(trial_id):
+                return dict(row)
         if self.df.empty:
             return None
         subset = self.df[pd.to_numeric(self.df["trial_id"], errors="coerce") == int(trial_id)]
@@ -794,25 +798,30 @@ class Orchestrator:
     ) -> List[Dict[str, Any]]:
         rows_by_key: Dict[str, Dict[str, Any]] = {}
         futures: Dict[Future[Any], Tuple[Dict[str, float], int, int, str]] = {}
+        in_flight_keys: set[str] = set()
         ordered_keys: List[str] = []
-        cache_hits = 0
 
         for params_in, parent_trial_id, seed_rank in requests:
             params = dict(params_in)
             key = self._cache_key(params)
             ordered_keys.append(key)
             if key in rows_by_key:
-                cache_hits += 1
+                self.gradient_cache_hits += 1
+                continue
+            if key in in_flight_keys:
+                self.gradient_cache_hits += 1
                 continue
             trial_id = self.key_to_trial_id.get(key)
             if trial_id is not None:
                 row = self._find_row_by_trial_id(trial_id)
                 if row is not None:
                     rows_by_key[key] = row
-                    cache_hits += 1
+                    self.gradient_cache_hits += 1
                     continue
             future = executor.submit(_process_worker_backtest, params)
             futures[future] = (params, parent_trial_id, seed_rank, key)
+            in_flight_keys.add(key)
+            self.gradient_submitted += 1
 
         while futures:
             done, _ = wait(list(futures.keys()), timeout=0.2, return_when=FIRST_COMPLETED)
@@ -822,6 +831,7 @@ class Orchestrator:
                 continue
             for future in done:
                 params, parent_trial_id, seed_rank, key = futures.pop(future)
+                in_flight_keys.discard(key)
                 feasible, metrics = future.result()
                 row = self._row_from_worker_result(
                     params=params,
@@ -840,9 +850,6 @@ class Orchestrator:
 
         self._maybe_checkpoint(force=False)
         self._log_progress(prefix="gradient")
-        if cache_hits:
-            # Keep the accounting visible without turning every cached probe into a progress line.
-            pass
         return [rows_by_key[key] for key in ordered_keys]
 
     def _row_objective(self, row: Dict[str, Any]) -> float:
@@ -864,6 +871,8 @@ class Orchestrator:
         step_size = float(self.args.gradient_step_size)
         learning_rate = float(self.args.gradient_learning_rate)
         dim = len(self.dim_specs)
+        self.gradient_submitted = 0
+        self.gradient_cache_hits = 0
 
         with ProcessPoolExecutor(
             max_workers=self.workers,
@@ -910,7 +919,10 @@ class Orchestrator:
 
         self._maybe_checkpoint(force=True)
         self._log_progress(force=True, prefix="gradient")
-        print("[gradient] complete", flush=True)
+        print(
+            f"[gradient] complete submitted={self.gradient_submitted} cache_hits={self.gradient_cache_hits}",
+            flush=True,
+        )
 
     def _rows_in_seed_areas(self, seed_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if self.df.empty or not seed_rows:
