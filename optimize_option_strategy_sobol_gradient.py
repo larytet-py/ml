@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import math
 import multiprocessing as mp
@@ -16,8 +17,6 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from option_backtest_registry import BacktestSpec, get_backtest_spec, list_backtest_names
-from option_signal_config import load_signal_strategy_dicts, select_signal_strategy
 from optimization.constrained_bo import ParamSpec
 from optimization.sobol_sampling import SobolSampler
 
@@ -33,6 +32,45 @@ METRIC_KEYS: Tuple[str, ...] = (
     "avg_return_on_spot",
     "max_drawdown",
 )
+
+DEFAULT_BACKTEST_NAME = "weekly-single-leg"
+DEFAULT_BACKTEST_CLASS = "backtest_option_strategy_sobol_gradient.PrecomputedFeatureBacktester"
+DEFAULT_DIMENSIONS: Dict[str, Dict[str, Any]] = {
+    "roc_window_size": {"min": 2, "max": 60, "type": "int"},
+    "vol_window_size": {"min": 2, "max": 40, "type": "int"},
+    "roc_threshold": {"min": -0.40, "max": 0.40, "type": "float"},
+    "vol_threshold": {"min": 0.00, "max": 1.00, "type": "float"},
+}
+DEFAULT_KNOBS: Dict[str, Any] = {
+    "side": "put",
+    "roc_window_size": 2,
+    "roc_comparator": "below",
+    "roc_threshold": 0.0,
+    "roc_range_enabled": 0,
+    "roc_range_low": 0.0,
+    "roc_range_high": 0.0,
+    "vol_window_size": 2,
+    "vol_comparator": "above",
+    "vol_threshold": 0.0,
+    "vol_range_enabled": 0,
+    "vol_range_low": 0.0,
+    "vol_range_high": 0.0,
+}
+DEFAULT_DIMENSION_ALIASES = {
+    "roc_window": "roc_window_size",
+    "vol_window": "vol_window_size",
+}
+
+
+@dataclass(frozen=True)
+class BacktestConfig:
+    name: str
+    class_path: str
+    backtester_cls: Any
+    default_dimensions: Dict[str, Dict[str, Any]]
+    default_knobs: Dict[str, Any]
+    dimension_aliases: Dict[str, str]
+
 
 @dataclass(frozen=True)
 class DimensionSpec:
@@ -74,8 +112,79 @@ class Phase2CandidateStats:
     draws_attempted: int = 0
 
 
+def _load_yaml_config(path: Optional[str]) -> Dict[str, Any]:
+    if not path:
+        return {}
+    p = Path(path)
+    if not p.exists():
+        return {}
+    loaded = yaml.safe_load(p.read_text()) or {}
+    if not isinstance(loaded, dict):
+        return {}
+    return loaded
+
+
+def _import_class(class_path: str) -> Any:
+    if "." not in class_path:
+        raise ValueError(f"Backtest class path must include a module and class: {class_path}")
+    module_name, class_name = class_path.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
+def _normalize_knobs(knobs: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(knobs)
+    if "roc_range_low" in out and "roc_range_high" in out and out["roc_range_low"] > out["roc_range_high"]:
+        out["roc_range_low"], out["roc_range_high"] = out["roc_range_high"], out["roc_range_low"]
+    if "vol_range_low" in out and "vol_range_high" in out and out["vol_range_low"] > out["vol_range_high"]:
+        out["vol_range_low"], out["vol_range_high"] = out["vol_range_high"], out["vol_range_low"]
+    return out
+
+
+def _resolve_backtest_config(config_path: Optional[str]) -> BacktestConfig:
+    config = _load_yaml_config(config_path)
+    raw = config.get("backtest", {}) if isinstance(config, dict) else {}
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{config_path}: backtest must be a mapping when provided.")
+
+    name = str(raw.get("name", DEFAULT_BACKTEST_NAME)).strip()
+    class_path = str(raw.get("class", raw.get("class_path", DEFAULT_BACKTEST_CLASS))).strip()
+    if not name:
+        raise ValueError(f"{config_path}: backtest.name must not be empty.")
+    if not class_path:
+        raise ValueError(f"{config_path}: backtest.class must not be empty.")
+
+    dimensions = dict(DEFAULT_DIMENSIONS)
+    raw_dimensions = raw.get("dimensions", {})
+    if isinstance(raw_dimensions, dict):
+        for key, value in raw_dimensions.items():
+            if isinstance(value, dict):
+                dimensions[str(key)] = dict(value)
+
+    knobs = dict(DEFAULT_KNOBS)
+    raw_knobs = raw.get("knob_defaults", raw.get("knobs", {}))
+    if isinstance(raw_knobs, dict):
+        knobs.update(raw_knobs)
+
+    aliases = dict(DEFAULT_DIMENSION_ALIASES)
+    raw_aliases = raw.get("dimension_aliases", {})
+    if isinstance(raw_aliases, dict):
+        aliases.update({str(k): str(v) for k, v in raw_aliases.items()})
+
+    return BacktestConfig(
+        name=name,
+        class_path=class_path,
+        backtester_cls=_import_class(class_path),
+        default_dimensions=dimensions,
+        default_knobs=knobs,
+        dimension_aliases=aliases,
+    )
+
+
 _WORKER_BACKTESTER: Optional[Any] = None
-_WORKER_BACKTEST_SPEC: Optional[BacktestSpec] = None
+_WORKER_BACKTEST_CONFIG: Optional[BacktestConfig] = None
 _WORKER_DIM_SPECS: Dict[str, DimensionSpec] = {}
 _WORKER_BASE_KNOBS: Dict[str, Any] = {}
 _WORKER_CONTEXT: Optional[RunContext] = None
@@ -86,7 +195,7 @@ def _compose_knobs_from_specs(
     base_knobs: Dict[str, Any],
     dim_specs: Dict[str, DimensionSpec],
     params: Dict[str, float],
-    backtest_spec: BacktestSpec,
+    backtest_config: BacktestConfig,
 ) -> Dict[str, Any]:
     knobs = dict(base_knobs)
     for name, value in params.items():
@@ -96,21 +205,21 @@ def _compose_knobs_from_specs(
         else:
             knobs[name] = float(value)
 
-    return backtest_spec.normalize_knobs(knobs)
+    return _normalize_knobs(knobs)
 
 
 def _install_process_worker_state(
     *,
     backtester: Any,
-    backtest_spec: BacktestSpec,
+    backtest_config: BacktestConfig,
     dim_specs: Dict[str, DimensionSpec],
     base_knobs: Dict[str, Any],
     context: RunContext,
     eval_kwargs: Dict[str, Any],
 ) -> None:
-    global _WORKER_BACKTESTER, _WORKER_BACKTEST_SPEC, _WORKER_DIM_SPECS, _WORKER_BASE_KNOBS, _WORKER_CONTEXT, _WORKER_EVAL_KWARGS
+    global _WORKER_BACKTESTER, _WORKER_BACKTEST_CONFIG, _WORKER_DIM_SPECS, _WORKER_BASE_KNOBS, _WORKER_CONTEXT, _WORKER_EVAL_KWARGS
     _WORKER_BACKTESTER = backtester
-    _WORKER_BACKTEST_SPEC = backtest_spec
+    _WORKER_BACKTEST_CONFIG = backtest_config
     _WORKER_DIM_SPECS = dim_specs
     _WORKER_BASE_KNOBS = base_knobs
     _WORKER_CONTEXT = context
@@ -118,14 +227,14 @@ def _install_process_worker_state(
 
 
 def _process_worker_initializer() -> None:
-    if _WORKER_BACKTESTER is None or _WORKER_BACKTEST_SPEC is None or _WORKER_CONTEXT is None:
+    if _WORKER_BACKTESTER is None or _WORKER_BACKTEST_CONFIG is None or _WORKER_CONTEXT is None:
         raise RuntimeError("Multiprocessing worker state not initialized before fork.")
 
 
 def _process_worker_backtest(params: Dict[str, float]) -> Tuple[bool, Dict[str, float]]:
-    if _WORKER_BACKTESTER is None or _WORKER_BACKTEST_SPEC is None or _WORKER_CONTEXT is None:
+    if _WORKER_BACKTESTER is None or _WORKER_BACKTEST_CONFIG is None or _WORKER_CONTEXT is None:
         raise RuntimeError("Multiprocessing worker state is unavailable.")
-    knobs = _compose_knobs_from_specs(_WORKER_BASE_KNOBS, _WORKER_DIM_SPECS, params, _WORKER_BACKTEST_SPEC)
+    knobs = _compose_knobs_from_specs(_WORKER_BASE_KNOBS, _WORKER_DIM_SPECS, params, _WORKER_BACKTEST_CONFIG)
     evaluation = _WORKER_BACKTESTER.evaluate(
         knobs_input=knobs,
         symbol=_WORKER_CONTEXT.symbol,
@@ -144,8 +253,8 @@ class Orchestrator:
         self.args = args
         self.workers = self._resolve_workers(args.workers)
 
-        self.backtest_spec = get_backtest_spec(args.backtest)
-        self.backtester = self.backtest_spec.backtester_cls.from_parquet(args.features_parquet)
+        self.backtest_config = _resolve_backtest_config(args.window_config_yaml)
+        self.backtester = self.backtest_config.backtester_cls.from_parquet(args.features_parquet)
         self.dim_specs = self._resolve_dimensions(args.window_config_yaml, self.backtester.df)
         self.search_space = {
             name: ParamSpec(low=spec.low, high=spec.high, is_int=spec.is_int)
@@ -167,7 +276,7 @@ class Orchestrator:
         }
         _install_process_worker_state(
             backtester=self.backtester,
-            backtest_spec=self.backtest_spec,
+            backtest_config=self.backtest_config,
             dim_specs=self.dim_specs,
             base_knobs=self.base_knobs,
             context=self.context,
@@ -197,20 +306,8 @@ class Orchestrator:
             return requested_workers
         return max(1, cpu + requested_workers)
 
-    @staticmethod
-    def _load_yaml_config(path: Optional[str]) -> Dict[str, Any]:
-        if not path:
-            return {}
-        p = Path(path)
-        if not p.exists():
-            return {}
-        loaded = yaml.safe_load(p.read_text()) or {}
-        if not isinstance(loaded, dict):
-            return {}
-        return loaded
-
     def _canonical_dim_name(self, name: str) -> str:
-        return self.backtest_spec.dimension_aliases.get(name, name)
+        return self.backtest_config.dimension_aliases.get(name, name)
 
     @staticmethod
     def _derive_bounds_from_feature(df: pd.DataFrame, feature_name: str) -> Optional[Tuple[float, float]]:
@@ -236,28 +333,19 @@ class Orchestrator:
         return "float"
 
     def _resolve_dimensions(self, config_path: Optional[str], features_df: pd.DataFrame) -> Dict[str, DimensionSpec]:
-        config = self._load_yaml_config(config_path)
+        config = _load_yaml_config(config_path)
         optimization_cfg = config.get("optimization", {}) if isinstance(config, dict) else {}
         dimensions_cfg = optimization_cfg.get("dimensions", {})
         dims_in = dimensions_cfg if isinstance(dimensions_cfg, dict) else {}
-        strategy = getattr(self.args, "strategy_config", None) or {}
-        strategy_optimization_cfg = strategy.get("optimization", {}) if isinstance(strategy, dict) else {}
-        strategy_dimensions_cfg = strategy_optimization_cfg.get("dimensions", {})
-        strategy_dims_in = strategy_dimensions_cfg if isinstance(strategy_dimensions_cfg, dict) else {}
 
         merged: Dict[str, Dict[str, Any]] = {}
-        for name, spec in self.backtest_spec.default_dimensions.items():
+        for name, spec in self.backtest_config.default_dimensions.items():
             merged[name] = dict(spec)
 
         for raw_name, raw_spec in dims_in.items():
             if not isinstance(raw_spec, dict):
                 continue
             merged[self._canonical_dim_name(str(raw_name))] = dict(raw_spec)
-        for raw_name, raw_spec in strategy_dims_in.items():
-            if not isinstance(raw_spec, dict):
-                continue
-            merged[self._canonical_dim_name(str(raw_name))] = dict(raw_spec)
-
         resolved: Dict[str, DimensionSpec] = {}
         for raw_name, spec in merged.items():
             name = self._canonical_dim_name(raw_name)
@@ -284,11 +372,7 @@ class Orchestrator:
         return resolved
 
     def _build_base_knobs(self, args: argparse.Namespace) -> Dict[str, Any]:
-        knobs = dict(self.backtest_spec.default_knobs)
-        strategy = getattr(args, "strategy_config", None) or {}
-        for key in knobs:
-            if key in strategy:
-                knobs[key] = strategy[key]
+        knobs = dict(self.backtest_config.default_knobs)
 
         cli_overrides = {
             "side": args.side,
@@ -309,15 +393,15 @@ class Orchestrator:
             if value is not None:
                 knobs[key] = value
 
-        return self.backtest_spec.normalize_knobs(knobs)
+        return _normalize_knobs(knobs)
 
     def _compose_knobs(self, params: Dict[str, float]) -> Dict[str, Any]:
-        return _compose_knobs_from_specs(self.base_knobs, self.dim_specs, params, self.backtest_spec)
+        return _compose_knobs_from_specs(self.base_knobs, self.dim_specs, params, self.backtest_config)
 
     def _cache_key(self, params: Dict[str, float]) -> str:
         payload: Dict[str, Any] = {
-            "backtest": self.backtest_spec.name,
-            "strategy": getattr(self.args, "strategy", None),
+            "backtest": self.backtest_config.name,
+            "backtest_class": self.backtest_config.class_path,
             "symbol": self.context.symbol,
             "side": self.context.side,
             "start_date": self.context.start_date,
@@ -360,6 +444,8 @@ class Orchestrator:
         cols = [
             "trial_id",
             "cache_key",
+            "backtest",
+            "backtest_class",
             "symbol",
             "side",
             "start_date",
@@ -524,6 +610,8 @@ class Orchestrator:
         row: Dict[str, Any] = {
             "trial_id": int(self.next_trial_id),
             "cache_key": cache_key,
+            "backtest": self.backtest_config.name,
+            "backtest_class": self.backtest_config.class_path,
             "symbol": self.context.symbol,
             "side": self.context.side,
             "start_date": self.context.start_date,
@@ -983,6 +1071,8 @@ class Orchestrator:
             )
 
         payload = {
+            "backtest": self.backtest_config.name,
+            "backtest_class": self.backtest_config.class_path,
             "symbol": self.context.symbol,
             "side": self.context.side,
             "start_date": self.context.start_date,
@@ -1005,7 +1095,8 @@ class Orchestrator:
 
     def run(self) -> None:
         print(
-            f"[run] symbol={self.context.symbol} side={self.context.side} sobol_samples={self.args.sobol_samples} "
+            f"[run] backtest={self.backtest_config.name} symbol={self.context.symbol} "
+            f"side={self.context.side} sobol_samples={self.args.sobol_samples} "
             f"workers={self.workers} parquet={self.parquet_path}",
             flush=True,
         )
@@ -1054,7 +1145,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument("--symbol", required=True)
-    parser.add_argument("--side", required=True, choices=["put", "call"])
+    parser.add_argument("--side", required=True)
     parser.add_argument("--start-date", default=None)
     parser.add_argument("--end-date", default=None)
 
@@ -1084,18 +1175,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-seconds", type=float, default=5.0)
     parser.add_argument("--final-top-n", type=int, default=100)
 
-    parser.add_argument("--roc-window-default", type=int, default=2)
-    parser.add_argument("--vol-window-default", type=int, default=2)
-    parser.add_argument("--roc-comparator", choices=["above", "below"], default="below")
-    parser.add_argument("--vol-comparator", choices=["above", "below"], default="above")
-    parser.add_argument("--roc-threshold-default", type=float, default=0.0)
-    parser.add_argument("--vol-threshold-default", type=float, default=0.0)
-    parser.add_argument("--roc-range-enabled", type=int, default=0)
-    parser.add_argument("--vol-range-enabled", type=int, default=0)
-    parser.add_argument("--roc-range-low", type=float, default=0.0)
-    parser.add_argument("--roc-range-high", type=float, default=0.0)
-    parser.add_argument("--vol-range-low", type=float, default=0.0)
-    parser.add_argument("--vol-range-high", type=float, default=0.0)
+    parser.add_argument("--roc-window-default", type=int, default=None)
+    parser.add_argument("--vol-window-default", type=int, default=None)
+    parser.add_argument("--roc-comparator", choices=["above", "below"], default=None)
+    parser.add_argument("--vol-comparator", choices=["above", "below"], default=None)
+    parser.add_argument("--roc-threshold-default", type=float, default=None)
+    parser.add_argument("--vol-threshold-default", type=float, default=None)
+    parser.add_argument("--roc-range-enabled", type=int, default=None)
+    parser.add_argument("--vol-range-enabled", type=int, default=None)
+    parser.add_argument("--roc-range-low", type=float, default=None)
+    parser.add_argument("--roc-range-high", type=float, default=None)
+    parser.add_argument("--vol-range-low", type=float, default=None)
+    parser.add_argument("--vol-range-high", type=float, default=None)
 
     parser.add_argument("--risk-free-rate", type=float, default=0.04)
     parser.add_argument("--min-pricing-vol", type=float, default=0.10)
