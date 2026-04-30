@@ -1,39 +1,74 @@
-backtest:
-  name: weekly_single_leg
-  class: backtest_option_strategy_sobol_gradient.PrecomputedFeatureBacktester
-  dimensions:
-    roc_window_size:
-      min: 2
-      max: 60
-      type: int
-    vol_window_size:
-      min: 2
-      max: 40
-      type: int
-    roc_threshold:
-      min: -0.40
-      max: 0.40
-      type: float
-    vol_threshold:
-      min: 0.00
-      max: 1.00
-      type: float
-  knob_defaults:
-    roc_window_size: 2
-    roc_comparator: below
-    roc_threshold: 0.0
-    roc_range_enabled: 0
-    roc_range_low: 0.0
-    roc_range_high: 0.0
-    vol_window_size: 2
-    vol_comparator: above
-    vol_threshold: 0.0
-    vol_range_enabled: 0
-    vol_range_low: 0.0
-    vol_range_high: 0.0
-  dimension_aliases:
-    roc_window: roc_window_size
-    vol_window: vol_window_size
+backtests:
+  weekly_single_leg:
+    class: backtest_option_strategy_sobol_gradient.PrecomputedFeatureBacktester
+    dimensions:
+      roc_window_size:
+        min: 2
+        max: 60
+        type: int
+      vol_window_size:
+        min: 2
+        max: 40
+        type: int
+      roc_threshold:
+        min: -0.40
+        max: 0.40
+        type: float
+      vol_threshold:
+        min: 0.00
+        max: 1.00
+        type: float
+    knob_defaults:
+      roc_window_size: 2
+      roc_comparator: below
+      roc_threshold: 0.0
+      roc_range_enabled: 0
+      roc_range_low: 0.0
+      roc_range_high: 0.0
+      vol_window_size: 2
+      vol_comparator: above
+      vol_threshold: 0.0
+      vol_range_enabled: 0
+      vol_range_low: 0.0
+      vol_range_high: 0.0
+    dimension_aliases:
+      roc_window: roc_window_size
+      vol_window: vol_window_size
+  weekly_single_leg_weekend:
+    class: backtest_option_strategy_sobol_gradient.PrecomputedFeatureWeekendBacktester
+    dimensions:
+      roc_window_size:
+        min: 2
+        max: 60
+        type: int
+      vol_window_size:
+        min: 2
+        max: 40
+        type: int
+      roc_threshold:
+        min: -0.40
+        max: 0.40
+        type: float
+      vol_threshold:
+        min: 0.00
+        max: 1.00
+        type: float
+    knob_defaults:
+      roc_window_size: 2
+      roc_comparator: below
+      roc_threshold: 0.0
+      roc_range_enabled: 0
+      roc_range_low: 0.0
+      roc_range_high: 0.0
+      vol_window_size: 2
+      vol_comparator: above
+      vol_threshold: 0.0
+      vol_range_enabled: 0
+      vol_range_low: 0.0
+      vol_range_high: 0.0
+    dimension_aliases:
+      roc_window: roc_window_size
+      vol_window: vol_window_size
 
 window_ranges:
   roc_window:

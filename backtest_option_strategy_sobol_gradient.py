@@ -154,6 +154,9 @@ def _coerce_knobs(raw: Dict[str, object]) -> StrategyKnobs:
 
 
 class PrecomputedFeatureBacktester:
+    friday_entry_only = False
+    hold_days_to_expiry = False
+
     def __init__(self, features_df: pd.DataFrame, feature_data_version: str = "unknown") -> None:
         if "symbol" not in features_df.columns or "date" not in features_df.columns:
             raise ValueError("Expected precomputed features to include 'symbol' and 'date'.")
@@ -283,6 +286,7 @@ class PrecomputedFeatureBacktester:
         pricer = BlackScholesPricer(risk_free_rate=risk_free_rate, min_sigma=min_pricing_vol_annualized)
 
         dates = sdf["date"]
+        all_dates = dates.to_numpy()
         weekday = dates.dt.weekday.to_numpy(dtype=int, copy=False)
         days_to_friday = 4 - weekday
         week_key = dates.dt.isocalendar()["year"].astype(int) * 100 + dates.dt.isocalendar()["week"].astype(int)
@@ -294,7 +298,17 @@ class PrecomputedFeatureBacktester:
         trend_vol = pd.to_numeric(sdf[vol_col], errors="coerce").to_numpy(dtype=float, copy=False)
         pricing_vol_raw = pd.to_numeric(sdf[pricing_vol_col], errors="coerce").to_numpy(dtype=float, copy=False)
 
-        base_mask = (~np.isnan(roc)) & (~np.isnan(trend_vol)) & (~np.isnan(pricing_vol_raw)) & (days_to_friday > 0)
+        base_mask = (~np.isnan(roc)) & (~np.isnan(trend_vol)) & (~np.isnan(pricing_vol_raw))
+        if self.friday_entry_only:
+            base_mask = base_mask & (weekday == 4)
+            friday_index_by_date = {
+                pd.Timestamp(date).normalize(): int(i)
+                for i, date in enumerate(all_dates)
+                if int(weekday[i]) == 4
+            }
+        else:
+            base_mask = base_mask & (days_to_friday > 0)
+            friday_index_by_date = {}
         roc_trigger = _apply_rule(
             values=roc,
             comparator=knobs.roc_comparator,
@@ -314,22 +328,26 @@ class PrecomputedFeatureBacktester:
         trigger_mask = base_mask & roc_trigger & vol_trigger
 
         close = pd.to_numeric(sdf["close"], errors="coerce").to_numpy(dtype=float, copy=False)
-        all_dates = dates.to_numpy()
         next_entry_idx = 0
         trades = []
         for i in np.flatnonzero(trigger_mask):
             if i < next_entry_idx:
                 continue
-            exit_idx = int(week_last_idx[i])
-            if exit_idx >= len(sdf) or exit_idx <= i:
-                continue
-            d2f = int(days_to_friday[i])
             entry_close = float(close[i])
             entry_date = pd.Timestamp(all_dates[i])
+            if self.hold_days_to_expiry:
+                d2f = 7
+                scheduled_expiry_date = (entry_date + pd.Timedelta(days=d2f)).normalize()
+                exit_idx = friday_index_by_date.get(scheduled_expiry_date)
+            else:
+                exit_idx = int(week_last_idx[i])
+                d2f = int(days_to_friday[i])
+                scheduled_expiry_date = (entry_date + pd.Timedelta(days=d2f)).normalize()
+            if exit_idx is None or exit_idx >= len(sdf) or exit_idx <= i:
+                continue
             strike = entry_close
             time_to_expiry_days = d2f
             time_to_expiry_years = float(time_to_expiry_days) / 365.25
-            scheduled_expiry_date = (entry_date + pd.Timedelta(days=d2f)).normalize()
 
             raw_sigma = float(pricing_vol_raw[i])
             used_sigma = pricer.effective_sigma(raw_sigma)
@@ -366,7 +384,7 @@ class PrecomputedFeatureBacktester:
                     "pricing_vol": float(used_sigma),
                 }
             )
-            next_entry_idx = exit_idx + 1
+            next_entry_idx = int(exit_idx) if self.hold_days_to_expiry else int(exit_idx) + 1
 
         trades_df = _ensure_trade_columns(pd.DataFrame(trades))
         metrics = summarize_trades(trades_df)
@@ -378,6 +396,11 @@ class PrecomputedFeatureBacktester:
             trades_df=trades_df,
             resolved_knobs=asdict(knobs),
         )
+
+
+class PrecomputedFeatureWeekendBacktester(PrecomputedFeatureBacktester):
+    friday_entry_only = True
+    hold_days_to_expiry = True
 
 
 def parse_args() -> argparse.Namespace:

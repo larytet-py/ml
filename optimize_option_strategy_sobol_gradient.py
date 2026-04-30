@@ -141,9 +141,36 @@ def _normalize_knobs(knobs: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def _resolve_backtest_config(config_path: Optional[str]) -> BacktestConfig:
+def _iter_named_backtest_configs(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    raw_named = config.get("backtests", {}) if isinstance(config, dict) else {}
+    named: Dict[str, Dict[str, Any]] = {}
+    if isinstance(raw_named, dict):
+        for name, value in raw_named.items():
+            if isinstance(value, dict):
+                raw = dict(value)
+                raw.setdefault("name", str(name))
+                named[str(name)] = raw
+    elif isinstance(raw_named, list):
+        for value in raw_named:
+            if isinstance(value, dict):
+                raw = dict(value)
+                name = str(raw.get("name", "")).strip()
+                if name:
+                    named[name] = raw
+    return named
+
+
+def _resolve_backtest_config(config_path: Optional[str], selected_backtest: Optional[str] = None) -> BacktestConfig:
     config = _load_yaml_config(config_path)
-    raw = config.get("backtest", {}) if isinstance(config, dict) else {}
+    named = _iter_named_backtest_configs(config)
+    if selected_backtest:
+        selected_key = str(selected_backtest).strip()
+        raw = named.get(selected_key)
+        if raw is None:
+            available = ", ".join(sorted(named)) or DEFAULT_BACKTEST_NAME
+            raise ValueError(f"{config_path}: unknown backtest '{selected_key}'. Available: {available}")
+    else:
+        raw = config.get("backtest", {}) if isinstance(config, dict) else {}
     if raw is None:
         raw = {}
     if not isinstance(raw, dict):
@@ -253,7 +280,7 @@ class Orchestrator:
         self.args = args
         self.workers = self._resolve_workers(args.workers)
 
-        self.backtest_config = _resolve_backtest_config(args.window_config_yaml)
+        self.backtest_config = _resolve_backtest_config(args.window_config_yaml, args.backtest)
         self.backtester = self.backtest_config.backtester_cls.from_parquet(args.features_parquet)
         self.dim_specs = self._resolve_dimensions(args.window_config_yaml, self.backtester.df)
         self.search_space = {
@@ -1117,13 +1144,11 @@ def _clean_path_token(value: str, *, default: str) -> str:
     return cleaned or default
 
 
-def _resolve_backtest_name(config_path: Optional[str]) -> str:
+def _resolve_backtest_name(config_path: Optional[str], selected_backtest: Optional[str] = None) -> str:
     config = _load_yaml_config(config_path)
-    raw = config.get("backtest", {}) if isinstance(config, dict) else {}
-    if not isinstance(raw, dict):
-        return DEFAULT_BACKTEST_NAME
+    raw = _iter_named_backtest_configs(config).get(str(selected_backtest).strip(), {})
     name = str(raw.get("name", DEFAULT_BACKTEST_NAME)).strip()
-    return name or DEFAULT_BACKTEST_NAME
+    return name or (str(selected_backtest).strip() if selected_backtest else DEFAULT_BACKTEST_NAME)
 
 
 def _symbol_side_scoped_path(base_path: str, *, symbol: str, side: str, backtest: Optional[str] = None) -> str:
@@ -1146,6 +1171,11 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--features-parquet", default="data/features/option_strategy_features.parquet")
     parser.add_argument("--window-config-yaml", default="data/option_feature_windows.yml")
+    parser.add_argument(
+        "--backtest",
+        default=None,
+        help="Named backtest from window-config-yaml backtests. Defaults to the top-level backtest mapping.",
+    )
     parser.add_argument(
         "--trials-parquet",
         default=None,
@@ -1216,7 +1246,7 @@ def parse_args() -> argparse.Namespace:
     args.symbol = str(args.symbol).upper().strip()
     args.side = str(args.side).lower().strip()
 
-    backtest_name = _resolve_backtest_name(args.window_config_yaml)
+    backtest_name = _resolve_backtest_name(args.window_config_yaml, args.backtest)
 
     if args.trials_parquet is None:
         args.trials_parquet = _symbol_side_scoped_path(

@@ -3,6 +3,7 @@ import unittest
 import pandas as pd
 
 from backtest_option_strategy_sobol_gradient import PrecomputedFeatureBacktester
+from backtest_option_strategy_sobol_gradient import PrecomputedFeatureWeekendBacktester
 
 
 def _sample_feature_frame() -> pd.DataFrame:
@@ -158,6 +159,34 @@ class SobolGradientBacktestTests(unittest.TestCase):
             "pricing_vol",
         ]:
             self.assertIn(col, result.trades_df.columns)
+
+    def test_weekend_backtester_enters_friday_and_exits_next_friday(self):
+        backtester = PrecomputedFeatureWeekendBacktester(_sample_feature_frame())
+        result = backtester.evaluate(
+            knobs_input={
+                "side": "call",
+                "roc_window_size": 2,
+                "roc_comparator": "above",
+                "roc_threshold": 0.0,
+                "roc_range_enabled": 0,
+                "roc_range_low": 0.0,
+                "roc_range_high": 0.0,
+                "vol_window_size": 2,
+                "vol_comparator": "above",
+                "vol_threshold": 0.0,
+                "vol_range_enabled": 0,
+                "vol_range_low": 0.0,
+                "vol_range_high": 0.0,
+            },
+            symbol="SPY",
+        )
+
+        self.assertTrue(result.feasible)
+        self.assertEqual(len(result.trades_df), 1)
+        trade = result.trades_df.iloc[0]
+        self.assertEqual(trade["entry_date"].date().isoformat(), "2026-01-09")
+        self.assertEqual(trade["exit_date"].date().isoformat(), "2026-01-16")
+        self.assertEqual(int(trade["time_to_expiry_days"]), 7)
 
     def test_sample_fixture_matches_golden_output(self):
         backtester = PrecomputedFeatureBacktester(_sample_feature_frame())
