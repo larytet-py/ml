@@ -81,6 +81,7 @@ class Phase2CandidateStats:
     seeds_completed: int = 0
     candidate_target: int = 0
     candidates_generated: int = 0
+    candidates_reused: int = 0
     cache_or_duplicate_skips: int = 0
     candidate_shortfall: int = 0
     draws_attempted: int = 0
@@ -627,8 +628,11 @@ class Orchestrator:
     def _sorted_seed_rows(self) -> List[Dict[str, Any]]:
         if self.df.empty:
             return []
+        allowed_phases = self._allowed_seed_phases()
         eligible: List[Dict[str, Any]] = []
         for row in self.df.to_dict(orient="records"):
+            if allowed_phases is not None and str(row.get("phase", "")) not in allowed_phases:
+                continue
             total = float(row.get("metric__total", 0.0))
             itm = float(row.get("metric__itm_expiries", 0.0))
             total_pnl = float(row.get("metric__total_pnl", 0.0))
@@ -643,6 +647,12 @@ class Orchestrator:
             return []
         take = max(1, int(math.ceil(len(eligible) * float(self.args.seed_top_ratio))))
         return eligible[:take]
+
+    def _allowed_seed_phases(self) -> Optional[set[str]]:
+        raw = str(self.args.seed_phases).strip().lower()
+        if raw in {"", "all", "*"}:
+            return None
+        return {part.strip() for part in raw.split(",") if part.strip()}
 
     def _iter_phase2_local_candidates(
         self,
@@ -686,10 +696,14 @@ class Orchestrator:
                     shifted = np.clip(center + ((point * 2.0) - 1.0) * radius, 0.0, 1.0)
                     params = self._denormalize_params(shifted)
                     key = self._cache_key(params)
-                    if key in self.key_to_trial_id or key in generated_keys_for_seed:
+                    if key in generated_keys_for_seed:
                         stats.cache_or_duplicate_skips += 1
                         continue
                     generated_keys_for_seed.add(key)
+                    if key in self.key_to_trial_id:
+                        generated_for_seed += 1
+                        stats.candidates_reused += 1
+                        continue
                     generated_for_seed += 1
                     stats.candidates_generated += 1
                     yield CandidateRun(
@@ -710,6 +724,7 @@ class Orchestrator:
             return []
         print(
             f"[phase2] eligible_seeds={len(seed_rows)} top_ratio={self.args.seed_top_ratio:.3f} "
+            f"seed_phases={self.args.seed_phases} "
             f"min_seed_trades>{self.args.min_seed_trades} max_seed_itm<{self.args.max_seed_itm}",
             flush=True,
         )
@@ -725,6 +740,7 @@ class Orchestrator:
         submitted, cache_hits = self._submit_candidates(candidates, phase_label="phase2")
         print(
             f"[phase2] local_candidates={stats.candidates_generated} "
+            f"reused_candidates={stats.candidates_reused} "
             f"target_new_candidates={stats.candidate_target} "
             f"seeds_scanned={stats.seeds_seen} "
             f"seeds_completed={stats.seeds_completed} "
@@ -943,6 +959,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-seed-trades", type=float, default=3.0)
     parser.add_argument("--max-seed-itm", type=float, default=2.0)
     parser.add_argument("--seed-top-ratio", type=float, default=0.30)
+    parser.add_argument(
+        "--seed-phases",
+        default="phase1",
+        help=(
+            "Comma-separated trial phases eligible to seed phase 2. Use 'all' to allow prior phase2/gradient "
+            "rows to become new local-search seeds."
+        ),
+    )
     parser.add_argument("--local-probe-per-seed", type=int, default=100)
     parser.add_argument("--local-radius", type=float, default=0.08)
 
