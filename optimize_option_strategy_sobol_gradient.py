@@ -18,7 +18,6 @@ import yaml
 
 from backtest_option_strategy_sobol_gradient import PrecomputedFeatureBacktester
 from optimization.constrained_bo import ParamSpec
-from optimization.gradient_descent import FiniteDifferenceGradientDescent
 from optimization.sobol_sampling import SobolSampler
 
 METRIC_KEYS: Tuple[str, ...] = (
@@ -81,6 +80,7 @@ class Phase2CandidateStats:
     seeds_completed: int = 0
     candidate_target: int = 0
     candidates_generated: int = 0
+    candidates_reused: int = 0
     cache_or_duplicate_skips: int = 0
     candidate_shortfall: int = 0
     draws_attempted: int = 0
@@ -193,6 +193,8 @@ class Orchestrator:
         self.pending_rows: List[Dict[str, Any]] = []
         self.last_progress_at = 0.0
         self.last_checkpoint_at = time.monotonic()
+        self.gradient_submitted = 0
+        self.gradient_cache_hits = 0
 
         self.best_row: Optional[Dict[str, Any]] = self._compute_best_from_df(self.df)
 
@@ -398,6 +400,9 @@ class Orchestrator:
         self.df = pd.DataFrame(records)
 
     def _find_row_by_trial_id(self, trial_id: int) -> Optional[Dict[str, Any]]:
+        for row in reversed(self.pending_rows):
+            if int(row.get("trial_id", -1)) == int(trial_id):
+                return dict(row)
         if self.df.empty:
             return None
         subset = self.df[pd.to_numeric(self.df["trial_id"], errors="coerce") == int(trial_id)]
@@ -627,8 +632,11 @@ class Orchestrator:
     def _sorted_seed_rows(self) -> List[Dict[str, Any]]:
         if self.df.empty:
             return []
+        allowed_phases = self._allowed_seed_phases()
         eligible: List[Dict[str, Any]] = []
         for row in self.df.to_dict(orient="records"):
+            if allowed_phases is not None and str(row.get("phase", "")) not in allowed_phases:
+                continue
             total = float(row.get("metric__total", 0.0))
             itm = float(row.get("metric__itm_expiries", 0.0))
             total_pnl = float(row.get("metric__total_pnl", 0.0))
@@ -643,6 +651,12 @@ class Orchestrator:
             return []
         take = max(1, int(math.ceil(len(eligible) * float(self.args.seed_top_ratio))))
         return eligible[:take]
+
+    def _allowed_seed_phases(self) -> Optional[set[str]]:
+        raw = str(self.args.seed_phases).strip().lower()
+        if raw in {"", "all", "*"}:
+            return None
+        return {part.strip() for part in raw.split(",") if part.strip()}
 
     def _iter_phase2_local_candidates(
         self,
@@ -686,10 +700,14 @@ class Orchestrator:
                     shifted = np.clip(center + ((point * 2.0) - 1.0) * radius, 0.0, 1.0)
                     params = self._denormalize_params(shifted)
                     key = self._cache_key(params)
-                    if key in self.key_to_trial_id or key in generated_keys_for_seed:
+                    if key in generated_keys_for_seed:
                         stats.cache_or_duplicate_skips += 1
                         continue
                     generated_keys_for_seed.add(key)
+                    if key in self.key_to_trial_id:
+                        generated_for_seed += 1
+                        stats.candidates_reused += 1
+                        continue
                     generated_for_seed += 1
                     stats.candidates_generated += 1
                     yield CandidateRun(
@@ -710,6 +728,7 @@ class Orchestrator:
             return []
         print(
             f"[phase2] eligible_seeds={len(seed_rows)} top_ratio={self.args.seed_top_ratio:.3f} "
+            f"seed_phases={self.args.seed_phases} "
             f"min_seed_trades>{self.args.min_seed_trades} max_seed_itm<{self.args.max_seed_itm}",
             flush=True,
         )
@@ -725,6 +744,7 @@ class Orchestrator:
         submitted, cache_hits = self._submit_candidates(candidates, phase_label="phase2")
         print(
             f"[phase2] local_candidates={stats.candidates_generated} "
+            f"reused_candidates={stats.candidates_reused} "
             f"target_new_candidates={stats.candidate_target} "
             f"seeds_scanned={stats.seeds_seen} "
             f"seeds_completed={stats.seeds_completed} "
@@ -770,6 +790,72 @@ class Orchestrator:
         self._log_progress(prefix="gradient")
         return row
 
+    def _evaluate_gradient_batch_cached(
+        self,
+        *,
+        requests: Sequence[Tuple[Dict[str, float], int, int]],
+        executor: ProcessPoolExecutor,
+    ) -> List[Dict[str, Any]]:
+        rows_by_key: Dict[str, Dict[str, Any]] = {}
+        futures: Dict[Future[Any], Tuple[Dict[str, float], int, int, str]] = {}
+        in_flight_keys: set[str] = set()
+        ordered_keys: List[str] = []
+
+        for params_in, parent_trial_id, seed_rank in requests:
+            params = dict(params_in)
+            key = self._cache_key(params)
+            ordered_keys.append(key)
+            if key in rows_by_key:
+                self.gradient_cache_hits += 1
+                continue
+            if key in in_flight_keys:
+                self.gradient_cache_hits += 1
+                continue
+            trial_id = self.key_to_trial_id.get(key)
+            if trial_id is not None:
+                row = self._find_row_by_trial_id(trial_id)
+                if row is not None:
+                    rows_by_key[key] = row
+                    self.gradient_cache_hits += 1
+                    continue
+            future = executor.submit(_process_worker_backtest, params)
+            futures[future] = (params, parent_trial_id, seed_rank, key)
+            in_flight_keys.add(key)
+            self.gradient_submitted += 1
+
+        while futures:
+            done, _ = wait(list(futures.keys()), timeout=0.2, return_when=FIRST_COMPLETED)
+            if not done:
+                self._maybe_checkpoint(force=False)
+                self._log_progress(prefix="gradient")
+                continue
+            for future in done:
+                params, parent_trial_id, seed_rank, key = futures.pop(future)
+                in_flight_keys.discard(key)
+                feasible, metrics = future.result()
+                row = self._row_from_worker_result(
+                    params=params,
+                    phase="gradient",
+                    parent_trial_id=parent_trial_id,
+                    seed_rank=seed_rank,
+                    feasible=feasible,
+                    metrics=metrics,
+                    objective_score=float(self._objective_from_metrics(metrics)),
+                )
+                self.pending_rows.append(row)
+                self._update_best(row)
+                rows_by_key[key] = row
+            self._maybe_checkpoint(force=False)
+            self._log_progress(prefix="gradient")
+
+        self._maybe_checkpoint(force=False)
+        self._log_progress(prefix="gradient")
+        return [rows_by_key[key] for key in ordered_keys]
+
+    def _row_objective(self, row: Dict[str, Any]) -> float:
+        metrics = {k: float(row.get(f"metric__{k}", 0.0)) for k in METRIC_KEYS}
+        return self._objective_from_metrics(metrics)
+
     def _run_gradient(self, seed_rows: List[Dict[str, Any]]) -> None:
         if int(self.args.gradient_steps) <= 0 or not seed_rows:
             print("[gradient] skipped", flush=True)
@@ -781,35 +867,62 @@ class Orchestrator:
             flush=True,
         )
 
-        for seed_idx, seed_row in enumerate(seed_rows, start=1):
-            seed_tid = int(seed_row["trial_id"])
-            start_params = self._row_params(seed_row)
+        steps = int(self.args.gradient_steps)
+        step_size = float(self.args.gradient_step_size)
+        learning_rate = float(self.args.gradient_learning_rate)
+        dim = len(self.dim_specs)
+        self.gradient_submitted = 0
+        self.gradient_cache_hits = 0
 
-            def objective_fn(params: Dict[str, float]) -> float:
-                row = self._evaluate_sync_cached(
-                    params=params,
-                    phase="gradient",
-                    parent_trial_id=seed_tid,
-                    seed_rank=seed_idx,
-                )
-                metrics = {
-                    k: float(row.get(f"metric__{k}", 0.0))
-                    for k in METRIC_KEYS
-                }
-                return self._objective_from_metrics(metrics)
+        with ProcessPoolExecutor(
+            max_workers=self.workers,
+            mp_context=mp.get_context("fork"),
+            initializer=_process_worker_initializer,
+        ) as executor:
+            for seed_idx, seed_row in enumerate(seed_rows, start=1):
+                seed_tid = int(seed_row["trial_id"])
+                x = self._normalize_params(self._row_params(seed_row))
 
-            gd = FiniteDifferenceGradientDescent(
-                search_space=self.search_space,
-                objective_fn=objective_fn,
-                gradient_step_size=float(self.args.gradient_step_size),
-                learning_rate=float(self.args.gradient_learning_rate),
-                seed=int(self.args.seed) + seed_idx,
-            )
-            gd.run(start_params=start_params, steps=int(self.args.gradient_steps))
+                for step_index in range(steps + 1):
+                    requests: List[Tuple[Dict[str, float], int, int]] = [
+                        (self._denormalize_params(x), seed_tid, seed_idx)
+                    ]
+                    probe_pairs: List[Tuple[int, int, int]] = []
+
+                    if step_index < steps:
+                        for dim_index in range(dim):
+                            offset = np.zeros(dim, dtype=float)
+                            offset[dim_index] = step_size
+                            plus_idx = len(requests)
+                            requests.append((self._denormalize_params(np.clip(x + offset, 0.0, 1.0)), seed_tid, seed_idx))
+                            minus_idx = len(requests)
+                            requests.append((self._denormalize_params(np.clip(x - offset, 0.0, 1.0)), seed_tid, seed_idx))
+                            probe_pairs.append((dim_index, plus_idx, minus_idx))
+
+                    rows = self._evaluate_gradient_batch_cached(requests=requests, executor=executor)
+
+                    if step_index == steps:
+                        break
+
+                    gradient = np.zeros(dim, dtype=float)
+                    denominator = max(2.0 * step_size, 1e-12)
+                    for dim_index, plus_idx, minus_idx in probe_pairs:
+                        y_plus = self._row_objective(rows[plus_idx])
+                        y_minus = self._row_objective(rows[minus_idx])
+                        gradient[dim_index] = (y_plus - y_minus) / denominator
+
+                    gradient_norm = float(np.linalg.norm(gradient))
+                    if gradient_norm <= 0:
+                        break
+
+                    x = np.clip(x + learning_rate * (gradient / gradient_norm), 0.0, 1.0)
 
         self._maybe_checkpoint(force=True)
         self._log_progress(force=True, prefix="gradient")
-        print("[gradient] complete", flush=True)
+        print(
+            f"[gradient] complete submitted={self.gradient_submitted} cache_hits={self.gradient_cache_hits}",
+            flush=True,
+        )
 
     def _rows_in_seed_areas(self, seed_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if self.df.empty or not seed_rows:
@@ -943,6 +1056,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-seed-trades", type=float, default=3.0)
     parser.add_argument("--max-seed-itm", type=float, default=2.0)
     parser.add_argument("--seed-top-ratio", type=float, default=0.30)
+    parser.add_argument(
+        "--seed-phases",
+        default="phase1",
+        help=(
+            "Comma-separated trial phases eligible to seed phase 2. Use 'all' to allow prior phase2/gradient "
+            "rows to become new local-search seeds."
+        ),
+    )
     parser.add_argument("--local-probe-per-seed", type=int, default=100)
     parser.add_argument("--local-radius", type=float, default=0.08)
 
